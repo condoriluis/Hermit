@@ -1,0 +1,15 @@
+// La nube de Hermit (ver src/index.ts), en la cuenta de Cloudflare de Hermit. Se despliega con
+// `npm run nube -- deploy` desde la raíz (wrangler con la sesión de esa cuenta, ver scripts/nube.mjs); el secreto que
+// comparte con Hermit va con `npm run nube -- secret put SECRETO` y, del lado de Hermit, en HERMIT_NUBE_SECRETO.
+{
+  "name": "hermit-redes",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  // Cada minuto: así cada Reel sale en el minuto de su hora.
+  "triggers": { "crons": ["* * * * *"] },
+  "r2_buckets": [{ "binding": "VIDEOS", "bucket_name": "hermit-redes" }],
+  // Su dirección es la de workers.dev (gratis, sin dominio propio). Con dominio propio se añadiría una ruta "custom_domain".
+  "vars": { "ORIGEN": "https://hermit-redes.myhermit.workers.dev" }
+}

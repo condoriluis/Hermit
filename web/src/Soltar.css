@@ -1,0 +1,5 @@
+/* Algo de fuera se arrastra sobre el inicio (Soltar.tsx): soltarlo en cualquier parte lo añade al mensaje. No atrapa el
+   ratón: lo que cae sobre el compositor lo atiende él. */
+.soltar-aviso { position: absolute; inset: 12px; z-index: 5; display: grid; place-items: center; border: 2px dashed var(--accent); border-radius: 16px; background: var(--accent-soft); pointer-events: none; animation: soltar-entra 0.15s ease-out; }
+.soltar-aviso span { padding: 10px 18px; border-radius: 999px; border: 1px solid var(--accent); background: var(--panel-2); color: var(--accent-hover); font-weight: 650; box-shadow: 0 12px 32px var(--shadow); }
+@keyframes soltar-entra { from { opacity: 0; } }

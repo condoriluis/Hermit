@@ -1,0 +1,47 @@
+/* La única fuente de color de Hermit: grafito azulado y azul acero. Los componentes usan el rol, no el color. */
+:root {
+  color-scheme: dark;
+
+  --bg: #0a0e14;
+  --panel: #111722;
+  --panel-2: #18212f;
+
+  --line: #263244;
+  --line-fuerte: #3a4a63;
+
+  --text: #e6edf7;
+  --text-2: #c5d0df;
+  --muted: #94a3b8;
+  --placeholder: #64748b;
+
+  --accent: #4f8cff;
+  --accent-hover: #6ea8fe;
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --accent-border: color-mix(in srgb, var(--accent) 45%, transparent);
+  --on-solid: #07101f;
+
+  --warn: #fbbf24;
+  --warn-soft: color-mix(in srgb, var(--warn) 13%, transparent);
+  --warn-border: color-mix(in srgb, var(--warn) 45%, transparent);
+
+  --ok: #4ade80;
+  --ok-soft: color-mix(in srgb, var(--ok) 13%, transparent);
+  --ok-border: color-mix(in srgb, var(--ok) 35%, transparent);
+
+  --bad: #f87171;
+  --bad-soft: color-mix(in srgb, var(--bad) 13%, transparent);
+  --bad-border: color-mix(in srgb, var(--bad) 45%, transparent);
+
+  --scrim: rgba(5, 9, 16, 0.78);
+  --scrim-control: rgba(5, 9, 16, 0.82);
+  --scrim-fuerte: rgba(5, 9, 16, 0.92);
+  --scrim-suave: rgba(5, 9, 16, 0.35);
+
+  --shadow: rgba(0, 0, 0, 0.5);
+  --shadow-fuerte: rgba(0, 0, 0, 0.6);
+
+  --media-bg: #000;
+
+  --radio: 10px;
+  --mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+}

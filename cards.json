@@ -1,0 +1,640 @@
+[
+  {
+    "id": "video-el-diff",
+    "title": "El Diff",
+    "description": "Tu noticiero para TikTok o YouTube, con tu nombre, tu sello y tu despedida: le das un enlace o un tema, te escribe el guion, grabas tu voz y arma el episodio, o un short.",
+    "skill": "video-el-diff",
+    "icon": "noticiero",
+    "etapas": [
+      {
+        "nombre": "Fuentes",
+        "listo": "fuentes/tema/transcripcion.txt",
+        "muestra": "fuentes/tema/video.mp4",
+        "fase": "idea"
+      },
+      {
+        "nombre": "Material",
+        "listo": "material.md",
+        "muestra": "{material.md,fuentes/material/**/*.{png,jpg,jpeg,webp}}",
+        "fase": "idea"
+      },
+      {
+        "nombre": "Guion",
+        "listo": "guion.md",
+        "copiar": true,
+        "fase": "guion"
+      },
+      {
+        "nombre": "Tu voz",
+        "listo": "public/voz/narracion.wav",
+        "espera": "Graba el guion (con el celular basta) y súbelo aquí o mándalo por el chat.",
+        "fase": "sonido"
+      },
+      {
+        "nombre": "Escenas",
+        "listo": "guion.json",
+        "fase": "video"
+      },
+      {
+        "nombre": "Revisión",
+        "listo": "revision/hoja_95_*.png",
+        "fase": "video"
+      },
+      {
+        "nombre": "Video",
+        "listo": "out/el-diff-final.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Portada",
+        "listo": "portada.png",
+        "fase": "entrega"
+      }
+    ],
+    "editor": {
+      "guion": "guion.json",
+      "linea": "src/timeline.json",
+      "video": "out/el-diff-final.mp4",
+      "cuadros": "revision/{id}_95.jpg",
+      "vivo": "vivo/index.html",
+      "entradas": [
+        "guion.json",
+        "src/**",
+        "public/**"
+      ]
+    },
+    "modelos": {
+      "principal": {
+        "model": "claude-opus-5-5",
+        "effort": "high"
+      },
+      "tareas": [
+        {
+          "nombre": "captura",
+          "para": "Capturas de las páginas y tuits",
+          "model": "sonnet",
+          "effort": "medium",
+          "medido": "Pasada 3: lo mismo que high por un 40-45 % menos; low capturó el canal equivocado"
+        },
+        {
+          "nombre": "pantalla",
+          "para": "Mapa de lo que se ve en el video del tema",
+          "model": "sonnet",
+          "effort": "high",
+          "medido": "Pasada 3: el único que no se salta lo que dura poco ni lo que solo se lee con OCR"
+        },
+        {
+          "nombre": "revisión",
+          "para": "Revisión de las hojas de cada escena",
+          "model": "sonnet",
+          "effort": "high",
+          "medido": "Pasada 3: medium falló un defecto en una de tres corridas"
+        },
+        {
+          "nombre": "escenas",
+          "para": "Armar el video: escenas, revisión y render (fase 2)",
+          "model": "opus",
+          "effort": "medium",
+          "medido": "Sin medir en esta skill: elegido el 19 de octubre para bajar el tiempo (Opus 5.5 en medium rinde como Opus 5 en high, según Anthropic)"
+        }
+      ]
+    }
+  },
+  {
+    "id": "video-explicativo",
+    "title": "Video explicativo",
+    "description": "Un video que explica cualquier tema en el tiempo que necesite: un solo mundo 3D que la cámara recorre sin cortes, el texto palabra por palabra y tu personaje (el perro salchicha, uno tuyo o ninguno). Tú grabas la voz y el cierre lleva a donde quieras.",
+    "skill": "video-explicativo",
+    "icon": "pizarra",
+    "etapas": [
+      {
+        "nombre": "Investigación",
+        "listo": "fuentes/investigacion.md",
+        "fase": "idea"
+      },
+      {
+        "nombre": "Guion",
+        "listo": "guion.md",
+        "copiar": true,
+        "fase": "guion"
+      },
+      {
+        "nombre": "Tu voz",
+        "listo": "fuentes/voz/original.wav",
+        "espera": "Graba el guion (con el celular basta) y súbelo aquí o mándalo por el chat.",
+        "fase": "sonido"
+      },
+      {
+        "nombre": "Voz lista",
+        "listo": "fuentes/voz/rapida.wav",
+        "fase": "sonido"
+      },
+      {
+        "nombre": "Revisión",
+        "listo": "revision/borrador-*.png",
+        "fase": "video"
+      },
+      {
+        "nombre": "Video",
+        "listo": "out/!(render*|borrador*|_*).mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Portada",
+        "listo": "{portada.png,portada/*.png}",
+        "fase": "entrega"
+      }
+    ]
+  },
+  {
+    "id": "reel-collage",
+    "title": "Reel de comedia",
+    "description": "Un sketch de comedia sobre cualquier tema o tu propio guion: un experto muy serio enseña a resolver una situación con pasos físicos absurdos, con tus poses recortadas sobre fotos reales y la voz que elijas.",
+    "skill": "reel-collage",
+    "icon": "risa",
+    "voz": {
+      "propia": "Voz de edge-tts"
+    },
+    "lote": {
+      "prefijo": "reel-"
+    },
+    "etapas": [
+      {
+        "nombre": "Fuentes",
+        "listo": "fuentes/tema/transcripcion.txt",
+        "muestra": "fuentes/tema/video.mp4",
+        "fase": "idea"
+      },
+      {
+        "nombre": "Material",
+        "listo": "fuentes/material/*",
+        "muestra": "fuentes/material/**/*.{png,jpg,jpeg,webp}",
+        "fase": "idea"
+      },
+      {
+        "nombre": "Guion",
+        "listo": "guion.md",
+        "fase": "guion"
+      },
+      {
+        "nombre": "Voz",
+        "listo": "public/voz.wav",
+        "fase": "sonido"
+      },
+      {
+        "nombre": "Revisión",
+        "listo": "revision/hoja.png",
+        "fase": "video"
+      },
+      {
+        "nombre": "Video",
+        "listo": "out/reel-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Portada",
+        "listo": "{portada.png,portada/*.png}",
+        "fase": "entrega"
+      }
+    ]
+  },
+  {
+    "id": "video-documental",
+    "title": "Documental",
+    "description": "Tu grabación hablando a cámara, convertida en un documental para YouTube, TikTok o Reels: cada frase con material real encontrado en internet, recoloreado y animado a golpe de corte, tú recortado delante de un mundo que cambia y un clic en cada imagen.",
+    "skill": "video-documental",
+    "icon": "claqueta",
+    "voz": false,
+    "etapas": [
+      {
+        "nombre": "Tu grabación",
+        "listo": "public/assets/media/cam_raw.*",
+        "muestra": "public/assets/media/cam_raw.mp4",
+        "espera": "Grábate hablando a cámara, en el formato que elegiste (horizontal: el celular de lado; vertical: de pie), y súbelo aquí o mándalo por el chat.",
+        "fase": "sonido"
+      },
+      {
+        "nombre": "Transcripción",
+        "listo": "work/tx/words.json",
+        "muestra": "work/tx/transcript.txt",
+        "fase": "sonido"
+      },
+      {
+        "nombre": "Plan y fuentes",
+        "listo": "PLAN.md",
+        "fase": "guion"
+      },
+      {
+        "nombre": "Material",
+        "listo": "work/assets.json",
+        "muestra": "public/assets/{img,clips,captures}/**/*.{jpg,jpeg,png,webp,mp4}",
+        "fase": "guion"
+      },
+      {
+        "nombre": "Revisión",
+        "listo": "revision/hoja-*.png",
+        "fase": "video"
+      },
+      {
+        "nombre": "Video",
+        "listo": "out/final.mp4",
+        "fase": "video"
+      }
+    ]
+  },
+  {
+    "id": "frutinovela",
+    "title": "Frutinovela",
+    "description": "Una telenovela de frutas en 3D que hablan con sus propias voces: los mismos personajes en cada escena, drama de traición o familia y un final que pide la siguiente parte. Se hace en Google Flow con tus cuentas de Google.",
+    "skill": "frutinovela",
+    "icon": "fruta",
+    "voz": false,
+    "etapas": [
+      {
+        "nombre": "Guion",
+        "listo": "guion.md",
+        "fase": "guion"
+      },
+      {
+        "nombre": "Cuadros",
+        "listo": "cuadros/esc-*.jpg",
+        "fase": "video"
+      },
+      {
+        "nombre": "Clips",
+        "listo": "clips/esc-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Video",
+        "listo": "out/frutinovela-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Portada",
+        "listo": "{portada.png,portada/*.png}",
+        "fase": "entrega"
+      }
+    ]
+  },
+  {
+    "id": "animalnovela",
+    "title": "Animalnovela",
+    "description": "Una telenovela cómica donde conviven personas y animales 3D (gatos, leones, gallinas): hablan ellos mismos en cada escena con Google Flow, drama familiar absurdo y cliffhanger para la siguiente parte.",
+    "skill": "animalnovela",
+    "icon": "huella",
+    "voz": false,
+    "etapas": [
+      {
+        "nombre": "Guion",
+        "listo": "guion.md",
+        "fase": "guion"
+      },
+      {
+        "nombre": "Cuadros",
+        "listo": "cuadros/esc-*.jpg",
+        "fase": "video"
+      },
+      {
+        "nombre": "Clips",
+        "listo": "clips/esc-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Video",
+        "listo": "out/animalnovela-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Portada",
+        "listo": "{portada.png,portada/*.png}",
+        "fase": "entrega"
+      }
+    ]
+  },
+  {
+    "id": "video-reddit",
+    "title": "Historia de Reddit",
+    "description": "Una historia viral de Reddit o tuya, narrada con voz IA sobre fondo inmersivo (gameplay o paisaje), subtítulos dinámicos palabra por palabra y la tarjeta del post original al inicio.",
+    "skill": "video-reddit",
+    "icon": "reddit",
+    "voz": {
+      "propia": "Voz generada automáticamente"
+    },
+    "lote": {
+      "prefijo": "reddit-"
+    },
+    "etapas": [
+      {
+        "nombre": "Fuentes",
+        "listo": "fuentes/tema/post.json",
+        "fase": "idea"
+      },
+      {
+        "nombre": "Guion",
+        "listo": "guion.md",
+        "fase": "guion"
+      },
+      {
+        "nombre": "Voz",
+        "listo": "public/voz.wav",
+        "fase": "sonido"
+      },
+      {
+        "nombre": "Revisión",
+        "listo": "revision/hoja.png",
+        "fase": "video"
+      },
+      {
+        "nombre": "Video",
+        "listo": "out/reddit-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Portada",
+        "listo": "{portada.png,portada/*.png}",
+        "fase": "entrega"
+      }
+    ]
+  },
+  {
+    "id": "video-top",
+    "title": "Top curiosidades",
+    "description": "Un top de curiosidades, lugares o datos asombrosos: cuenta regresiva, cortes dinámicos con fotos y clips reales, música rítmica y tarjetas numeradas.",
+    "skill": "video-top",
+    "icon": "trofeo",
+    "voz": {
+      "propia": "Voz generada automáticamente"
+    },
+    "lote": {
+      "prefijo": "top-"
+    },
+    "etapas": [
+      {
+        "nombre": "Investigación",
+        "listo": "fuentes/investigacion.md",
+        "fase": "idea"
+      },
+      {
+        "nombre": "Guion",
+        "listo": "guion.md",
+        "fase": "guion"
+      },
+      {
+        "nombre": "Voz",
+        "listo": "public/voz.wav",
+        "fase": "sonido"
+      },
+      {
+        "nombre": "Material",
+        "listo": "fuentes/material/*",
+        "fase": "idea"
+      },
+      {
+        "nombre": "Revisión",
+        "listo": "revision/hoja.png",
+        "fase": "video"
+      },
+      {
+        "nombre": "Video",
+        "listo": "out/top-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Portada",
+        "listo": "{portada.png,portada/*.png}",
+        "fase": "entrega"
+      }
+    ]
+  },
+  {
+    "id": "video-motivacional",
+    "title": "Motivacional",
+    "description": "Reflexiones profundas y disciplina: voz grave y pausada, planos cinematográficos de archivo en cámara lenta, música emotiva creciente y tipografía sobria.",
+    "skill": "video-motivacional",
+    "icon": "fuego",
+    "voz": {
+      "propia": "Voz generada automáticamente"
+    },
+    "lote": {
+      "prefijo": "motivacional-"
+    },
+    "etapas": [
+      {
+        "nombre": "Tema",
+        "listo": "fuentes/tema.md",
+        "fase": "idea"
+      },
+      {
+        "nombre": "Guion",
+        "listo": "guion.md",
+        "fase": "guion"
+      },
+      {
+        "nombre": "Voz",
+        "listo": "public/voz.wav",
+        "fase": "sonido"
+      },
+      {
+        "nombre": "Material",
+        "listo": "fuentes/material/*",
+        "fase": "idea"
+      },
+      {
+        "nombre": "Revisión",
+        "listo": "revision/hoja.png",
+        "fase": "video"
+      },
+      {
+        "nombre": "Video",
+        "listo": "out/motivacional-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Portada",
+        "listo": "{portada.png,portada/*.png}",
+        "fase": "entrega"
+      }
+    ]
+  },
+  {
+    "id": "video-crimen",
+    "title": "Misterio y Crimen",
+    "description": "Casos reales, desapariciones y misterios sin resolver: narración envolvente, archivo policial o periodístico, efectos de cinta o expediente y ambiente de suspenso.",
+    "skill": "video-crimen",
+    "icon": "misterio",
+    "voz": {
+      "propia": "Voz generada automáticamente"
+    },
+    "lote": {
+      "prefijo": "crimen-"
+    },
+    "etapas": [
+      {
+        "nombre": "Investigación",
+        "listo": "fuentes/caso.md",
+        "fase": "idea"
+      },
+      {
+        "nombre": "Guion",
+        "listo": "guion.md",
+        "fase": "guion"
+      },
+      {
+        "nombre": "Voz",
+        "listo": "public/voz.wav",
+        "fase": "sonido"
+      },
+      {
+        "nombre": "Material",
+        "listo": "fuentes/evidencia/*",
+        "fase": "idea"
+      },
+      {
+        "nombre": "Revisión",
+        "listo": "revision/hoja.png",
+        "fase": "video"
+      },
+      {
+        "nombre": "Video",
+        "listo": "out/crimen-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Portada",
+        "listo": "{portada.png,portada/*.png}",
+        "fase": "entrega"
+      }
+    ]
+  },
+  {
+    "id": "minidrama",
+    "title": "Minidrama",
+    "description": "Una serie o dorama vertical por episodios estilo K-drama: personajes consistentes en cada escena, tensión dramática, sincronización labial nativa en Google Flow y cliffhanger para la siguiente parte.",
+    "skill": "minidrama",
+    "icon": "teatro",
+    "voz": false,
+    "etapas": [
+      {
+        "nombre": "Guion",
+        "listo": "guion.md",
+        "fase": "guion"
+      },
+      {
+        "nombre": "Cuadros",
+        "listo": "cuadros/esc-*.jpg",
+        "fase": "video"
+      },
+      {
+        "nombre": "Clips",
+        "listo": "clips/esc-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Video",
+        "listo": "out/minidrama-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Portada",
+        "listo": "{portada.png,portada/*.png}",
+        "fase": "entrega"
+      }
+    ]
+  },
+  {
+    "id": "video-politica",
+    "title": "Política sin filtro",
+    "description": "Análisis político y económico sin concesiones: qué decidieron, cuánto costó y a quién perjudicó. Respaldado con datos duros, documentos oficiales, subtítulos de impacto y remate de debate para TikTok, Shorts y YouTube.",
+    "skill": "video-politica",
+    "icon": "megafono",
+    "voz": {
+      "propia": "Voz generada automáticamente"
+    },
+    "lote": {
+      "prefijo": "politica-"
+    },
+    "etapas": [
+      {
+        "nombre": "Evidencia",
+        "listo": "fuentes/caso.md",
+        "fase": "idea"
+      },
+      {
+        "nombre": "Guion",
+        "listo": "guion.md",
+        "fase": "guion"
+      },
+      {
+        "nombre": "Voz",
+        "listo": "public/voz.wav",
+        "fase": "sonido"
+      },
+      {
+        "nombre": "Material",
+        "listo": "{material.md,fuentes/material/**/*.{png,jpg,jpeg,webp}}",
+        "fase": "idea"
+      },
+      {
+        "nombre": "Revisión",
+        "listo": "revision/hoja.png",
+        "fase": "video"
+      },
+      {
+        "nombre": "Video",
+        "listo": "out/politica-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Portada",
+        "listo": "{portada.png,portada/*.png}",
+        "fase": "entrega"
+      }
+    ]
+  },
+  {
+    "id": "articulo-blog",
+    "title": "Artículo para Blogi",
+    "description": "Redacta artículos de alta calidad técnica y SEO para Blogi, con imagen de portada editorial generada con IA, categoría y tags, y los publica directo en producción (https://miblogi.vercel.app).",
+    "skill": "articulo-blog",
+    "icon": "lapiz",
+    "lote": {
+      "prefijo": "blog-"
+    },
+    "etapas": [
+      {
+        "nombre": "Enfoque",
+        "listo": "{tema.md,fuentes/tema.md}",
+        "muestra": "{tema.md,fuentes/tema.md}",
+        "fase": "idea"
+      },
+      {
+        "nombre": "Artículo",
+        "listo": "{articulo.md,articulo.json}",
+        "muestra": "{articulo.md,articulo.json}",
+        "fase": "guion"
+      },
+      {
+        "nombre": "Portada",
+        "listo": "portada.png",
+        "muestra": "portada.png",
+        "fase": "guion"
+      },
+      {
+        "nombre": "Publicado",
+        "listo": "publicado.json",
+        "muestra": "vista-previa.html",
+        "fase": "entrega"
+      }
+    ],
+    "voz": false
+  },
+  {
+    "id": "nuevo-estilo",
+    "title": "Nuevo estilo",
+    "description": "Cuéntale el video que quieres hacer, o pásale ejemplos, y Hermit arma tu propio estilo con su card, listo para usarlo como los demás.",
+    "skill": "crear-estilo",
+    "icon": "mas",
+    "cwd": "{app}/skills"
+  }
+]

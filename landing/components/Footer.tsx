@@ -23,6 +23,9 @@ export default function Footer() {
             <a href="#demostracion" className="hover:text-text transition-colors">
               Cómo funciona
             </a>
+            <a href="#ejemplos" className="hover:text-text transition-colors">
+              Ejemplos
+            </a>
             <a href="#herramientas" className="hover:text-text transition-colors">
               Herramientas
             </a>

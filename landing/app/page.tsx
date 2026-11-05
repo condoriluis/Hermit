@@ -1,6 +1,7 @@
 import Navbar from '@/components/Navbar'
 import Hero from '@/components/Hero'
 import AppMockup from '@/components/AppMockup'
+import Ejemplos from '@/components/Ejemplos'
 import SkillsShowcase from '@/components/SkillsShowcase'
 import Features from '@/components/Features'
 import Pricing from '@/components/Pricing'
@@ -15,6 +16,7 @@ export default function Home() {
       <main className="flex-1">
         <Hero />
         <AppMockup />
+        <Ejemplos />
         <SkillsShowcase />
         <Features />
         <Pricing />

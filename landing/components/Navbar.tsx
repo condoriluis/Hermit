@@ -59,6 +59,9 @@ export default function Navbar() {
             <a href="#demostracion" className="hover:text-text transition-colors">
               Cómo funciona
             </a>
+            <a href="#ejemplos" className="hover:text-text transition-colors">
+              Ejemplos
+            </a>
             <a href="#herramientas" className="hover:text-text transition-colors">
               Herramientas
             </a>
@@ -105,6 +108,13 @@ export default function Navbar() {
               className="p-2 rounded-lg text-text hover:bg-panel-2 text-sm"
             >
               Cómo funciona
+            </a>
+            <a
+              href="#ejemplos"
+              onClick={() => setMobileOpen(false)}
+              className="p-2 rounded-lg text-text hover:bg-panel-2 text-sm"
+            >
+              Ejemplos
             </a>
             <a
               href="#herramientas"

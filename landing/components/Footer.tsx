@@ -1,7 +1,6 @@
 import React from 'react'
 import Image from 'next/image'
 import { Heart } from 'lucide-react'
-import { GithubLogo } from '@/components/Icons'
 
 export default function Footer() {
   return (
@@ -35,14 +34,6 @@ export default function Footer() {
             </a>
             <a href="#faq" className="hover:text-text transition-colors">
               Preguntas
-            </a>
-            <a
-              href="https://github.com/condoriluis/Hermit"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-text transition-colors flex items-center gap-1.5 font-mono"
-            >
-              <GithubLogo className="w-3.5 h-3.5 text-accent" /> GitHub
             </a>
           </div>
 

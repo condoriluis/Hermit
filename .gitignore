@@ -29,6 +29,7 @@ dist
 # La página de venta (landing/): su compilado y lo que no debe subir.
 .next/
 .vercel/
+*.tsbuildinfo
 .env
 .env.*
 !.env.example

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Image from 'next/image'
-import { Download, Menu, X, Terminal } from 'lucide-react'
+import { Download, Menu, X } from 'lucide-react'
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
@@ -75,16 +75,6 @@ export default function Navbar() {
 
           {/* Right Action Buttons */}
           <div className="hidden md:flex items-center gap-3">
-            <a
-              href="https://github.com/condoriluis/Hermit"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2.5 rounded-lg text-muted hover:text-text hover:bg-panel-2 border border-transparent hover:border-line transition-all text-xs flex items-center gap-1.5 font-mono"
-            >
-              <Terminal className="w-4 h-4 text-accent" />
-              <span>GitHub</span>
-            </a>
-
             <a
               href="#descargar"
               className="relative inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent hover:bg-accent-hover text-on-solid font-bold text-sm font-heading transition-all shadow-glow hover:shadow-lg active:scale-95"

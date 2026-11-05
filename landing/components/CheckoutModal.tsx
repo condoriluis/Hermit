@@ -25,6 +25,10 @@ interface CheckoutModalProps {
 // Tasa de cambio estándar para aportaciones: 1 USD ≈ 7 BOB
 const USD_TO_BOB = 7
 
+// El número de soporte (solo dígitos, como lo pide wa.me) y la imagen del QR, desde el entorno.
+const WHATSAPP = (process.env.NEXT_PUBLIC_WHATSAPP_SOPORTE || '').replace(/\D/g, '')
+const QR_IMG = process.env.NEXT_PUBLIC_QR_IMG_URL
+
 export default function CheckoutModal({
   isOpen,
   onClose,
@@ -119,7 +123,7 @@ export default function CheckoutModal({
         transactionRef || refCode
       }`
     )
-    return `https://wa.me/59170000000?text=${text}`
+    return `https://wa.me/${WHATSAPP}?text=${text}`
   }
 
   return (
@@ -320,10 +324,15 @@ export default function CheckoutModal({
 
                 <div className="p-4 rounded-lg bg-bg border border-line text-center flex flex-col items-center justify-center">
                   <div className="w-32 h-32 bg-white rounded-lg p-2 flex items-center justify-center shadow-md">
-                    <div className="w-full h-full border-2 border-dashed border-gray-400 flex flex-col items-center justify-center text-gray-800 text-[10px] font-mono text-center">
-                      <QrCode className="w-14 h-14 text-gray-800 mb-1" />
-                      <span>QR SIMPLE / BANCO</span>
-                    </div>
+                    {QR_IMG ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={QR_IMG} alt="QR para pagar el apoyo" className="w-full h-full object-contain rounded" />
+                    ) : (
+                      <div className="w-full h-full border-2 border-dashed border-gray-400 flex flex-col items-center justify-center text-gray-800 text-[10px] font-mono text-center">
+                        <QrCode className="w-14 h-14 text-gray-800 mb-1" />
+                        <span>QR SIMPLE / BANCO</span>
+                      </div>
+                    )}
                   </div>
                   <p className="text-[11px] text-muted mt-2 font-mono">
                     Escanea con la app de cualquier banco boliviano
@@ -390,7 +399,7 @@ export default function CheckoutModal({
               </div>
             )}
 
-            {method === 'qr' && (
+            {method === 'qr' && WHATSAPP && (
               <div className="space-y-3 pt-2">
                 <p className="text-xs text-text-2 leading-relaxed">
                   Para activar tu licencia de inmediato, envía tu comprobante por WhatsApp:

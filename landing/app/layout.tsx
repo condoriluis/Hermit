@@ -23,7 +23,10 @@ const monoFont = JetBrains_Mono({
   display: 'swap',
 })
 
+const SITIO = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITIO),
   title: 'Hermit — Crea videos, artículos y contenido con Inteligencia Artificial en tu PC',
   description:
     'Una aplicación sencilla para tu computadora donde eliges qué quieres crear (un video para TikTok, un artículo para blog o programar tareas) y la IA lo genera paso a paso frente a ti.',
@@ -35,7 +38,7 @@ export const metadata: Metadata = {
     'aplicación de escritorio IA',
     'luchodev',
   ],
-  authors: [{ name: 'luchodev', url: 'https://github.com/condoriluis/Hermit' }],
+  authors: [{ name: 'luchodev' }],
   icons: {
     icon: '/icon.svg',
     shortcut: '/icon.svg',
@@ -45,7 +48,7 @@ export const metadata: Metadata = {
     title: 'Hermit — Crea videos y artículos con Inteligencia Artificial en tu PC',
     description:
       'Elige lo que quieres hacer en una tarjeta y mira cómo la IA genera el contenido en tu computadora.',
-    url: 'https://github.com/condoriluis/Hermit',
+    url: SITIO,
     siteName: 'Hermit',
     images: [
       {

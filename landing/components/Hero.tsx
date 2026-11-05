@@ -3,19 +3,22 @@
 import React, { useState, useEffect } from 'react'
 import { Download, Play, HardDrive, Zap, Sparkles, Monitor, Eye } from 'lucide-react'
 import { AppleLogo } from '@/components/Icons'
+import { enlaceDescarga } from '@/lib/descargas'
+
+type So = 'windows' | 'mac' | 'linux'
 
 export default function Hero() {
-  const [os, setOs] = useState<{ name: string; ext: string }>({ name: 'Windows', ext: '.exe' })
+  const [os, setOs] = useState<{ name: string; ext: string; so: So }>({ name: 'Windows', ext: '.exe', so: 'windows' })
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const ua = window.navigator.userAgent.toLowerCase()
       if (ua.includes('mac')) {
-        setOs({ name: 'Mac', ext: '.dmg' })
+        setOs({ name: 'Mac', ext: '.dmg', so: 'mac' })
       } else if (ua.includes('linux')) {
-        setOs({ name: 'Linux', ext: '.AppImage' })
+        setOs({ name: 'Linux', ext: '.AppImage', so: 'linux' })
       } else {
-        setOs({ name: 'Windows', ext: '.exe' })
+        setOs({ name: 'Windows', ext: '.exe', so: 'windows' })
       }
     }
   }, [])
@@ -46,7 +49,7 @@ export default function Hero() {
         {/* Action CTAs */}
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto sm:max-w-none">
           <a
-            href="https://github.com/condoriluis/Hermit/releases"
+            href={enlaceDescarga(os.so)}
             target="_blank"
             rel="noopener noreferrer"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl bg-accent hover:bg-accent-hover text-on-solid font-bold text-base font-heading transition-all shadow-glow hover:scale-[1.02] active:scale-95"

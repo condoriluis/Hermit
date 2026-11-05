@@ -2,8 +2,9 @@
 
 import React from 'react'
 import Image from 'next/image'
-import { Download, Monitor, Terminal, ArrowRight } from 'lucide-react'
-import { AppleLogo, GithubLogo } from '@/components/Icons'
+import { Monitor, Terminal } from 'lucide-react'
+import { AppleLogo } from '@/components/Icons'
+import { enlaceDescarga } from '@/lib/descargas'
 
 export default function CTA() {
   return (
@@ -22,13 +23,13 @@ export default function CTA() {
         </h2>
 
         <p className="mt-5 text-base sm:text-xl text-muted max-w-2xl mx-auto">
-          Descarga Hermit gratis directamente desde GitHub Releases. Sin registros forzados ni suscripciones obligatorias.
+          Descarga el instalador de Hermit gratis, directo desde la web. Sin registros forzados ni suscripciones obligatorias.
         </p>
 
         {/* Multi-OS Download Buttons */}
         <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
           <a
-            href="https://github.com/condoriluis/Hermit/releases"
+            href={enlaceDescarga('windows')}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-3 px-6 py-4 rounded-xl bg-accent hover:bg-accent-hover text-on-solid font-bold text-sm shadow-glow transition-all active:scale-95 font-heading"
@@ -41,7 +42,7 @@ export default function CTA() {
           </a>
 
           <a
-            href="https://github.com/condoriluis/Hermit/releases"
+            href={enlaceDescarga('mac')}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-3 px-6 py-4 rounded-xl bg-panel hover:bg-panel-2 border border-line hover:border-line-strong text-text font-bold text-sm transition-all active:scale-95 font-heading"
@@ -54,7 +55,7 @@ export default function CTA() {
           </a>
 
           <a
-            href="https://github.com/condoriluis/Hermit/releases"
+            href={enlaceDescarga('linux')}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-3 px-6 py-4 rounded-xl bg-panel hover:bg-panel-2 border border-line hover:border-line-strong text-text font-bold text-sm transition-all active:scale-95 font-heading"
@@ -64,20 +65,6 @@ export default function CTA() {
               <div className="text-xs uppercase text-muted font-mono">Descargar para</div>
               <div className="text-base font-extrabold leading-none">Linux (AppImage)</div>
             </div>
-          </a>
-        </div>
-
-        {/* GitHub Source Code link */}
-        <div className="mt-8 flex items-center justify-center gap-2">
-          <a
-            href="https://github.com/condoriluis/Hermit"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-xs font-mono text-muted hover:text-accent transition-colors"
-          >
-            <GithubLogo className="w-4 h-4" />
-            <span>Ver repositorio y lanzamientos en GitHub (condoriluis/Hermit)</span>
-            <ArrowRight className="w-3.5 h-3.5" />
           </a>
         </div>
       </div>

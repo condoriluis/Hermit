@@ -128,7 +128,7 @@ export default function CheckoutModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-lg rounded-2xl bg-panel border border-line p-6 shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto">
+      <div className="relative w-full max-w-xl rounded-2xl bg-panel border border-line p-5 sm:p-7 shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto">
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -152,11 +152,11 @@ export default function CheckoutModal({
 
         {/* Monto Picker / Editor */}
         <div className="p-4 rounded-xl bg-panel-2 border border-line mb-5">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
             <span className="text-xs font-mono font-bold text-text-2">
               Monto de contribución:
             </span>
-            <div className="flex gap-1.5 text-xs font-mono">
+            <div className="flex flex-wrap gap-1.5 text-xs font-mono">
               <button
                 type="button"
                 onClick={() => {
@@ -255,7 +255,7 @@ export default function CheckoutModal({
         </div>
 
         {/* Payment Method Selector */}
-        <div className="grid grid-cols-2 gap-3 mb-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
           <button
             type="button"
             onClick={() => {

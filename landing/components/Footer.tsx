@@ -14,12 +14,12 @@ export default function Footer() {
             </div>
             <div>
               <span className="font-extrabold text-text font-heading">Hermit</span>
-              <span className="text-xs text-muted ml-2">por luchodev</span>
+              <span className="text-xs text-muted ml-2">luchodev</span>
             </div>
           </div>
 
           {/* Links */}
-          <div className="flex items-center gap-6 text-xs font-medium">
+          <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs font-medium">
             <a href="#demostracion" className="hover:text-text transition-colors">
               Cómo funciona
             </a>
@@ -38,7 +38,7 @@ export default function Footer() {
             <a href="#faq" className="hover:text-text transition-colors">
               Preguntas
             </a>
-          </div>
+          </nav>
 
         </div>
 

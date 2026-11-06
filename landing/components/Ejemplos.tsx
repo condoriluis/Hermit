@@ -4,9 +4,9 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 /**
- * Los videos de ejemplo, en un marco vertical (tipo TikTok): el que se ve va al centro y de los
- * vecinos asoma un pedazo, clicable para elegirlo. Son archivos reales generados con Hermit, sin
- * edición a mano: van en `landing/public/videos/`, el video y su miniatura con el mismo nombre
+ * Los videos de ejemplo, en una pila 3D: el que se ve va al frente y los demás suben y se hunden
+ * hacia atrás a la izquierda, clicables para elegirlos. Son archivos reales generados con Hermit,
+ * sin edición a mano: van en `landing/public/videos/`, el video y su miniatura con el mismo nombre
  * (`animalnovela.mp4` y `animalnovela.jpg`). Para añadir otro, agrega una línea aquí y sube sus dos archivos.
  */
 const EJEMPLOS = [
@@ -15,20 +15,29 @@ const EJEMPLOS = [
   { archivo: 'politica', estilo: 'Explicativo', titulo: '¿Convicción o 25 millones?', duracion: '0:30' },
 ]
 
-/** Separación entre un video y el siguiente. */
-const HUECO = 16
-/** Lo que se ve del degradado en los bordes: los vecinos se pierden hacia los lados. */
-const DESVANECIDO = 'linear-gradient(to right, transparent, black 7%, black 93%, transparent)'
+/**
+ * Cada puesto dentro de la pila: el activo al frente y, hacia atrás, cada vez más arriba, más
+ * hundido, más girado y más transparente. `capa` manda el orden de apilado. Las distancias se
+ * encogen con el ancho del video, para que la pila quepa igual en un teléfono.
+ */
+const PILA = [
+  { x: 0, y: 0, z: 0, giro: 0, ladeo: 0, escala: 1, opacidad: 1, capa: 30 },
+  { x: -70, y: -40, z: -120, giro: 22, ladeo: -5, escala: 0.91, opacidad: 0.92, capa: 20 },
+  { x: -130, y: -75, z: -240, giro: 32, ladeo: -8, escala: 0.82, opacidad: 0.78, capa: 15 },
+  { x: -180, y: -105, z: -340, giro: 38, ladeo: -10, escala: 0.74, opacidad: 0.55, capa: 10 },
+  { x: -210, y: -125, z: -400, giro: 42, ladeo: -12, escala: 0.68, opacidad: 0, capa: 1 },
+]
 
 export default function Ejemplos() {
   const [i, setI] = useState(0)
   const [ancho, setAncho] = useState(0)
   const [visible, setVisible] = useState(false)
+  const [resaltado, setResaltado] = useState<number | null>(null)
   const videos = useRef<(HTMLVideoElement | null)[]>([])
   const caja = useRef<HTMLDivElement>(null)
   const inicioToque = useRef<number | null>(null)
 
-  // El ancho de la caja manda: así el video elegido queda centrado y los vecinos asoman justo un pedazo.
+  // El ancho de la caja manda: el video de adelante queda centrado y la pila se encoge a su medida.
   useLayoutEffect(() => {
     const el = caja.current
     if (!el) return
@@ -39,8 +48,8 @@ export default function Ejemplos() {
   }, [])
 
   const anchoVideo = Math.min(300, Math.max(190, ancho * 0.55))
-  const salto = anchoVideo + HUECO
-  const corrimiento = ancho / 2 - anchoVideo / 2 - i * salto
+  const altoVideo = Math.round((anchoVideo * 16) / 9)
+  const factor = anchoVideo / 300
 
   /** Pasa al video `paso` (da la vuelta al llegar al final). */
   const ir = useCallback((paso: number) => {
@@ -82,8 +91,8 @@ export default function Ejemplos() {
 
         <div ref={caja} className="relative max-w-2xl mx-auto">
           <div
-            className="overflow-hidden"
-            style={{ maskImage: DESVANECIDO, WebkitMaskImage: DESVANECIDO }}
+            className="relative mx-auto [perspective:1600px]"
+            style={{ width: anchoVideo, height: altoVideo }}
             onTouchStart={(e) => {
               inicioToque.current = e.touches[0].clientX
             }}
@@ -94,23 +103,42 @@ export default function Ejemplos() {
               inicioToque.current = null
             }}
           >
-            <div
-              className="flex items-center transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)] will-change-transform"
-              style={{ gap: HUECO, transform: `translate3d(${corrimiento}px, 0, 0)` }}
-            >
-              {EJEMPLOS.map((e, n) => (
+            {EJEMPLOS.map((e, n) => {
+              const puesto = (n - i + EJEMPLOS.length) % EJEMPLOS.length
+              const activo = puesto === 0
+              const p = PILA[Math.min(puesto, PILA.length - 1)]
+              const alzado = resaltado === n && !activo
+
+              // Al pasar el mouse, la tarjeta sale un poco de la pila y viene al frente.
+              const x = (p.x + (alzado ? 34 : 0)) * factor
+              const y = (p.y + (alzado ? -16 : 0)) * factor
+              const z = (p.z + (alzado ? 110 : 0)) * factor
+              const giro = p.giro * (alzado ? 0.5 : 1)
+              const ladeo = p.ladeo * (alzado ? 0.55 : 1)
+              const escala = p.escala + (alzado ? 0.06 : 0)
+
+              return (
                 <button
                   key={e.archivo}
                   type="button"
                   onClick={() => setI(n)}
+                  onMouseEnter={() => setResaltado(n)}
+                  onMouseLeave={() => setResaltado(null)}
+                  onFocus={() => setResaltado(n)}
+                  onBlur={() => setResaltado(null)}
                   aria-label={`Ver ${e.titulo}`}
-                  aria-current={n === i}
-                  style={{ width: anchoVideo }}
-                  className={`relative shrink-0 aspect-[9/16] rounded-[1.75rem] overflow-hidden border bg-black shadow-2xl transition-all duration-500 ${
-                    n === i
-                      ? 'border-line cursor-default'
-                      : 'border-line/60 opacity-40 scale-[0.88] cursor-pointer hover:opacity-70'
-                  }`}
+                  aria-current={activo}
+                  style={{
+                    zIndex: alzado ? p.capa + 5 : p.capa,
+                    opacity: alzado ? 1 : p.opacidad,
+                    pointerEvents: p.opacidad === 0 && !alzado ? 'none' : undefined,
+                    transform: `translate3d(${x}px, ${y}px, ${z}px) rotateY(${giro}deg) rotateZ(${ladeo}deg) scale(${escala})`,
+                    transitionDuration: '700ms',
+                    transitionTimingFunction: 'cubic-bezier(.22,1,.36,1)',
+                  }}
+                  className={`group absolute inset-0 overflow-hidden rounded-[28px] border bg-black shadow-[0_30px_60px_rgba(0,0,0,0.6)] transition-all will-change-transform ${
+                    activo ? 'border-line' : 'border-line/60 cursor-pointer'
+                  } ${alzado ? 'border-accent/40' : ''}`}
                 >
                   <video
                     ref={(el) => {
@@ -121,14 +149,16 @@ export default function Ejemplos() {
                     muted
                     playsInline
                     preload="none"
-                    aria-hidden={n !== i}
+                    aria-hidden={!activo}
                     onEnded={() => ir(n + 1)}
-                    className="absolute inset-0 w-full h-full object-cover"
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                   />
+
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-black/40" />
 
                   <div
                     className={`absolute inset-x-0 bottom-0 p-4 pt-14 bg-gradient-to-t from-black/85 via-black/45 to-transparent transition-opacity duration-500 ${
-                      n === i ? 'opacity-100' : 'opacity-0'
+                      activo ? 'opacity-100' : 'opacity-0'
                     }`}
                   >
                     <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-white uppercase backdrop-blur-sm">
@@ -140,11 +170,11 @@ export default function Ejemplos() {
                     </p>
                   </div>
                 </button>
-              ))}
-            </div>
+              )
+            })}
           </div>
 
-          <div className="flex items-center justify-center gap-5 mt-8">
+          <div className="flex items-center justify-center gap-5 mt-10">
             <button
               type="button"
               onClick={() => ir(i - 1)}
@@ -153,6 +183,11 @@ export default function Ejemplos() {
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
+
+            <p className="text-[11px] font-mono tracking-[0.25em] text-muted">
+              <span className="text-text font-bold">{String(i + 1).padStart(2, '0')}</span>
+              <span className="text-muted/60"> / {String(EJEMPLOS.length).padStart(2, '0')}</span>
+            </p>
 
             <div className="flex items-center gap-2">
               {EJEMPLOS.map((e, n) => (

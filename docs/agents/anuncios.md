@@ -14,8 +14,8 @@ hace por ellos.
 - **Título:** en MAYÚSCULAS, `NUEVA ACTUALIZACION (LO PRINCIPAL)`, como `NUEVA ACTUALIZACION (YA PUEDEN CREAR SU PROPIO
   ESTILO)`.
 - **Texto:** el saludo; que ya hay nueva actualización y una lista de lo que trae, un punto por renglón empezando con
-  `- ` (de 2 a 6; los arreglos chicos, juntos en uno). Si no salió `[para todos]`, que quien apoya ya la tiene y a los
-  demás les llega en 7 días. Para actualizar: abajo a la izquierda sale «Actualizar a Hermit», o cierran y vuelven a abrir
+  `- ` (de 2 a 6; los arreglos chicos, juntos en uno). La nueva ya está para todos. Para actualizar: abajo a la izquierda
+  sale «Actualizar a Hermit», o cierran y vuelven a abrir
   la app. Cierra con que anda atento. Sin Markdown: la comunidad lo enseña tal cual, salvo los guiones de la lista.
   Unas 150 palabras como mucho.
 

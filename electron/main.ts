@@ -58,8 +58,8 @@ const FONDO = '#0f0e0c'
 /** Cada cuánto se pregunta si hay versión nueva. */
 const CADA = 6 * 3600_000
 /**
- * Entre pregunta y pregunta, cada cuánto se mira solo cuál es la última (`/ultima` del cobro, en caché): si cambió, salió
- * una o se liberó para todos en un live, y se pregunta ya.
+ * Entre pregunta y pregunta, cada cuánto se mira solo cuál es la última (`/ultima` del cobro, en caché): si cambió,
+ * salió una nueva, y se pregunta ya.
  */
 const VISTAZO = 5 * 60_000
 /**

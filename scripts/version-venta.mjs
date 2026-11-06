@@ -21,7 +21,7 @@ const texto = readFileSync(PAQUETE, 'utf8')
 const propia = JSON.parse(texto).version
 let version = process.env.VERSION
 if (!version) {
-  // Con la llave de publicar, la última de verdad: sin ella, durante sus 7 días de quien apoya, daría la anterior.
+  // Con la llave de publicar, la última de verdad; sin ella, la que da el cobro a todos.
   const r = await fetch(`${COBRO}/version`, { headers: process.env.PUBLICAR ? { authorization: `Bearer ${process.env.PUBLICAR.trim()}` } : {} })
   const publicada = r.ok ? (await r.json()).version : '0.0.0'
   const [a, b, c] = cifras(publicada)

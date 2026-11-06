@@ -1122,13 +1122,6 @@ export interface FeedComunidad {
   mas: boolean
 }
 
-/** `/api/comunidad/liberar`, solo del creador: la última versión de un sistema y, mientras es solo de quien apoya, desde cuándo será de todos. */
-export interface VersionLiberable {
-  so: 'windows' | 'mac' | 'mac-arm64' | 'linux'
-  version: string
-  todos?: string
-}
-
 /** Lo que el servidor empuja por el WebSocket. */
 export type ServerPush =
   | { type: 'events'; sessionId: string; from: number; events: AgentEvent[] }
@@ -1191,8 +1184,8 @@ export interface Licencia {
   /** Lo que se cobra cada mes o cada año, en la moneda con que empezó el apoyo. */
   monto?: number
   /**
-   * Con los nombres de Mercado Pago, también los de PayPal: `pending` (sin pagar), `authorized`, `paused` o `cancelled`;
-   * `gratis`; o `pagado`, un año pagado de una vez que no se renueva solo.
+   * Los de PayPal, como los entiende Hermit: `pending` (sin pagar), `authorized`, `paused` o `cancelled`; `gratis`; o
+   * `pagado`, un año pagado de una vez que no se renueva solo.
    */
   estado?: string
   /** Hasta cuándo está pagada (ISO): el próximo cobro o, cancelada o pagada de una vez, cuando se cierra. */

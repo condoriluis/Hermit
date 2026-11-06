@@ -18,7 +18,7 @@ import { cpSync, createWriteStream, existsSync, linkSync, mkdirSync, readdirSync
 import { cp } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, screen, session, shell, type WebContents } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, screen, session, shell, type MenuItemConstructorOptions, type WebContents } from 'electron'
 import { autoUpdater, CancellationToken } from 'electron-updater'
 import { guardar } from '../server/disco.ts'
 import { anclada, anclar } from './barra.ts'
@@ -54,7 +54,7 @@ const LUGAR = join(APP, 'data', 'ventana.json')
 /** Existe si marcaste «No volver a mostrar» en el aviso al cerrar. */
 const SIN_AVISO = join(APP, 'data', 'sin-aviso-al-cerrar.json')
 /** --bg de web/src/styles.css: el fondo mientras carga y el de la barra de título. */
-const FONDO = '#0f0e0c'
+const FONDO = '#0a0e14'
 /** Cada cuánto se pregunta si hay versión nueva. */
 const CADA = 6 * 3600_000
 /**
@@ -294,12 +294,17 @@ function permisos() {
 }
 
 /**
- * Editar y Ver, con sus atajos (recargar, el zoom, las herramientas de desarrollo). En Windows no se ve; en Mac es la barra
- * de arriba, con el de la app y el de la ventana.
+ * Editar y Ver, con sus atajos (recargar, el zoom, la pantalla completa). En Windows no se ve; en Mac es la barra de
+ * arriba, con el de la app y el de la ventana.
  */
 function menu() {
   const mac = process.platform === 'darwin'
-  return Menu.buildFromTemplate([...(mac ? [{ role: 'appMenu' as const }] : []), { role: 'editMenu' }, { role: 'viewMenu' }, ...(mac ? [{ role: 'windowMenu' as const }] : [])])
+  // «Herramientas de desarrollo» (Ctrl+May+I) solo en el repo: en la que se le instala al cliente le abriría la consola
+  // del navegador, que no es cosa de un programa.
+  const ver: MenuItemConstructorOptions = app.isPackaged
+    ? { label: 'Ver', submenu: [{ role: 'reload' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' }] }
+    : { role: 'viewMenu' }
+  return Menu.buildFromTemplate([...(mac ? [{ role: 'appMenu' as const }] : []), { role: 'editMenu' }, ver, ...(mac ? [{ role: 'windowMenu' as const }] : [])])
 }
 
 /**

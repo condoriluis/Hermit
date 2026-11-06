@@ -44,7 +44,7 @@ const frenable = (hilo: string) => !PERFILES[hilo]
 /** Lo que espera una página que nadie ve ni usa antes de cerrarse. */
 const OCIOSA = 20 * 60_000
 /** --bg de web/src/styles.css: lo que se ve mientras la página pinta. */
-const FONDO = '#0f0e0c'
+const FONDO = '#0a0e14'
 /** Los escalones del zoom de una página. */
 const ZOOMS = [0.5, 0.67, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 2]
 
@@ -429,7 +429,9 @@ function hacer(hilo: string, accion: AccionNavegador) {
   if (accion === 'menu')
     Menu.buildFromTemplate([
       { label: 'Recargar sin caché', click: () => wc.reloadIgnoringCache() },
-      { label: 'Herramientas de desarrollo', click: () => wc.openDevTools({ mode: 'detach' }) }
+      // «Herramientas de desarrollo» solo en el repo: al cliente le abriría la consola del navegador, que no es cosa de un
+      // programa (igual que en el menú de la ventana, electron/main.ts).
+      ...(app.isPackaged ? [] : [{ label: 'Herramientas de desarrollo', click: () => wc.openDevTools({ mode: 'detach' }) }])
     ]).popup(ventana ? { window: ventana } : {})
   // La primera pestaña es la del hilo y no se cierra.
   if (accion === 'cerrar' && hilo.includes('~')) {

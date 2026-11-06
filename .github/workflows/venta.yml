@@ -4,8 +4,9 @@
 # «Actualizar a Hermit X» y baja solo lo que cambió (electron/main.ts).
 # Para publicar lo de main: `git push origin main:venta`. La llave para publicar es el secreto PUBLICAR del repo. La firma
 # de Apple, si está, va en los secretos CSC_LINK, CSC_KEY_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD y APPLE_TEAM_ID
-# (docs/adr/0006-mac-y-linux.md); sin ellos, las de Mac salen sin firma. Siempre el mismo certificado: macOS solo se
-# actualiza a una versión firmada por el mismo equipo de Apple que la instalada.
+# (docs/adr/0006-mac-y-linux.md); la de Windows, en WIN_CSC_LINK y WIN_CSC_KEY_PASSWORD (docs/adr/0017-firma-de-windows.md);
+# sin ellos, esos instaladores salen sin firma. Siempre el mismo certificado: macOS solo se actualiza a una versión firmada
+# por el mismo equipo de Apple que la instalada.
 name: Publicar Hermit
 
 on:
@@ -59,6 +60,8 @@ jobs:
           HERMIT_TUYO: ${{ secrets.HERMIT_TUYO }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}

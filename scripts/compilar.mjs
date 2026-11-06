@@ -30,7 +30,11 @@ const ICONO_PNG = join(REPO, 'assets', 'icon.png')
 const WINDOWS = process.platform === 'win32'
 const MAC = process.platform === 'darwin'
 // GitHub pasa vacío un secreto que no existe, y electron-builder tomaría ese vacío por un certificado.
-for (const v of ['CSC_LINK', 'CSC_KEY_PASSWORD', 'APPLE_ID', 'APPLE_APP_SPECIFIC_PASSWORD', 'APPLE_TEAM_ID']) if (!process.env[v]) delete process.env[v]
+for (const v of ['CSC_LINK', 'CSC_KEY_PASSWORD', 'WIN_CSC_LINK', 'WIN_CSC_KEY_PASSWORD', 'APPLE_ID', 'APPLE_APP_SPECIFIC_PASSWORD', 'APPLE_TEAM_ID']) if (!process.env[v]) delete process.env[v]
+/** El de Windows (WIN_CSC_LINK) y el de Apple (CSC_LINK) son distintos, y electron-builder usaría cualquiera de los dos en
+ * cualquier sistema: aquí queda solo el de este (docs/adr/0017). */
+const FIRMA = MAC ? ['CSC_LINK', 'CSC_KEY_PASSWORD'] : WINDOWS ? ['WIN_CSC_LINK', 'WIN_CSC_KEY_PASSWORD'] : []
+for (const v of ['CSC_LINK', 'CSC_KEY_PASSWORD', 'WIN_CSC_LINK', 'WIN_CSC_KEY_PASSWORD']) if (!FIRMA.includes(v)) delete process.env[v]
 /** Con el certificado de Apple (CSC_LINK, ver docs/adr/0006), la de Mac va firmada y notarizada, y se actualiza sola. */
 const MAC_FIRMADA = MAC && !!process.env.CSC_LINK
 /** El cobro de Hermit (`licencias/`): de ahí bajan el instalador y las actualizaciones. */
@@ -292,6 +296,9 @@ const hechos = await empaquetar({
       { from: join(SALIDA, 'skills'), to: 'skills' },
       ...(WINDOWS ? [{ from: join(VENTANA, 'ayudante.exe'), to: 'ayudante.exe' }] : [{ from: ICONO_PNG, to: 'icon.png' }])
     ],
+    // Con el certificado de Windows en WIN_CSC_LINK (docs/adr/0017), electron-builder firma el .exe y el instalador sin
+    // más config: deja de salir «editor desconocido» y Windows Defender no lo señala como un troyano. Sin certificado,
+    // sale sin firma, como siempre.
     win: { icon: ICONO },
     nsis: {
       oneClick: true,

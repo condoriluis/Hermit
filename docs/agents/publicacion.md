@@ -47,9 +47,11 @@ ramas ni bloquea por sí solo un push a `venta`.
 5. Cuando los cuatro salieron bien, cuéntalo en Anuncios de la comunidad, sin preguntar: escribe el anuncio como lo
    escribe luchodev ([anuncios.md](anuncios.md)) y publícalo con `node scripts/anuncio.mjs <archivo>`.
 
-La llave `PUBLICAR` del workflow autoriza la subida. Los secretos de Apple y el comportamiento sin firma están en
-[ADR 0006](../adr/0006-mac-y-linux.md). La comprobación de empaquetado no demuestra que la app abra y funcione en una
-máquina real: una prueba de arranque debe usar datos y carpeta de usuario aparte, porque Hermit enlaza las skills.
+La llave `PUBLICAR` del workflow autoriza la subida. Los secretos de Apple, la firma ad hoc y el comportamiento sin firma
+están en [ADR 0006](../adr/0006-mac-y-linux.md); la firma del instalador de Windows y sus secretos
+(`WIN_CSC_LINK` y `WIN_CSC_KEY_PASSWORD`), en [ADR 0017](../adr/0017-firma-de-windows.md). La comprobación de empaquetado
+no demuestra que la app abra y funcione en una máquina real: una prueba de arranque debe usar datos y carpeta de usuario
+aparte, porque Hermit enlaza las skills.
 
 ## Cobro y comunidad: licencias/
 

@@ -28,6 +28,9 @@ export function configClaudeDev(app: string): string {
   mkdirSync(dir, { recursive: true })
   const enlace = join(dir, 'skills')
   try {
+    // `existsSync` no ve un enlace roto (el repo se movió, o la copia vino de otra carpeta), pero ocupa su sitio: se
+    // quita para rehacerlo apuntando a las skills de este repo, que si no Claude se queda sin ninguna.
+    if (!existsSync(enlace) && lstatSync(enlace, { throwIfNoEntry: false })?.isSymbolicLink()) unlinkSync(enlace)
     if (!existsSync(enlace)) symlinkSync(join(app, 'skills'), enlace, 'junction')
   } catch (error) {
     console.error(`No se pudieron enlazar las skills del repo en ${enlace}: ${error instanceof Error ? error.message : error}`)

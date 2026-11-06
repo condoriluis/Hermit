@@ -1267,15 +1267,19 @@ function Limites({ proveedor }: { proveedor: Proveedor }) {
 }
 
 const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
 
-/** Cuándo vuelve a cero un límite, dicho en llano: «hoy a las 21:09», «mañana a la 1:30», «el miércoles 14». */
+/** Cuándo vuelve a cero un límite, dicho en llano: «hoy a las 21:09», «mañana a la 1:30», «el miércoles 14», «el jueves 4 de diciembre». */
 function cuandoReinicia(d: Date) {
   const hora = `${d.getHours() === 1 ? 'la' : 'las'} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
+  const ahora = new Date()
   const manana = new Date()
   manana.setDate(manana.getDate() + 1)
-  if (d.toDateString() === new Date().toDateString()) return `hoy a ${hora}`
+  if (d.toDateString() === ahora.toDateString()) return `hoy a ${hora}`
   if (d.toDateString() === manana.toDateString()) return `mañana a ${hora}`
-  return `el ${DIAS[d.getDay()]} ${d.getDate()}`
+  // El mes, solo cuando no es el de ahora: sin él, «el viernes 4» parecía un día de este mes.
+  const mes = d.getMonth() === ahora.getMonth() && d.getFullYear() === ahora.getFullYear() ? '' : ` de ${MESES[d.getMonth()]}`
+  return `el ${DIAS[d.getDay()]} ${d.getDate()}${mes}`
 }
 
 /**

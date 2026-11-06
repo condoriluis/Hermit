@@ -1014,7 +1014,7 @@ type AccionesCartel = { elegir(c: Card): void; duplicar(c: Card): void; borrar(c
  * Las skills del inicio, cada una un cartel. Memorizadas: escribir en el compositor de abajo no las vuelve a dibujar (ni a
  * sus videos de fondo).
  */
-const GASTAN_FLOW = new Set(['animalnovela', 'frutinovela', 'minidrama', 'nuevo-estilo'])
+const GASTAN_FLOW = new Set(['animalnovela', 'devnovela', 'frutinovela', 'minidrama', 'nuevo-estilo'])
 
 const Carteles = memo(function Carteles({ cards, activa, previas, sessions, acciones }: { cards: Card[]; activa: string; previas: Record<string, Previa>; sessions: SessionMeta[]; acciones: AccionesCartel }) {
   // Al desplazarlas, las que pasan bajo el cursor no arrancan su video.

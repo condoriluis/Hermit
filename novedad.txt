@@ -1,1 +1,1 @@
-Entrar con Google en el navegador de los hilos ya funciona (se hace en Edge o Chrome), y Antigravity espera más en compus lentas.
+Adición de nuevos estilos y mejoras en la UI UX

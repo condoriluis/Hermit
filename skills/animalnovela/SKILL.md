@@ -21,7 +21,8 @@ Un formato cómico de ficción donde conviven humanos y animales antropomórfico
 
 - **Gasta créditos de Flow del usuario:** Antes de pedir los clips de Veo, infórmale cuántos clips son y qué modelo se usará (Veo 3.1 - Lite). Las imágenes previas (personajes, lugares y cuadros) no gastan créditos. Hermit pide la autorización antes del primer clip: si la herramienta dice que espera permiso, pídeselo y espera con `estado_flow`.
 - **Sin narrador ni texto en el render crudo:** Veo genera la voz de los personajes limpia. Los subtítulos dinámicos los incorpora después `unir.py`.
-- El proyecto va en `trabajo/animalnovela/<nombre>` (la línea `Carpeta: <nombre>` del mensaje). Sin ella, `animalnovela-<tema>`.
+- El proyecto va en la carpeta de la línea `Carpeta: <nombre>` del mensaje, con ese nombre exacto (el estudio de Hermit
+  la busca ahí). Sin la línea, `animalnovela-<tema>`.
 
 ## Formato
 
@@ -39,7 +40,11 @@ Los personajes viven en `personajes/` para reutilizarse en los siguientes episod
 ## Pasos
 
 1. **Historia.** Conflicto cotidiano entre el humano y los animales con un giro y remate para continuar en la parte 2.
-2. **Guion.** En `guion.md`: tabla con escena, lugar, personajes en cámara, acción y diálogo entre comillas con indicaciones de tono de voz.
+2. **Guion.** En `guion.md` de la carpeta del proyecto: el título, la parte, el elenco de este capítulo y una tabla con
+   una fila por escena. Cada fila lleva el número, el lugar, quién sale, el plano, lo que hacen y lo que dicen, entre
+   comillas y con quién lo dice. Que sean de 8 a 12 escenas (de 64 a 96 s). En cada escena caben unas 20 palabras, de uno
+   o dos personajes. Listo cuando el primer clip ya es el conflicto, cada escena empuja la historia y el último deja la
+   pregunta.
 3. **Personajes y Lugares.** Generación en Google Flow con `generar_imagen` en estilo 3D animado tipo Pixar.
 4. **Cuadros.** Primer fotograma de cada escena combinando las referencias de los personajes y el lugar en `cuadros/esc-<NN>.jpg`.
 5. **Clips.** Generación en Veo con `generar_video`, pasando el cuadro inicial y el prompt con los diálogos en español entre comillas.

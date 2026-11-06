@@ -313,6 +313,41 @@
     ]
   },
   {
+    "id": "devnovela",
+    "title": "Devnovela",
+    "description": "Una telenovela cómica de lenguajes y herramientas de programación convertidos en personajes 3D con cabeza de objeto o símbolo original, cara expresiva y cuerpo humano: dramas de oficina, deploys, código legacy y merges imposibles, sin logos ni animales genéricos, con diálogos entre ellos y cliffhanger para la siguiente parte.",
+    "skill": "devnovela",
+    "icon": "codigo",
+    "voz": false,
+    "etapas": [
+      {
+        "nombre": "Guion",
+        "listo": "guion.md",
+        "fase": "guion"
+      },
+      {
+        "nombre": "Cuadros",
+        "listo": "cuadros/esc-*.jpg",
+        "fase": "video"
+      },
+      {
+        "nombre": "Clips",
+        "listo": "clips/esc-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Video",
+        "listo": "out/devnovela-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Portada",
+        "listo": "{portada.png,portada/*.png}",
+        "fase": "entrega"
+      }
+    ]
+  },
+  {
     "id": "video-reddit",
     "title": "Historia de Reddit",
     "description": "Una historia viral de Reddit o tuya, narrada con voz IA sobre fondo inmersivo (gameplay o paisaje), subtítulos dinámicos palabra por palabra y la tarjeta del post original al inicio.",

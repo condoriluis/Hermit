@@ -106,12 +106,17 @@ const hora = (ms: number) => new Date(ms).toLocaleTimeString('es-MX', { hour: '2
 
 const videos = (g: GastoFlow) => `${g.videos} ${g.videos === 1 ? 'video' : 'videos'} (${g.creditos} créditos)`
 
-/** Lo que le queda a una cuenta, de lo último que se leyó en su Flow. */
+/**
+ * Lo que le queda a una cuenta ahora (`queda`, lo vigente del servidor). Si su número ya venció (`piso`), Flow ya la
+ * repuso y, como no acumula, no puede quedar por debajo de lo más que se le vio: se dice ese mínimo, sin inventar,
+ * hasta que llegue su relectura y pase a ser el número exacto.
+ */
 function cuantoLeQueda(c: CuentaEnFlow): string {
-  const s = c.saldo
-  if (!s) return 'créditos sin leer'
-  if (s.renueva && s.renueva <= Date.now()) return `créditos renovados a las ${hora(s.renueva)}`
-  return `${s.creditos} créditos${s.renueva ? ` · se renuevan a las ${hora(s.renueva)}` : ''}`
+  const q = c.queda
+  if (!q) return 'créditos sin leer'
+  if (q.piso) return `mínimo ${q.creditos} créditos`
+  const renueva = c.saldo?.renueva
+  return `${q.creditos} créditos${renueva && renueva > Date.now() ? ` · se renuevan a las ${hora(renueva)}` : ''}`
 }
 
 /** Cómo está una cuenta, y la clase de su punto (`.estado`). */
@@ -225,10 +230,11 @@ export function FlowOpciones() {
     prevCuentas.current = e.cuentas.map((c) => c.correo)
   }, [e])
 
-  // Al abrirse, en cuanto se sabe cuáles faltan: las que se agreguen después se leen solas en el servidor.
+  // Al abrirse se leen las que nunca se leyeron y las que ya se reiniciaron (su número venció): las que se agreguen
+  // después se leen solas en el servidor.
   const cargado = !!e
   useEffect(() => {
-    if (e?.cuentas.some((c) => !c.saldo)) leer(true)
+    if (e?.cuentas.some((c) => !c.queda || c.queda.piso)) leer(true)
   }, [cargado])
   return (
     <div className="item">
@@ -238,7 +244,7 @@ export function FlowOpciones() {
           <strong>Google Flow</strong>
           <span>
             {n
-              ? `Veo y Nano Banana con ${n === 1 ? 'una cuenta' : `${n} cuentas`} · quedan ${e?.quedan ?? 0} créditos${e?.enFila ? ` · generando ${e.enFila}` : ''}`
+              ? `Veo y Nano Banana con ${n === 1 ? 'una cuenta' : `${n} cuentas`} · ${e?.porLeer ? `al menos ${e?.quedan ?? 0}` : `quedan ${e?.quedan ?? 0}`} créditos${e?.enFila ? ` · generando ${e.enFila}` : ''}`
               : 'Conecta arriba la cuenta de la voz o agrega aquí una cuenta de Google.'}
           </span>
         </div>

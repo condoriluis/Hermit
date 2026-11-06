@@ -5,7 +5,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { McpStdioServerConfig } from '@anthropic-ai/claude-agent-sdk'
 import type { Browser } from 'playwright-core'
-import { A_LA_VEZ, DESCANSO, elegirCuenta, FORMATOS_IMAGEN, FORMATOS_VIDEO, type Motivo, MODELOS_IMAGEN, MODELOS_VIDEO, motivoDeAviso, PERMISO_CREDITOS, PERMISO_MS, puede, type Saldo, tipoDeArchivo, TOPE_CREDITOS, VIDEO_MAS_BARATO } from '../../shared/flow.ts'
+import { A_LA_VEZ, DESCANSO, elegirCuenta, FORMATOS_IMAGEN, FORMATOS_VIDEO, type Motivo, MODELOS_IMAGEN, MODELOS_VIDEO, motivoDeAviso, PERMISO_CREDITOS, PERMISO_MS, puede, type Saldo, saldoVigente as vigente, tipoDeArchivo, TOPE_CREDITOS, VIDEO_MAS_BARATO } from '../../shared/flow.ts'
 import type { EstadoFlow, GastoFlow, SaldoFlow, TrabajoFlow } from '../../shared/types.ts'
 import { VENTA } from '../../shared/venta.ts'
 import { guardar } from '../disco.ts'
@@ -27,9 +27,11 @@ import { generarEnFlow, leerSaldo, paginaFlow, ponerAportar, saldoEnFlow, SinEmp
  * Gasta los créditos del usuario, y por eso: cada pedido lee el costo antes de generar y no pasa de `tope`; si no cambió
  * nada desde el último archivo de esa ruta (`.huella`), no pide nada, y uno igual que ya está en fila no se repite.
  *
- * Lo que le queda a cada cuenta (`saldos`) se lee del menú de su cuenta en Flow tras cada video, y de todas al pedirlo
- * (`/api/flow/saldos`, desde Opciones). Con menos de lo que cuesta el video más barato, la cuenta descansa hasta que se
- * renueve. Lo gastado en videos se apunta por día y por cuenta (`uso`), para verlo en Opciones.
+ * Lo que le queda a cada cuenta (`saldos`) se lee del menú de su cuenta en Flow tras cada video, antes de gastar en ella
+ * cuando el número ya se reinició o no se conoce, y de todas al pedirlo (`/api/flow/saldos`, desde Opciones). Pasada la
+ * hora de renovación el número guardado deja de valer: la cuenta cuenta su piso (`maximo`, lo más que se le vio) hasta que
+ * llegue su relectura, que es cuando entra sola. Con menos de lo que cuesta el video más barato, la cuenta descansa hasta
+ * que se renueve. Lo gastado en videos se apunta por día y por cuenta (`uso`), para verlo en Opciones.
  *
  * `aportar` es «Ayudar a mejorar Flow»: que Google use lo generado para sus productos. Sale apagado aunque en Flow venga
  * encendido, y cada quien lo cambia en Opciones. Se pone en cada cuenta antes de su primer pedido; si no se puede, no se
@@ -150,12 +152,11 @@ export function flow(app: string, google: Google) {
     guardarAjustes()
   }
 
-  /** Lo que queda entre las cuentas cuyo saldo sigue valiendo: leído, y sin renovarse desde entonces. */
-  const quedan = (ahora: number) =>
-    cuentas().reduce((n, c) => {
-      const s = ajustes.saldos?.[c.correo]
-      return s && !(s.renueva && s.renueva <= ahora) ? n + s.creditos : n
-    }, 0)
+  /** Lo que la cuenta tiene ahora, de lo último que se leyó (`saldoVigente`, en `shared/flow.ts`). */
+  const saldoVigente = (correo: string, ahora: number) => vigente(ajustes.saldos?.[correo], ahora)
+
+  /** Lo que queda entre las cuentas, con lo que se sabe de cada una: las reiniciadas cuentan su piso. */
+  const quedan = (ahora: number) => cuentas().reduce((n, c) => n + (saldoVigente(c.correo, ahora)?.creditos ?? 0), 0)
 
   /** Si el hilo ya autorizó gastar: el permiso vence por tiempo o por créditos. */
   function permisoDe(hilo?: string): boolean {
@@ -207,6 +208,16 @@ export function flow(app: string, google: Google) {
         const page = await paginaFlow(b)
         try {
           if ((t.referencias.length || t.cuadros.length) && !ajustes.derechos) throw new Error(SIN_DERECHOS)
+          // Los videos gastan: con el saldo viejo o sin leer no se sabe si le alcanza, y se lee antes de gastar (leer no
+          // gasta). Si no le queda ni para el video más barato, el pedido pasa a otra cuenta sin perder el intento.
+          if (t.tipo === 'video') {
+            const visto = saldoVigente(c.correo, Date.now())
+            if (!visto || visto.piso) {
+              const s = await saldoEnFlow(page)
+              apuntarSaldo(c.correo, s)
+              if (s && s.creditos < VIDEO_MAS_BARATO) throw new SinEmpezar(`${c.correo} ya no tiene créditos para video (le quedan ${s.creditos}).`, 'sin créditos')
+            }
+          }
           const aportar = ajustes.aportar === true
           if (aplicado.get(c.correo) !== aportar) {
             await ponerAportar(page, aportar)
@@ -258,10 +269,15 @@ export function flow(app: string, google: Google) {
   }
 
   let leyendo = false
-  const sinLeer = () => cuentas().filter((c) => !ajustes.saldos?.[c.correo])
-  /** Lee lo que le queda a cada cuenta (`faltan`: solo a las que nunca se leyeron), `A_LA_VEZ` a la vez. No gasta. */
+  /** Las cuentas cuyo saldo hay que leer: las que nunca se leyeron y las que ya se reiniciaron (ahí el número dejó de valer). */
+  const porLeer = (ahora: number) =>
+    cuentas().filter((c) => {
+      const v = saldoVigente(c.correo, ahora)
+      return !v || v.piso
+    })
+  /** Lee lo que le queda a cada cuenta (`faltan`: solo a las que hay que leer, `porLeer`), `A_LA_VEZ` a la vez. No gasta. */
   async function leerSaldos(faltan: boolean) {
-    const pendientes = faltan ? sinLeer() : cuentas()
+    const pendientes = faltan ? porLeer(Date.now()) : cuentas()
     if (leyendo || !pendientes.length) return
     leyendo = true
     const una = async (c: CuentaFlow) => {
@@ -347,17 +363,20 @@ export function flow(app: string, google: Google) {
       cuentas: cuentas().map((c) => {
         const d = ajustes.descansos?.[c.correo]
         const saldo = ajustes.saldos?.[c.correo]
+        const queda = saldoVigente(c.correo, ahora)
         return {
           correo: c.correo,
           deLaVoz: c.deLaVoz,
           generando: ocupadas.has(c.correo),
           ...(d && d.hasta > ahora ? { descansa: d } : {}),
           ...(saldo ? { saldo } : {}),
+          ...(queda ? { queda } : {}),
           hoy: deHoy[c.correo] ?? NADA
         }
       }),
       uso: { hoy: Object.values(deHoy).reduce(sumar, NADA), mes: delMes.flatMap(([, d]) => Object.values(d)).reduce(sumar, NADA) },
       quedan: quedan(ahora),
+      porLeer: porLeer(ahora).length,
       leyendo,
       agregando: otras.agregando(),
       navegador: nombreNavegador(),
@@ -393,7 +412,7 @@ export function flow(app: string, google: Google) {
     }
     if (path === '/api/flow/saldos' && metodo === 'POST') {
       const { faltan } = await cuerpo<{ faltan?: boolean }>(req)
-      const habia = faltan ? sinLeer().length : cuentas().length
+      const habia = faltan ? porLeer(Date.now()).length : cuentas().length
       void leerSaldos(faltan === true)
       return json(res, 200, { ...estado(), leyendo: leyendo || habia > 0 })
     }

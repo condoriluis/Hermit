@@ -1289,13 +1289,15 @@ export interface TrabajoVoz {
 /**
  * `GET /api/flow`. `cuentas`: las de Google con que genera, primero la de la voz; `agregando`, si hay una ventana abierta
  * para entrar con otra. `error`: por qué no se pudo agregar la última. `uso`: los videos hechos hoy y este mes, entre
- * todas. `quedan`: los créditos que les quedan a las que tienen su saldo al día. `leyendo`: si se está leyendo el saldo
- * de las cuentas (`POST /api/flow/saldos`).
+ * todas. `quedan`: los créditos de todas, con lo que se sabe de cada una (a las ya reiniciadas se les cuenta su piso, ver
+ * `CuentaEnFlow.queda`). `porLeer`: cuántas hay que leer (nunca leídas o ya reiniciadas). `leyendo`: si se está leyendo el
+ * saldo de las cuentas (`POST /api/flow/saldos`).
  */
 export interface EstadoFlow {
   cuentas: CuentaEnFlow[]
   uso: { hoy: GastoFlow; mes: GastoFlow }
   quedan: number
+  porLeer: number
   leyendo: boolean
   agregando: boolean
   /** Donde se entra con Google: Edge, o Chrome en Mac. */
@@ -1310,7 +1312,9 @@ export interface EstadoFlow {
 
 /**
  * Una cuenta de Google en Flow. `descansa`: hasta cuándo no genera (ms) y por qué (`Motivo` de `shared/flow.ts`).
- * `saldo`: lo que le quedaba al leerlo, sin él si aún no se leyó. `hoy`: sus videos de hoy.
+ * `saldo`: lo que le quedaba al leerlo, sin él si aún no se leyó. `hoy`: sus videos de hoy. `queda`: lo que se le cuenta
+ * ahora (`saldoVigente`, `server/flow/index.ts`); con `piso`, su número ya venció y ese es el mínimo probado hasta que
+ * llegue su relectura. Es lo que suma `EstadoFlow.quedan`.
  */
 export interface CuentaEnFlow {
   correo: string
@@ -1318,6 +1322,7 @@ export interface CuentaEnFlow {
   generando: boolean
   descansa?: { hasta: number; motivo: 'creditos' | 'frenada' | 'sesion' }
   saldo?: SaldoFlow
+  queda?: { creditos: number; piso: boolean }
   hoy: GastoFlow
 }
 

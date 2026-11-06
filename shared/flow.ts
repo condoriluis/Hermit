@@ -91,6 +91,17 @@ export function saldoDe(texto: string, ahora: number): Saldo | null {
 /** Lo menos que cuesta un video (Omni Flash): con menos, la cuenta no hace ninguno hasta que se renueve. */
 export const VIDEO_MAS_BARATO = 6
 
+/**
+ * Lo que le queda a una cuenta ahora, de su último saldo leído. El número vale hasta su renovación (`renueva`): pasada
+ * esa hora Flow ya la repuso y, como repone y no acumula, no puede quedar por debajo de lo más que se le vio (`maximo`).
+ * Ese es `piso`, el mínimo probado, mientras llega su relectura; nunca es una suposición. Sin saldo, `null`.
+ */
+export function saldoVigente(s: { creditos: number; renueva?: number; maximo?: number } | undefined, ahora: number): { creditos: number; piso: boolean } | null {
+  if (!s) return null
+  if (!s.renueva || s.renueva > ahora) return { creditos: s.creditos, piso: false }
+  return { creditos: Math.max(s.maximo ?? 0, s.creditos), piso: true }
+}
+
 /** Cuántas cuentas de Google puede tener Flow en Hermit, y cuántas generan a la vez (cada una abre su Edge). */
 export const MAX_CUENTAS = 50
 export const A_LA_VEZ = 3

@@ -86,24 +86,24 @@ const LITE = 10
 const horaFlow = (ms: number) => new Date(ms).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
 const MOTIVO: Record<NonNullable<CuentaEnFlow['descansa']>['motivo'], string> = { creditos: 'Sin créditos', frenada: 'Flow la frenó', sesion: 'Sin sesión' }
 
-function CuentaFlow({ c, ahora }: { c: CuentaEnFlow; ahora: number }) {
+function CuentaFlow({ c }: { c: CuentaEnFlow }) {
   const s = c.saldo
-  const renovados = !!s?.renueva && s.renueva <= ahora
-  const queda = !s ? 0 : renovados ? 100 : Math.min(100, (s.creditos / Math.max(DIARIO_GRATIS, s.maximo ?? 0)) * 100)
+  const q = c.queda
+  const queda = q ? Math.min(100, (q.creditos / Math.max(DIARIO_GRATIS, s?.maximo ?? 0)) * 100) : 0
   const nota = c.generando
     ? 'Generando'
     : c.descansa
       ? `${MOTIVO[c.descansa.motivo]} · vuelve a probar a las ${horaFlow(c.descansa.hasta)}`
-      : renovados
-        ? `↻ Se renovaron a las ${horaFlow(s!.renueva!)}: actualiza para verlos`
+      : q?.piso
+        ? `↻ Se renovaron a las ${horaFlow(s!.renueva!)}: por leer`
         : s?.renueva
           ? `↻ Se renuevan a las ${horaFlow(s.renueva)}`
           : ''
   return (
-    <span className={`context-limit ${c.descansa || (s && !renovados && s.creditos < LITE) ? 'agotandose' : ''}`}>
+    <span className={`context-limit ${c.descansa || (q && !q.piso && q.creditos < LITE) ? 'agotandose' : ''}`}>
       <span className="context-limit-heading" title={c.correo}>
         <span className="una-linea">{c.correo.replace(/@gmail\.com$/, '')}</span>
-        <b>{!s ? 'sin leer' : renovados ? 'renovados' : `${s.creditos} créditos`}</b>
+        <b>{!q ? 'sin leer' : q.piso ? `mínimo ${q.creditos}` : `${q.creditos} créditos`}</b>
       </span>
       <span className="context-limit-bar" role="meter" aria-label={`${c.correo}: créditos de Flow`} aria-valuenow={Math.round(queda)} aria-valuemin={0} aria-valuemax={100}>
         <span style={{ width: `${queda}%` }} />
@@ -120,15 +120,19 @@ function CuentaFlow({ c, ahora }: { c: CuentaEnFlow; ahora: number }) {
  */
 export function FlowEnUso({ delChat }: { delChat?: GastoFlow }) {
   const [e, setE] = useState<EstadoFlow>()
-  const ahora = Date.now()
+  const cargado = !!e
   useEffect(() => void api<EstadoFlow>('/api/flow').then(setE, () => {}), [])
+  // Al abrirse se leen las que nunca se leyeron y las que ya se reiniciaron (su número venció), igual que en Opciones.
+  useEffect(() => {
+    if (e?.cuentas.some((c) => !c.queda || c.queda.piso)) void api<EstadoFlow>('/api/flow/saldos', { faltan: true }).then(setE, () => {})
+  }, [cargado])
   useEffect(() => {
     if (!e?.leyendo) return
     const t = setTimeout(() => void api<EstadoFlow>('/api/flow').then(setE, () => {}), 3000)
     return () => clearTimeout(t)
   }, [e])
   if (!e?.cuentas.length) return null
-  const orden = [...e.cuentas].sort((a, b) => (b.saldo?.creditos ?? -1) - (a.saldo?.creditos ?? -1))
+  const orden = [...e.cuentas].sort((a, b) => (b.queda?.creditos ?? -1) - (a.queda?.creditos ?? -1))
   const sinLeer = e.cuentas.filter((c) => !c.saldo).length
   const clips = Math.floor(e.quedan / LITE)
   return (
@@ -155,7 +159,7 @@ export function FlowEnUso({ delChat }: { delChat?: GastoFlow }) {
         ) : null}
       </span>
       {orden.slice(0, CUENTAS_A_LA_VISTA).map((c) => (
-        <CuentaFlow key={c.correo} c={c} ahora={ahora} />
+        <CuentaFlow key={c.correo} c={c} />
       ))}
       {orden.length > CUENTAS_A_LA_VISTA && <span className="context-limit-note">Y {orden.length - CUENTAS_A_LA_VISTA} cuentas más, en Opciones → Google Flow.</span>}
     </span>

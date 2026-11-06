@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { creditosDe, elegirCuenta, IMAGEN_CHATGPT, imagenPosible, lineaImagenes, motivoDeAviso, saldoDe, tipoDeArchivo, type UsoCuenta } from './flow.ts'
+import { creditosDe, elegirCuenta, IMAGEN_CHATGPT, imagenPosible, lineaImagenes, motivoDeAviso, saldoDe, saldoVigente, tipoDeArchivo, type UsoCuenta } from './flow.ts'
 
 test('cada pedido va a la cuenta libre que lleva más sin generar', () => {
   const cuentas: UsoCuenta[] = [
@@ -79,4 +79,18 @@ test('lo que le queda a una cuenta se lee de su menú, con la hora en que se ren
   // Sin gastar aún, Flow dice la hora de ahora: no es cuándo se renuevan.
   assert.deepEqual(saldoDe('50 puntos de Google Flow\nLos puntos se actualizan a diario a las 15:00', ahora), { creditos: 50 })
   assert.equal(saldoDe('Créditos de Google Flow', ahora), null)
+})
+
+test('pasada la hora de renovación el saldo no vale: cuenta su piso (lo más que se le vio), nunca cero', () => {
+  const ahora = 1_000_000
+  // Sin leer: nada que contar.
+  assert.equal(saldoVigente(undefined, ahora), null)
+  // Leído y aún sin renovar: el número tal cual.
+  assert.deepEqual(saldoVigente({ creditos: 30, renueva: ahora + 60_000, maximo: 50 }, ahora), { creditos: 30, piso: false })
+  assert.deepEqual(saldoVigente({ creditos: 30, maximo: 50 }, ahora), { creditos: 30, piso: false })
+  // Ya renovada: Flow repuso y no acumula, así que no puede quedar por debajo de lo más que se le vio.
+  assert.deepEqual(saldoVigente({ creditos: 0, renueva: ahora - 1, maximo: 50 }, ahora), { creditos: 50, piso: true })
+  assert.deepEqual(saldoVigente({ creditos: 20, renueva: ahora, maximo: 50 }, ahora), { creditos: 50, piso: true })
+  // Sin habérsele visto más que lo que dice ahora, ese es su piso.
+  assert.deepEqual(saldoVigente({ creditos: 20, renueva: ahora - 1 }, ahora), { creditos: 20, piso: true })
 })

@@ -1,26 +1,8 @@
 import assert from 'node:assert/strict'
-import { createHmac } from 'node:crypto'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
-import { CUPO, deTodos, esFundador, faltaAvisar, firmaDeMercadoPago, instaladorDe, leerPagos, leerPaypal, liberada, rangoDe, sistema, sistemaDelYml, sobran, tarifa, vigencia } from './index.ts'
-
-const SECRETO = 'secreto-de-prueba'
-const firmar = (manifiesto: string) => createHmac('sha256', SECRETO).update(manifiesto).digest('hex')
-
-test('acepta el aviso firmado por Mercado Pago, con el data.id alfanumérico en minúsculas', async () => {
-  const v1 = firmar('id:2c938084abc;request-id:req-1;ts:1700000000;')
-  assert.equal(await firmaDeMercadoPago(`ts=1700000000,v1=${v1}`, 'req-1', '2C938084ABC', SECRETO), true)
-})
-
-test('rechaza un aviso sin firma, con otra firma o sin la clave secreta', async () => {
-  const v1 = firmar('id:123;request-id:req-1;ts:1700000000;')
-  assert.equal(await firmaDeMercadoPago(null, 'req-1', '123', SECRETO), false)
-  assert.equal(await firmaDeMercadoPago(`ts=1700000000,v1=${v1}`, 'req-2', '123', SECRETO), false)
-  assert.equal(await firmaDeMercadoPago(`ts=1700000001,v1=${v1}`, 'req-1', '123', SECRETO), false)
-  assert.equal(await firmaDeMercadoPago(`ts=1700000000,v1=${v1}`, 'req-1', '123', undefined), false)
-  assert.equal(await firmaDeMercadoPago(`ts=1700000000,v1=${v1}00`, 'req-1', '123', SECRETO), false)
-})
+import { CUPO, esFundador, faltaAvisar, instaladorDe, leerPagos, leerPaypal, rangoDe, sistema, sistemaDelYml, sobran, tarifa, vigencia } from './index.ts'
 
 test('autorizada abre una semana sin conexión; cancelada, hasta el fin de lo pagado; pendiente, no', () => {
   const ahora = Date.parse('2026-10-21T12:00:00Z')
@@ -70,13 +52,13 @@ test('cada pago del año que vale suma un año desde que se aprobó, o desde que
   // Uno de menos o en otra moneda no cuenta.
   assert.equal(leerPagos([pago('approved', '2026-10-28T16:00:00Z', 299)], f).estado, 'pending')
   assert.equal(leerPagos([pago('approved', '2026-10-28T16:00:00Z', 2990, 'USD')], f).estado, 'pending')
-  // El año en dólares se paga en dólares: 150 USD valen, 150 pesos no.
-  const enDolares = { monto: 150, moneda: 'USD' }
-  assert.equal(leerPagos([pago('approved', '2026-10-30T16:00:00Z', 150, 'USD')], enDolares).estado, 'pagado')
-  assert.equal(leerPagos([pago('approved', '2026-10-30T16:00:00Z', 150, 'MXN')], enDolares).estado, 'pending')
+  // El año en dólares se paga en dólares: 50 USD valen, 50 pesos no.
+  const enDolares = { monto: 50, moneda: 'USD' }
+  assert.equal(leerPagos([pago('approved', '2026-10-30T16:00:00Z', 50, 'USD')], enDolares).estado, 'pagado')
+  assert.equal(leerPagos([pago('approved', '2026-10-30T16:00:00Z', 50, 'MXN')], enDolares).estado, 'pending')
 })
 
-test('una suscripción de PayPal se lee con los estados de Mercado Pago; solo activa dice su próximo cobro', () => {
+test('una suscripción de PayPal se lee con los estados de Hermit; solo activa dice su próximo cobro', () => {
   const cobro = { next_billing_time: '2026-11-29T10:00:00Z' }
   assert.deepEqual(leerPaypal({ status: 'ACTIVE', billing_info: cobro }), { estado: 'authorized', hasta: '2026-11-29T10:00:00Z' })
   assert.deepEqual(leerPaypal({ status: 'APPROVAL_PENDING' }), { estado: 'pending', hasta: undefined })
@@ -97,10 +79,10 @@ test('un año pagado de una vez abre hasta su fin y avisa antes de que se acabe,
 })
 
 test('el precio es el mismo para todos; las 25 primeras personas que apoyan son fundadoras', () => {
-  const env = { FUNDADORES: 25, PRECIO_MENSUAL: 15, PRECIO_ANUAL: 150, MONEDA: 'USD' }
-  assert.deepEqual(tarifa({ fundadores: 0, apoyan: 0 }, env), { quedan: 25, mensual: 15, anual: 150, moneda: 'USD', apoyan: 0 })
-  assert.deepEqual(tarifa({ fundadores: 3, apoyan: 2 }, env), { quedan: 22, mensual: 15, anual: 150, moneda: 'USD', apoyan: 2 })
-  assert.deepEqual(tarifa({ fundadores: 25, apoyan: 80 }, env), { quedan: 0, mensual: 15, anual: 150, moneda: 'USD', apoyan: 80 })
+  const env = { FUNDADORES: 25, PRECIO_MENSUAL: 5, PRECIO_ANUAL: 50, MONEDA: 'USD' }
+  assert.deepEqual(tarifa({ fundadores: 0, apoyan: 0 }, env), { quedan: 25, mensual: 5, anual: 50, moneda: 'USD', apoyan: 0 })
+  assert.deepEqual(tarifa({ fundadores: 3, apoyan: 2 }, env), { quedan: 22, mensual: 5, anual: 50, moneda: 'USD', apoyan: 2 })
+  assert.deepEqual(tarifa({ fundadores: 25, apoyan: 80 }, env), { quedan: 0, mensual: 5, anual: 50, moneda: 'USD', apoyan: 80 })
   // Con la fecha de fundadores ya pasada, no queda ninguno.
   assert.equal(tarifa({ fundadores: 0, apoyan: 0 }, { ...env, FUNDADORES_HASTA: '2026-01-01T00:00:00Z' }).quedan, 0)
 })
@@ -150,30 +132,10 @@ test('cada Mac tiene su sistema: la de Apple Silicon, su última y su latest.yml
   assert.equal(sistemaDelYml('latest-linux.yml'), 'linux')
 })
 
-test('al publicar se borran los instaladores de más, pero no el de la versión que aún se da a quien no apoya', () => {
+test('al publicar se borran los instaladores de más: quedan los últimos de cada tipo', () => {
   const de = (v: string, dia: number) => ({ key: `Hermit-Setup-${v}.exe`, uploaded: new Date(2026, 9, dia) })
   const r2 = [de('0.3.31', 28), de('0.3.30', 27), de('0.3.29', 26), de('0.3.28', 25), de('0.3.27', 24)]
-  assert.deepEqual(sobran(r2, []), ['Hermit-Setup-0.3.28.exe', 'Hermit-Setup-0.3.27.exe'])
-  assert.deepEqual(sobran(r2, ['0.3.28']), ['Hermit-Setup-0.3.27.exe'])
-  assert.deepEqual(sobran(r2, ['0.3.2']), ['Hermit-Setup-0.3.28.exe', 'Hermit-Setup-0.3.27.exe'])
-})
-
-test('una versión nueva es de quien apoya hasta su fecha `todos`; las de antes, sin ella, ya son de todos', () => {
-  const ahora = Date.parse('2026-11-01T12:00:00Z')
-  assert.equal(deTodos({}, ahora), true)
-  assert.equal(deTodos({ todos: '2026-11-05T12:00:00Z' }, ahora), false)
-  assert.equal(deTodos({ todos: '2026-11-01T12:00:00Z' }, ahora), true)
-})
-
-test('liberar en un live da a todos ya la versión que aún era de quien apoya; la que ya era de todos no cambia', () => {
-  const ahora = new Date().toISOString()
-  const pendiente = { version: '0.3.20', todos: new Date(Date.now() + 5 * 864e5).toISOString() }
-  assert.deepEqual(liberada(pendiente, ahora), { version: '0.3.20', todos: ahora })
-  assert.equal(deTodos(liberada(pendiente, ahora)), true)
-  const yaDeTodos = { version: '0.3.19', todos: '2026-10-01T12:00:00Z' }
-  assert.equal(liberada(yaDeTodos, ahora), yaDeTodos)
-  const deAntes = { version: '0.3.2' }
-  assert.equal(liberada(deAntes, ahora), deAntes)
+  assert.deepEqual(sobran(r2), ['Hermit-Setup-0.3.28.exe', 'Hermit-Setup-0.3.27.exe'])
 })
 
 test('el cupo del día no deja pasar de su máximo, y cada quien tiene el suyo', () => {

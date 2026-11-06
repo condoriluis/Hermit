@@ -9,15 +9,13 @@ const dinero = (n: number) => `$${n.toLocaleString('es-MX')}`
 const fecha = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) : '')
 /** La página de Hermit: ahí se apoya, y tiene los términos y el aviso de privacidad. */
 const PAGINA = 'https://myhermit.vercel.app'
-/** La versión de los términos que acepta quien crea su cuenta: la de `TERMINOS` en la página. */
-const TERMINOS = '2026-10-30'
 /** Cada cuántos inicios sale el recordatorio a quien no apoya. */
 const CADA = 10
 const INICIOS = 'hermit:inicios'
 
 /** Si la clave quita el recordatorio: un apoyo vigente o un lugar gratis de por vida (de cuando Hermit se vendía). */
 const apoya = (l?: Licencia) => !!l?.activa && l.plan !== 'cuenta'
-const apoyar = () => window.open(`${PAGINA}/#apoyar`, '_blank')
+const apoyar = () => window.open(`${PAGINA}/#apoyo`, '_blank')
 
 /**
  * Hermit es gratis (`server/licencia.ts`). Cada `CADA` inicios, a quien no apoya le recuerda que puede hacerlo, sin
@@ -142,7 +140,8 @@ export function Unirse({ onListo }: { onListo(): void }) {
     setOcupado(true)
     setError('')
     try {
-      const l = await api<Licencia & { enviada?: boolean }>('/api/licencia/unirse', { email, terminos: TERMINOS })
+      // La versión de los términos la guarda el cobro; la app no fija ninguna.
+      const l = await api<Licencia & { enviada?: boolean }>('/api/licencia/unirse', { email })
       if (!l.enviada) return onListo()
       setEnviada(l)
     } catch (e) {

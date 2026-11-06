@@ -90,7 +90,7 @@ Las reglas del proyecto y el mapa del código están en [`AGENTS.md`](AGENTS.md)
 
 ## Roadmap
 
-Las metas se cuentan con las personas que apoyan hoy, y quien apoya recibe cada versión 7 días antes que todos.
+Las metas se cuentan con las personas que apoyan hoy. Cada versión nueva la reciben todos a la vez.
 
 | Personas que apoyan | Qué sale |
 | --- | --- |
@@ -105,9 +105,9 @@ El orden lo puede cambiar la comunidad: se vota dentro de Hermit, y el voto de u
 
 ## Apoya a Hermit
 
-Hermit es gratis y lo seguirá siendo. Si te sirve, puedes [apoyarla](https://myhermit.vercel.app/#apoyar) desde
-$15 USD al mes: con ese apoyo salen las metas del roadmap. Las primeras 25 personas que apoyan son **Fundadores**
-para siempre, con insignia en la comunidad, su nombre en los créditos de la página y voto doble.
+Hermit es gratis y lo seguirá siendo. Si te sirve, puedes [apoyarla](https://myhermit.vercel.app/#apoyo) desde
+5 USD al mes (o 50 USD al año): con ese apoyo salen las metas del roadmap. Las primeras 25 personas que apoyan son
+**Fundadores** para siempre, con insignia en la comunidad, su nombre en los créditos de la página y voto doble.
 
 ## Aportar
 

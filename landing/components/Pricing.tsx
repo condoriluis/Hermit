@@ -1,28 +1,26 @@
 'use client'
 
-import React, { useState } from 'react'
-import { Heart, Coffee, Sparkles, Crown, Download, ShieldCheck, QrCode, Check } from 'lucide-react'
+import React, { useEffect, useState } from 'react'
+import { Heart, Sparkles, Crown, Download, ShieldCheck, QrCode, Check, CreditCard } from 'lucide-react'
 import CheckoutModal from './CheckoutModal'
+import { enBolivianos, precios, RESPALDO_BOB, type Plan, type Precios } from '@/lib/cobro'
 
 export default function Pricing() {
-  const [modalOpen, setModalOpen] = useState(false)
-  const [selectedTier, setSelectedTier] = useState<{
-    id: string
-    title: string
-    amountUSD: number
-    amountBOB: number
-    custom?: boolean
-  }>({
-    id: 'cafecito',
-    title: 'Un Cafecito',
-    amountUSD: 1,
-    amountBOB: 7,
-  })
+  // El precio y el cambio salen del cobro y del mercado: se ven al momento, no escritos aquí.
+  const [p, setP] = useState<Precios>({ mensual: 5, anual: 50, moneda: 'USD', quedan: 0 })
+  const [bob, setBob] = useState<number>()
+  const [plan, setPlan] = useState<Plan | null>(null)
 
-  const openCheckout = (tier: typeof selectedTier) => {
-    setSelectedTier(tier)
-    setModalOpen(true)
-  }
+  useEffect(() => {
+    precios().then((x) => x && setP(x))
+    fetch('/api/cambio')
+      .then((r) => r.json())
+      .then((d) => setBob(Number(d.bob)))
+      .catch(() => {})
+  }, [])
+
+  const cambio = bob ?? RESPALDO_BOB
+  const bs = (usd: number) => `${enBolivianos(usd, cambio).toLocaleString('es-MX')} Bs`
 
   return (
     <section id="apoyo" className="py-24 relative bg-panel/30 border-y border-line/60">
@@ -35,20 +33,17 @@ export default function Pricing() {
             Hermit es gratis. Apoya con lo que gustes.
           </h2>
           <p className="mt-4 text-base sm:text-lg text-muted">
-            Descarga y usa la aplicación completa gratis. Si valoras el proyecto y deseas que
-            continúe mejorando con nuevas versiones, puedes apoyar con una contribución accesible.
+            Descarga y usa la aplicación completa gratis. Si valoras el proyecto y deseas que continúe mejorando con
+            nuevas versiones, puedes apoyar al mes o al año por un precio accesible.
           </p>
         </div>
 
-        {/* 4 Accessible Support Tiers */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto items-stretch">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto items-stretch">
           {/* 1. Gratis */}
           <div className="rounded-2xl bg-panel border border-line p-6 flex flex-col justify-between shadow-card hover:border-line-strong transition-all">
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-mono uppercase tracking-wider text-muted font-bold">
-                  Uso Libre
-                </span>
+                <span className="text-xs font-mono uppercase tracking-wider text-muted font-bold">Uso Libre</span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-panel-2 text-ok border border-ok/30 font-semibold">
                   Gratis
                 </span>
@@ -92,66 +87,7 @@ export default function Pricing() {
             </div>
           </div>
 
-          {/* 2. Un Cafecito ($1+ USD / 7+ Bs) */}
-          <div className="rounded-2xl bg-panel border border-line p-6 flex flex-col justify-between shadow-card hover:border-accent/60 transition-all group">
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono uppercase tracking-wider text-accent font-bold flex items-center gap-1">
-                  <Coffee className="w-3.5 h-3.5" /> Lo que gustes
-                </span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-panel-2 text-muted border border-line">
-                  Desde $1
-                </span>
-              </div>
-
-              <div className="mt-4 flex items-baseline gap-1">
-                <span className="text-3xl sm:text-4xl font-black text-text">$1+</span>
-                <span className="text-xs text-muted font-mono">USD (7+ Bs)</span>
-              </div>
-
-              <p className="text-xs text-muted mt-2">
-                Una sola vez o mensual. Tú eliges el monto para invitarme un café y apoyar el trabajo.
-              </p>
-
-              <hr className="border-line my-4" />
-
-              <div className="space-y-2.5 text-xs text-text-2">
-                <div className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-accent flex-none" />
-                  <span>Monto libre voluntario</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-accent flex-none" />
-                  <span>Agradecimiento del creador</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-accent flex-none" />
-                  <span>Pago con QR Bolivia o PayPal</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <button
-                type="button"
-                onClick={() =>
-                  openCheckout({
-                    id: 'custom',
-                    title: 'Lo que gustes',
-                    amountUSD: 1,
-                    amountBOB: 7,
-                    custom: true,
-                  })
-                }
-                className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-panel-2 hover:bg-line text-text font-bold text-xs border border-line group-hover:border-accent/40 transition-all"
-              >
-                <Heart className="w-3.5 h-3.5 text-accent" />
-                <span>Elegir Monto Libre</span>
-              </button>
-            </div>
-          </div>
-
-          {/* 3. Apoyo Amigo ($5 USD / 35 Bs) */}
+          {/* 2. Apoyo al mes */}
           <div className="rounded-2xl bg-gradient-to-b from-panel via-panel-2 to-panel border-2 border-accent p-6 flex flex-col justify-between shadow-glow relative">
             <div className="absolute -top-3 right-4 px-2.5 py-0.5 rounded-full bg-accent text-on-solid text-[10px] font-mono font-bold uppercase tracking-wider">
               Popular
@@ -160,7 +96,7 @@ export default function Pricing() {
             <div>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-mono uppercase tracking-wider text-accent font-bold flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5" /> Apoyo Activo
+                  <Sparkles className="w-3.5 h-3.5" /> Apoyo al mes
                 </span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-accent/15 text-accent border border-accent/30 font-semibold">
                   Recomendado
@@ -168,12 +104,13 @@ export default function Pricing() {
               </div>
 
               <div className="mt-4 flex items-baseline gap-1">
-                <span className="text-3xl sm:text-4xl font-black text-text">$5</span>
-                <span className="text-xs text-muted font-mono">USD (35 Bs)</span>
+                <span className="text-3xl sm:text-4xl font-black text-text">${p.mensual}</span>
+                <span className="text-xs text-muted font-mono">USD / mes</span>
               </div>
+              <p className="text-[11px] text-accent font-mono mt-1">≈ {bs(p.mensual)}</p>
 
               <p className="text-xs text-muted mt-2">
-                Un apoyo mensual muy accesible para mantener el proyecto activo y recibir novedades.
+                Un apoyo mensual muy accesible para mantener el proyecto activo.
               </p>
 
               <hr className="border-line my-4" />
@@ -185,11 +122,11 @@ export default function Pricing() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-accent flex-none" />
-                  <span>Nuevas versiones anticipadas</span>
+                  <span>Insignia de quien apoya</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-accent flex-none" />
-                  <span>Insignia de Aportador</span>
+                  <span>Decides qué sale primero</span>
                 </div>
               </div>
             </div>
@@ -197,41 +134,35 @@ export default function Pricing() {
             <div className="mt-6">
               <button
                 type="button"
-                onClick={() =>
-                  openCheckout({
-                    id: 'amigo',
-                    title: 'Apoyo Activo',
-                    amountUSD: 5,
-                    amountBOB: 35,
-                  })
-                }
+                onClick={() => setPlan('mensual')}
                 className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-accent hover:bg-accent-hover text-on-solid font-bold text-xs shadow-glow transition-all active:scale-95"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Apoyar con $5 USD (35 Bs)</span>
+                <span>Apoyar con ${p.mensual} al mes</span>
               </button>
             </div>
           </div>
 
-          {/* 4. Apoyo Grande ($10 USD / 70 Bs) */}
+          {/* 3. Apoyo al año */}
           <div className="rounded-2xl bg-panel border border-line p-6 flex flex-col justify-between shadow-card hover:border-line-strong transition-all">
             <div>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-mono uppercase tracking-wider text-text font-bold flex items-center gap-1">
-                  <Crown className="w-3.5 h-3.5 text-warn" /> Apoyo Grande
+                  <Crown className="w-3.5 h-3.5 text-warn" /> Apoyo al año
                 </span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-panel-2 text-warn border border-warn/30 font-semibold">
-                  Fundador
+                  Ahorras 2 meses
                 </span>
               </div>
 
               <div className="mt-4 flex items-baseline gap-1">
-                <span className="text-3xl sm:text-4xl font-black text-text">$10</span>
-                <span className="text-xs text-muted font-mono">USD (70 Bs)</span>
+                <span className="text-3xl sm:text-4xl font-black text-text">${p.anual}</span>
+                <span className="text-xs text-muted font-mono">USD / año</span>
               </div>
+              <p className="text-[11px] text-warn font-mono mt-1">≈ {bs(p.anual)}</p>
 
               <p className="text-xs text-muted mt-2">
-                Para quienes usan Hermit frecuentemente y desean impulsar el desarrollo al máximo.
+                Un solo pago y listo: vale un año entero de apoyo, sin cobros cada mes.
               </p>
 
               <hr className="border-line my-4" />
@@ -239,15 +170,15 @@ export default function Pricing() {
               <div className="space-y-2.5 text-xs text-text-2">
                 <div className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-warn flex-none" />
-                  <span>Insignia de Apoyo Grande</span>
+                  <span>Todo lo del apoyo al mes</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-warn flex-none" />
-                  <span>Tu nombre en créditos web</span>
+                  <span>Dos meses de regalo</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-warn flex-none" />
-                  <span>Prioridad en sugerencias</span>
+                  <span>Se renueva cuando tú quieras</span>
                 </div>
               </div>
             </div>
@@ -255,25 +186,25 @@ export default function Pricing() {
             <div className="mt-6">
               <button
                 type="button"
-                onClick={() =>
-                  openCheckout({
-                    id: 'grande',
-                    title: 'Apoyo Grande',
-                    amountUSD: 10,
-                    amountBOB: 70,
-                  })
-                }
+                onClick={() => setPlan('anual')}
                 className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-panel-2 hover:bg-line text-text font-bold text-xs border border-line transition-all active:scale-95"
               >
                 <Crown className="w-3.5 h-3.5 text-warn" />
-                <span>Apoyar con $10 USD (70 Bs)</span>
+                <span>Apoyar con ${p.anual} el año</span>
               </button>
             </div>
           </div>
         </div>
 
+        {p.quedan > 0 && (
+          <p className="mt-8 text-center text-xs font-mono text-warn">
+            <Heart className="w-3.5 h-3.5 inline-block mr-1" />
+            Quedan {p.quedan} lugares de Fundador: las primeras personas que apoyan llevan su insignia.
+          </p>
+        )}
+
         {/* Payment Methods Banner */}
-        <div className="mt-12 text-center flex items-center justify-center gap-3 text-xs text-muted">
+        <div className="mt-8 text-center flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs text-muted">
           <span className="flex items-center gap-1.5 font-semibold text-text">
             <ShieldCheck className="w-4 h-4 text-ok" /> Métodos de pago aceptados:
           </span>
@@ -281,18 +212,21 @@ export default function Pricing() {
             <QrCode className="w-3.5 h-3.5" /> QR Simple (Bolivia - BNB, BCP, Unión)
           </span>
           <span>·</span>
-          <span className="font-mono text-text-2">PayPal (Internacional)</span>
+          <span className="flex items-center gap-1 font-mono text-text-2">
+            <CreditCard className="w-3.5 h-3.5" /> PayPal (Internacional)
+          </span>
         </div>
+        <p className="mt-2 text-center text-[11px] font-mono text-muted">
+          Los precios en bolivianos van al cambio del dólar del mercado de hoy: 1 USD ≈ {cambio.toLocaleString('es-MX')} Bs.
+        </p>
       </div>
 
-      {/* Checkout Modal */}
       <CheckoutModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        initialPlan={selectedTier.id as any}
-        defaultAmountUSD={selectedTier.amountUSD}
-        defaultAmountBOB={selectedTier.amountBOB}
-        isCustomAmount={selectedTier.custom}
+        isOpen={plan !== null}
+        onClose={() => setPlan(null)}
+        plan={plan ?? 'mensual'}
+        precioUSD={plan === 'anual' ? p.anual : p.mensual}
+        cambio={cambio}
       />
     </section>
   )

@@ -1,8 +1,8 @@
 /**
  * La clave de la app que se vende (`VENTA`): la de una cuenta gratis, con la que se entra a la comunidad, o la de un
  * apoyo, que quita el recordatorio (`web/src/Licencia.tsx`). Hermit abre sin ella. El apoyo se paga en la página de Hermit,
- * que da la clave; la cuenta se crea aquí (`/api/licencia/unirse`). El cobro es `myhermit.vercel.app`, la API de Hermit con
- * PayPal y QR: aquí solo se le pregunta. Su respuesta llega firmada y se guarda en `data/licencia.json`. Sin
+ * que da la clave; la cuenta se crea aquí (`/api/licencia/unirse`). El cobro es el Worker de Hermit
+ * (`hermit-licencias`), con PayPal y QR: aquí solo se le pregunta. Su respuesta llega firmada y se guarda en `data/licencia.json`. Sin
  * internet, vale hasta su `hasta` (una semana como mucho), y editar el archivo no la alarga. Se vuelve a preguntar al
  * abrir y cada 6 horas.
  */
@@ -19,9 +19,9 @@ import { guardar } from './disco.ts'
 import { preguntarAlRegistro } from './registro.ts'
 
 /** El servicio de cobro y licencias de Hermit. */
-export const COBRO = process.env.HERMIT_COBRO ?? 'https://myhermit.vercel.app'
+export const COBRO = process.env.HERMIT_COBRO ?? 'https://hermit-licencias.myhermit.workers.dev'
 /** La llave con la que se comprueba lo que firma el cobro (la privada es su secreto `FIRMA`). */
-const PUBLICA = createPublicKey({ key: Buffer.from('MCowBQYDK2VwAyEAlo09wigax6NbF1/ar4az15Aa70NhzL77nRXoqYH6p5M=', 'base64'), format: 'der', type: 'spki' })
+const PUBLICA = createPublicKey({ key: Buffer.from('MCowBQYDK2VwAyEAnhJOy/LfHgI2Czf7c7eIwSW+OsfH/0vhKJ4U7pfCwZc=', 'base64'), format: 'der', type: 'spki' })
 const CADA = 6 * 3600_000
 const SIN_CONEXION = 'No hay conexión con el cobro de Hermit. Revisa tu internet e intenta otra vez.'
 
@@ -158,8 +158,8 @@ export function licencia(app: string) {
       // La cuenta gratis, con su correo: el cobro le manda su clave, que se escribe luego en `/api/licencia/clave`
       // (`enviada`). Solo la da aquí si esta computadora ya tenía una.
       if (ruta === '/api/licencia/unirse' && metodo === 'POST') {
-        const { email, terminos } = await cuerpo<{ email?: string; terminos?: string }>(req)
-        const { clave } = await cobro<{ clave?: string }>('/suscribir', { email, plan: 'gratis', equipo, acepto: true, terminos, porCorreo: true })
+        const { email } = await cuerpo<{ email?: string }>(req)
+        const { clave } = await cobro<{ clave?: string }>('/suscribir', { email, plan: 'gratis', equipo, acepto: true, porCorreo: true })
         if (!clave) return enviar(res, 200, { ...estado(), enviada: true })
         const { datos, firma } = await cobro<{ datos: string; firma: string }>('/licencia', { clave, equipo })
         a = { clave, datos, firma, equipo: a.equipo }
@@ -175,7 +175,7 @@ export function licencia(app: string) {
         escribir()
         return enviar(res, 200, estado())
       }
-      // Para la ventana de Electron, al buscar la versión nueva: quien apoya la recibe antes (licencias/, `ANTICIPO`).
+      // Para la ventana de Electron, al buscar la versión nueva de cada sistema (licencias/).
       if (ruta === '/api/licencia/credencial' && metodo === 'GET') return enviar(res, 200, (await credencial()) ?? {})
       // Con un año pagado de una vez: el pago del siguiente.
       if (ruta === '/api/licencia/pago' && metodo === 'POST') {

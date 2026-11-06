@@ -1,5 +1,6 @@
 import React from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { Heart } from 'lucide-react'
 
 export default function Footer() {
@@ -38,6 +39,12 @@ export default function Footer() {
             <a href="#faq" className="hover:text-text transition-colors">
               Preguntas
             </a>
+            <Link href="/terminos" className="hover:text-text transition-colors">
+              Términos
+            </Link>
+            <Link href="/privacidad" className="hover:text-text transition-colors">
+              Privacidad
+            </Link>
           </nav>
 
         </div>

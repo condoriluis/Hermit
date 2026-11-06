@@ -1,9 +1,7 @@
 // El cobro de Hermit (ver src/index.ts), en la cuenta de Cloudflare de Hermit, como la nube. Se
 // despliega con `npm run licencias -- deploy` desde la raíz. Los secretos van con `npm run licencias -- secret put X`:
 // PAYPAL_CLIENT_ID y PAYPAL_SECRET (las de la app de PayPal del modo `PAYPAL_MODO`, en developer.paypal.com), PAYPAL_WEBHOOK_ID
-// (el id del webhook de esa app, a ORIGEN/webhook/paypal, con todos los eventos; `npm run paypal` pone los tres), y de las suscripciones de Mercado Pago
-// de antes: MP_ACCESS_TOKEN (producción de «Hermit pruebas», la app de la vendedora de prueba), MP_ACCESS_TOKEN_PRODUCCION
-// (producción de la aplicación «Hermit» real), MP_WEBHOOK_SECRET (la clave secreta de los webhooks de la real),
+// (el id del webhook de esa app, a ORIGEN/webhook/paypal, con todos los eventos; `npm run paypal` pone los tres),
 // FIRMA (la llave privada Ed25519 en PKCS8 y base64; la pública va en server/licencia.ts) y PUBLICAR (la llave de
 // `npm run publicar`, que también está en %APPDATA%\hermit\licencias\publicar.txt). La base de datos se crea con
 // `npm run licencias -- d1 migrations apply hermit-licencias --remote`. El instalador vive en el bucket DESCARGAS.
@@ -16,7 +14,7 @@
   "observability": { "enabled": true },
   // Cada mañana (9:00 de la Ciudad de México): el aviso de los cobros que vienen.
   "triggers": { "crons": ["0 15 * * *"] },
-  "d1_databases": [{ "binding": "DB", "database_name": "hermit-licencias", "database_id": "0de2b337-32cc-474e-bcb4-14cac3181a5e" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "hermit-licencias", "database_id": "a8cb489a-1f8e-49bf-8ea2-63d960b62fe7" }],
   "r2_buckets": [{ "binding": "DESCARGAS", "bucket_name": "hermit-descargas" }],
   "vars": {
     // `prueba` cobra en el sandbox de PayPal; `produccion`, de verdad. Al cambiarlo, cambian también sus tres secretos. Al
@@ -24,8 +22,6 @@
     // ni las cuentas, que son de personas de verdad:
     // DELETE FROM licencias WHERE plan IN ('mensual', 'anual') AND modo = 'prueba'; DELETE FROM equipos WHERE clave NOT IN (SELECT clave FROM licencias);
     "PAYPAL_MODO": "produccion",
-    // Con cuál de los dos tokens se leen y cancelan las suscripciones de Mercado Pago de antes.
-    "MP_MODO": "produccion",
     "ORIGEN": "https://hermit-licencias.myhermit.workers.dev",
     // GRATIS: los lugares gratis de por vida que se dieron cuando Hermit se vendía (ya no se dan). El apoyo cuesta lo mismo
     // para todos, en MONEDA e IVA incluido; las FUNDADORES primeras personas que apoyan (hasta FUNDADORES_HASTA si se pone,
@@ -33,11 +29,12 @@
     // pagadas de verdad (modo produccion), no las de prueba.
     "GRATIS": 25,
     "FUNDADORES": 25,
-    "PRECIO_MENSUAL": 15,
-    "PRECIO_ANUAL": 150,
+    "PRECIO_MENSUAL": 5,
+    "PRECIO_ANUAL": 50,
     "MONEDA": "USD",
-    // Los correos salen de un dominio verificado en Resend (con su RESEND_API_KEY como secreto) y se responden en support.luchodev@gmail.com.
-    "CORREO_DE": "Hermit <avisos@TU-DOMINIO-VERIFICADO>",
+    // Los correos salen de este remitente en Resend (con su RESEND_API_KEY como secreto) y se responden en support.luchodev@gmail.com.
+    // `onboarding@resend.dev` es el de pruebas de Resend: solo llega al correo con el que se registró. Con dominio verificado, `avisos@tudominio`.
+    "CORREO_DE": "Hermit <onboarding@resend.dev>",
     "CORREO_RESPUESTA": "support.luchodev@gmail.com"
   }
 }

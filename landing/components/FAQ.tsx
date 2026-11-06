@@ -6,7 +6,7 @@ import { ChevronDown } from 'lucide-react'
 const faqs = [
   {
     q: '¿Es realmente gratis? ¿Cuál es el modelo?',
-    a: 'Hermit es un software de escritorio 100% gratuito e independiente. Puedes descargar el ejecutable (.exe, .dmg o AppImage) directamente desde GitHub Releases y usar todas las herramientas sin pagar nada. El apoyo voluntario (desde $1 USD o 7 Bs) es opcional para respaldar a luchodev en el mantenimiento de nuevas versiones.',
+    a: 'Hermit es un software de escritorio 100% gratuito e independiente. Puedes descargar el ejecutable (.exe, .dmg o AppImage) y usar todas las herramientas sin pagar nada. El apoyo voluntario ($5 USD al mes o $50 USD al año) es opcional para respaldar a luchodev en el mantenimiento de nuevas versiones.',
   },
   {
     q: '¿Qué modelos de inteligencia artificial puedo conectar?',
@@ -18,7 +18,7 @@ const faqs = [
   },
   {
     q: '¿Cómo funciona el pago por QR desde Bolivia?',
-    a: 'Al pulsar en "Apoyar", eliges la pestaña de Pago por QR y el monto que desees (desde 7 Bs). Escaneas con tu aplicación bancaria (BNB, BCP, Banco Unión o Simple) y envías el comprobante por WhatsApp con un solo clic para registrar tu contribución.',
+    a: 'Al pulsar en "Apoyar", eliges la pestaña de Pago por QR y el monto del apoyo al cambio del dólar del día ($5 al mes o $50 al año, en bolivianos). Escaneas con tu aplicación bancaria (BNB, BCP, Banco Unión o Simple) y envías el comprobante por WhatsApp con un solo clic para registrar tu contribución.',
   },
   {
     q: '¿Puedo crear mis propias herramientas o tareas personalizadas?',

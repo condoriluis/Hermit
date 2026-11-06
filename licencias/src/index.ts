@@ -18,28 +18,22 @@
  * misma clave. Lo cobrado de cada orden se guarda en `paypal_pagos`, así que un aviso repetido no suma dos veces. La
  * orden aprobada hay que cobrarla (`capture`): lo hace quien se entere primero, `/gracias` o el aviso.
  *
- * Hasta el 29 de octubre de 2026 se cobró con Mercado Pago. Lo de entonces sigue sin cambios: sus suscripciones
- * (`preapproval`) cobran, se leen y se cancelan en Mercado Pago, con su aviso (`POST /webhook`), y un año pagado ahí de
- * una vez (`preferencia`) cuenta sus pagos, aunque el siguiente se pague con PayPal.
  * Del 24 al 28 de octubre de 2026 también se pudo pagar con Stripe; nadie llegó a pagar y se quitó. De entonces queda
  * la columna `stripe`, vacía.
  *
  * El apoyo cuesta lo mismo para todos (`PRECIO_MENSUAL` o `PRECIO_ANUAL`). Las `FUNDADORES` primeras personas que apoyan
  * son fundadoras (`fundador`) para siempre: más beneficios que quien llega después. Cada suscripción conserva el monto
- * y la moneda con que se creó: las de antes del 30 de octubre de 2026 siguen en pesos; las nuevas, en `MONEDA`.
+ * y la moneda con que se creó: las nuevas, en `MONEDA`.
  * Cuando Hermit se vendía, las primeras personas se unieron gratis de por vida (plan `gratis`, `GRATIS` como mucho): son
- * fundadoras como las primeras que apoyan (`esFundador`), con lo nuevo `ANTICIPO` antes y sin el recordatorio. Ya no se
- * dan.
+ * fundadoras como las primeras que apoyan (`esFundador`) y no tienen el recordatorio. Ya no se dan.
  *
  * También da el instalador: `GET /descargar` es la última versión, libre; la de Mac (Intel), la de Mac con Apple Silicon
  * y la de Linux, con `?so=mac`, `?so=mac-arm64` y `?so=linux` (también en `/version`). Está en R2
  * (`DESCARGAS`) y lo sube `npm run publicar` por partes, con `PUBLICAR`: pesa más de lo que aceptan wrangler (300 MiB)
  * y una petición a un Worker (100 MB). `ultima.json` dice cuál es la última. Y las actualizaciones de la app instalada
- * (electron-updater): `GET /actualizaciones/latest.yml` dice cuál es la nueva (quien apoya la recibe `ANTICIPO` antes:
- * a los demás se les sigue dando la anterior, que se guarda en `anterior/` al publicar; el creador la da a todos antes,
- * en un live, con `liberar`, y la app lo ve en su vistazo a `GET /ultima`), y de su instalador baja solo los pedazos
- * que cambiaron, con el mapa de bloques de cada versión (`.blockmap`). Se quedan los mapas de todas, los últimos
- * instaladores y el de la anterior; si este falta, a todos se les da la última.
+ * (electron-updater): `GET /actualizaciones/latest.yml` dice cuál es la nueva, y de su instalador baja solo los pedazos
+ * que cambiaron, con el mapa de bloques de cada versión (`.blockmap`). Se quedan los mapas de todas y los últimos
+ * instaladores.
  *
  * Lo que pide la Ley Federal de Protección al Consumidor (art. 76 Bis VIII y IX) para un cobro recurrente: suscribirse
  * exige aceptar el cobro automático y los términos (se guarda cuándo y qué versión), cancelar da un folio, y el cron de
@@ -48,7 +42,6 @@
  *
  * Y la comunidad (`/comunidad/*`, en `comunidad.ts`), de quien tiene una licencia activa.
  */
-import type { VersionLiberable } from '../../shared/types.ts'
 import { comunidad, creditos } from './comunidad.ts'
 
 export interface Env {
@@ -62,11 +55,6 @@ export interface Env {
   PAYPAL_SECRET?: string
   /** El id del webhook de esa app: con él, PayPal confirma que un aviso es suyo. */
   PAYPAL_WEBHOOK_ID?: string
-  /** Las suscripciones de Mercado Pago de antes: `prueba`, la vendedora de prueba (`MP_ACCESS_TOKEN`); `produccion`, la real. */
-  MP_MODO: 'prueba' | 'produccion'
-  MP_ACCESS_TOKEN: string
-  MP_ACCESS_TOKEN_PRODUCCION?: string
-  MP_WEBHOOK_SECRET?: string
   /** La llave privada Ed25519 en PKCS8 y base64. */
   FIRMA: string
   /** La dirección de este Worker, para la página a la que vuelve el cliente tras pagar. */
@@ -90,8 +78,8 @@ export interface Env {
 /** `gratis`: un lugar gratis de por vida, de cuando Hermit se vendía; `cuenta`: una cuenta gratis, sin apoyo. */
 type Plan = 'mensual' | 'anual' | 'gratis' | 'cuenta'
 /**
- * Los de Mercado Pago, `gratis` para un lugar gratis de por vida o una cuenta (para quitárselos, `cancelled`) y
- * `pagado` para un año pagado de una vez, que vale hasta `pagado_hasta` sin renovarse.
+ * `gratis` para un lugar gratis de por vida o una cuenta (para quitárselos, `cancelled`) y `pagado` para un año pagado
+ * de una vez, que vale hasta `pagado_hasta` sin renovarse.
  */
 export type Estado = 'pending' | 'authorized' | 'paused' | 'cancelled' | 'gratis' | 'pagado'
 
@@ -104,7 +92,6 @@ export interface Fila {
   /** La moneda de `monto`, con su código de PayPal: la de `MONEDA` al crearse. */
   moneda: string
   fundador: number
-  preapproval: string | null
   enlace: string | null
   estado: Estado
   pagado_hasta: string | null
@@ -116,10 +103,8 @@ export interface Fila {
   folio: string | null
   cancelada: string | null
   avisado_para: string | null
-  /** El `PAYPAL_MODO` (antes, el `MP_MODO`) con que se creó. */
+  /** El `PAYPAL_MODO` con que se creó. */
   modo: string
-  /** Un año pagado de una vez con Mercado Pago: el último pago de Checkout Pro que se abrió para ella. */
-  preferencia: string | null
   /** La suscripción mensual de PayPal. */
   paypal: string | null
   /** Un año pagado de una vez con PayPal: la última orden que se abrió para ella. */
@@ -132,10 +117,8 @@ export interface Lectura {
   hasta?: string
 }
 
-/** Un año pagado de una vez, con Mercado Pago o con PayPal: no se renueva solo. */
-const deUnaVez = (f: Pick<Fila, 'preferencia' | 'orden'>) => !!(f.preferencia || f.orden)
-/** Quién cobra la suscripción de la fila, o quién cobró el primer año: para los correos y la página de gracias. */
-const pasarela = (f: Pick<Fila, 'preapproval' | 'preferencia'>) => (f.preapproval || f.preferencia ? 'Mercado Pago' : 'PayPal')
+/** Un año pagado de una vez con PayPal: no se renueva solo. */
+const deUnaVez = (f: Pick<Fila, 'orden'>) => !!f.orden
 
 /** Cuántos se han unido: los lugares gratis tomados y las suscripciones pagadas alguna vez (de ellas, las de fundador). */
 export interface Cuenta {
@@ -145,14 +128,6 @@ export interface Cuenta {
 }
 
 type Tarifas = Pick<Env, 'FUNDADORES' | 'FUNDADORES_HASTA' | 'PRECIO_MENSUAL' | 'PRECIO_ANUAL' | 'MONEDA'>
-
-interface Preapproval {
-  id: string
-  status: string
-  init_point?: string
-  next_payment_date?: string
-  external_reference?: string
-}
 
 /** Una suscripción de PayPal, con lo que se lee de ella. `approve` (en `links`) es adonde va el cliente. */
 interface SuscripcionPaypal {
@@ -183,21 +158,18 @@ interface AvisoPaypal {
   }
 }
 
-/** Un pago de Mercado Pago, con lo que se lee de él. */
-export interface PagoMp {
-  id: number
+/** Un pago de un año pagado de una vez: lo cobrado de una orden de PayPal. */
+export interface Pago {
   status: string
   transaction_amount: number
   currency_id: string
   date_approved?: string | null
-  external_reference?: string | null
 }
 
-const MP = 'https://api.mercadopago.com'
 const PAYPAL = { produccion: 'https://api-m.paypal.com', prueba: 'https://api-m.sandbox.paypal.com' }
 /** Los pagos que valen: aprobados, o en reclamo mientras no se resuelva en contra (entonces pasan a `charged_back`). */
 const VALEN = new Set(['approved', 'in_mediation'])
-/** El estado de un cobro de PayPal, con el nombre de Mercado Pago que entiende `leerPagos`. */
+/** El estado de un cobro de PayPal, con el nombre que entiende `leerPagos`. */
 const COBRO_PAYPAL: Record<string, string> = {
   COMPLETED: 'approved',
   PARTIALLY_REFUNDED: 'approved',
@@ -210,7 +182,7 @@ const COBRO_PAYPAL: Record<string, string> = {
 const DIA = 24 * 3600_000
 /** Sin internet, Hermit sigue abierta hasta una semana desde la última respuesta. */
 const SIN_CONEXION = 7 * DIA
-/** Cada cuánto se vuelve a leer de PayPal (o de Mercado Pago) una suscripción al revisarla; pendiente, casi siempre (esperan el pago). */
+/** Cada cuánto se vuelve a leer de PayPal una suscripción al revisarla; pendiente, casi siempre (esperan el pago). */
 const REVISAR = 6 * 3600_000
 const REVISAR_PENDIENTE = 10_000
 /** Las computadoras que pueden usar una clave a la vez: las que preguntaron en los últimos `VISTO`. */
@@ -253,20 +225,16 @@ export const sistemaDelYml = (archivo: string): Sistema => (Object.entries(YML).
 const INSTALADORES = 3
 
 /**
- * De los instaladores de un tipo en R2, los que sobran: los que pasan de los `INSTALADORES` más nuevos, salvo los de
- * `guardar` (las versiones de `anterior/`, que aún se dan a quien no apoya, aunque detrás hayan salido varias).
+ * De los instaladores de un tipo en R2, los que sobran: los que pasan de los `INSTALADORES` más nuevos.
  */
-export function sobran(objetos: { key: string; uploaded: Date }[], guardar: string[]): string[] {
+export function sobran(objetos: { key: string; uploaded: Date }[]): string[] {
   return [...objetos]
     .sort((a, b) => b.uploaded.getTime() - a.uploaded.getTime())
     .slice(INSTALADORES)
     .map((o) => o.key)
-    .filter((key) => !guardar.includes(/\d+\.\d+\.\d+/.exec(key)?.[0] ?? ''))
 }
 /** La versión de los términos que acepta el cliente: la fecha de su «Última actualización» (myhermit.vercel.app/terminos). */
 const TERMINOS = /^\d{4}-\d{2}-\d{2}$/
-/** Cuánto antes que los demás recibe lo nuevo quien apoya. */
-const ANTICIPO = 7 * DIA
 /**
  * Si una fila de `licencias` hace fundadora a su correo, para siempre: un apoyo de los primeros que se llegó a pagar, o
  * un lugar gratis de por vida que sigue en pie. `t` es el nombre de la tabla en la consulta.
@@ -278,7 +246,7 @@ export function esFundador(t: string) {
 const AVISO = 7 * DIA
 /** Lo que la página de Hermit llama desde el navegador. */
 const PUBLICAS = new Set(['/precio', '/version', '/suscribir', '/creditos'])
-/** Quién vende, al pie de cada correo (art. 76 Bis III de la LFPC): su nombre, domicilio y contacto están en los términos de la página, no aquí. */
+/** Quién vende, al pie de cada correo (Ley N.º 453, de Bolivia): su nombre, domicilio y contacto están en los términos de la página, no aquí. */
 const PROVEEDOR = 'Hermit, de luchodev · Quién vende, su domicilio y su contacto: https://myhermit.vercel.app/terminos'
 
 /** `ultima.json` en `DESCARGAS`. */
@@ -287,8 +255,6 @@ interface Ultima {
   version: string
   bytes: number
   publicado: string
-  /** Desde cuándo la recibe todo el mundo; antes, solo quien apoya. Sin él (las de antes), ya es de todos. */
-  todos?: string
   /** La de Mac, firmada y notarizada por Apple: abre a la primera, sin «Abrir de todos modos». */
   firmada?: boolean
 }
@@ -326,15 +292,15 @@ async function atender(req: Request, env: Env, ctx: ExecutionContext, url: URL):
     if (req.method === 'GET' && url.pathname === '/precio') return json(await precios(env))
     // Los Fundadores que pidieron salir en los créditos de la página.
     if (req.method === 'GET' && url.pathname === '/creditos') return json({ fundadores: await creditos(env) })
-    if (req.method === 'GET' && url.pathname === '/version') return json(await ultimaPara(req, env, sistema(url.searchParams.get('so'))))
+    if (req.method === 'GET' && url.pathname === '/version') return json(await ultima(env, sistema(url.searchParams.get('so'))))
     if (req.method === 'GET' && url.pathname === '/ultima') return await ultimaLigera(req, env, ctx, sistema(url.searchParams.get('so')))
     if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname === '/descargar') {
       const so = sistema(url.searchParams.get('so'))
-      const u = await ultimaPara(req, env, so)
+      const u = await ultima(env, so)
       // `?so=mac` (el enlace de la página y de los correos) deja elegir entre la de Apple Silicon y la de Intel; la que
       // aún no va firmada por Apple dice antes cómo se abre la primera vez.
       if ((so === 'mac' || so === 'mac-arm64') && !url.searchParams.has('visto')) {
-        const arm = so === 'mac-arm64' ? u : await ultimaPara(req, env, 'mac-arm64').catch(() => undefined)
+        const arm = so === 'mac-arm64' ? u : await ultima(env, 'mac-arm64').catch(() => undefined)
         const intel = so === 'mac' ? u : undefined
         if ([intel, arm].some((m) => m && !m.firmada) || (intel && arm)) return avisoMac(intel, arm)
       }
@@ -345,7 +311,6 @@ async function atender(req: Request, env: Env, ctx: ExecutionContext, url: URL):
     if (req.method === 'GET' && url.pathname === '/gracias') return await gracias(env, url)
     if (req.method === 'GET' && url.pathname === '/renovar') return await renovacion(env, url)
     if (req.method === 'POST' && url.pathname === '/webhook/paypal') return await webhookPaypal(req, env, ctx)
-    if (req.method === 'POST' && url.pathname === '/webhook') return await webhook(req, env, ctx, url)
     if (req.method === 'POST' && url.pathname === '/suscribir') return await suscribir(env, await cuerpo(req), await conexion(req))
     if (req.method === 'POST' && url.pathname === '/licencia') return await licencia(env, await cuerpo(req))
     if (req.method === 'POST' && url.pathname === '/cancelar') return await cancelar(env, await cuerpo(req))
@@ -365,38 +330,12 @@ async function ultima(env: Env, so: Sistema = 'windows'): Promise<Ultima> {
   return u.json<Ultima>()
 }
 
-/** El instalador de la última versión de `so`, con `Range` para que el navegador pueda retomar una descarga cortada. */
-/** Si `u` ya es de todos (`todos` pasó o no lo tiene). */
-export const deTodos = (u: Pick<Ultima, 'todos'>, ahora = Date.now()) => !u.todos || ahora >= Date.parse(u.todos)
-
-/** `u`, de todos desde `ahora` si aún era solo de quien apoya; si ya lo era, igual. */
-export const liberada = <U extends Pick<Ultima, 'todos'>>(u: U, ahora: string): U => (deTodos(u, Date.parse(ahora)) ? u : { ...u, todos: ahora })
-
-/**
- * Para el creador (`/comunidad/liberar`): la última versión de cada sistema y, si aún es solo de quien apoya, desde
- * cuándo será de todos. Con `liberar`, lo es ya: cuando el chat de un live cumple su meta. No hay que compilar nada; las
- * apps abiertas lo ven en su siguiente vistazo a `/ultima`.
- */
-export async function liberar(env: Env, liberar: boolean): Promise<VersionLiberable[]> {
-  const ahora = new Date().toISOString()
-  const sistemas = await Promise.all(
-    (Object.keys(ULTIMAS) as Sistema[]).map(async (so) => {
-      const u = await (await env.DESCARGAS.get(ULTIMAS[so]))?.json<Ultima>()
-      if (!u) return
-      const nueva = liberar ? liberada(u, ahora) : u
-      if (nueva !== u) await env.DESCARGAS.put(ULTIMAS[so], JSON.stringify(nueva), { httpMetadata: { contentType: 'application/json' } })
-      return { so, version: nueva.version, ...(deTodos(nueva) ? {} : { todos: nueva.todos }) }
-    })
-  )
-  return sistemas.filter((s) => s !== undefined)
-}
-
 /** Cuánto guarda la caché `/ultima`: la piden todas las apps abiertas cada pocos minutos. */
 const ULTIMA_EN_CACHE = 30
 
 /**
- * El vistazo de la app instalada (electron/main.ts): la última versión de `so` y desde cuándo es de todos. Si cambia
- * (salió una, o se liberó en un live), la app pregunta por ella de inmediato. Es igual para todos: va en caché.
+ * El vistazo de la app instalada (electron/main.ts): la última versión de `so`. Si cambia (salió una), la app pregunta
+ * por ella de inmediato. Es igual para todos: va en caché.
  */
 async function ultimaLigera(req: Request, env: Env, ctx: ExecutionContext, so: Sistema): Promise<Response> {
   const cache = typeof caches === 'undefined' ? undefined : caches.default
@@ -404,63 +343,18 @@ async function ultimaLigera(req: Request, env: Env, ctx: ExecutionContext, so: S
   const guardada = await cache?.match(llave)
   if (guardada) return guardada
   const u = await (await env.DESCARGAS.get(ULTIMAS[so]))?.json<Ultima>()
-  const r = json(u ? { version: u.version, ...(u.todos ? { todos: u.todos } : {}) } : {}, 200, { 'cache-control': `public, max-age=${ULTIMA_EN_CACHE}` })
+  const r = json(u ? { version: u.version } : {}, 200, { 'cache-control': `public, max-age=${ULTIMA_EN_CACHE}` })
   if (cache) ctx.waitUntil(cache.put(llave, r.clone()))
   return r
-}
-
-/**
- * Si quien pregunta apoya hoy: la app manda su clave y su computadora (`x-hermit-clave`, `x-hermit-equipo`), y la clave
- * es de un apoyo mensual o anual vigente, o de un lugar gratis de por vida, en esa computadora.
- */
-async function apoya(req: Request, env: Env): Promise<boolean> {
-  const clave = (req.headers.get('x-hermit-clave') ?? '').replace(/\s+/g, '').toUpperCase()
-  const equipo = req.headers.get('x-hermit-equipo') ?? ''
-  if (!CLAVE.test(clave) || !EQUIPO.test(equipo)) return false
-  const f = await env.DB.prepare("SELECT l.estado, l.pagado_hasta FROM licencias l JOIN equipos e ON e.clave = l.clave WHERE l.clave = ? AND e.equipo = ? AND l.plan IN ('mensual', 'anual', 'gratis')")
-    .bind(clave, equipo)
-    .first<Pick<Fila, 'estado' | 'pagado_hasta'>>()
-  return !!f && vigencia(f, Date.now()).activa
-}
-
-/**
- * La versión que le toca a quien pregunta: la última, o la anterior si la última todavía es solo de quien apoya; entonces
- * `nueva` dice cuál es esa, para que myhermit.vercel.app la enseñe. Con la llave de publicar, siempre la última: de ella
- * sale el número de la siguiente (scripts/version-venta.mjs).
- */
-async function ultimaPara(req: Request, env: Env, so: Sistema): Promise<Ultima & { nueva?: string }> {
-  const u = await ultima(env, so)
-  const publica = !!env.PUBLICAR && iguales(req.headers.get('authorization') ?? '', `Bearer ${env.PUBLICAR}`)
-  if (deTodos(u) || publica || (await apoya(req, env))) return u
-  const anterior = await anteriorDe(env, so)
-  if (anterior) return { ...anterior, nueva: u.version }
-  // Sin el instalador de la anterior, la última ya se le da a todos: sin `todos`, que diría que aún no.
-  const { todos: _, ...deTodas } = u
-  return deTodas
-}
-
-/** La versión de antes de `so`, la que se da a quien no apoya, si su instalador sigue en R2; si no, a todos la última. */
-async function anteriorDe(env: Env, so: Sistema): Promise<Ultima | undefined> {
-  const a = await (await env.DESCARGAS.get(`anterior/${ULTIMAS[so]}`))?.json<Ultima>()
-  return a && (await env.DESCARGAS.head(a.archivo)) ? a : undefined
 }
 
 /** Lo que pide electron-updater: `latest.yml`, que nunca se guarda en caché, y los instaladores y sus mapas por pedazos. */
 async function actualizaciones(req: Request, env: Env, url: URL): Promise<Response> {
   const archivo = decodeURIComponent(url.pathname.slice('/actualizaciones/'.length))
   if (!publicable(archivo)) throw new Rechazo(404, 'No existe')
-  const yml = AL_DIA.test(archivo)
-  let llave = archivo
-  // latest.yml: a quien no apoya, el de la anterior mientras la última sea solo de quien apoya.
-  if (yml) {
-    const so = sistemaDelYml(archivo)
-    const u = await env.DESCARGAS.get(ULTIMAS[so])
-    if (u && !deTodos(await u.json<Ultima>()) && !(await apoya(req, env)) && (await anteriorDe(env, so)) && (await env.DESCARGAS.head(`anterior/${archivo}`)))
-      llave = `anterior/${archivo}`
-  }
-  const cabeza = await env.DESCARGAS.head(llave)
+  const cabeza = await env.DESCARGAS.head(archivo)
   if (!cabeza) throw new Rechazo(404, 'No existe')
-  return servir(req, env, llave, cabeza.size, yml ? { 'content-type': 'text/yaml; charset=utf-8', 'cache-control': 'no-store' } : {})
+  return servir(req, env, archivo, cabeza.size, AL_DIA.test(archivo) ? { 'content-type': 'text/yaml; charset=utf-8', 'cache-control': 'no-store' } : {})
 }
 
 /** Un archivo de `DESCARGAS`, entero o el pedazo que pide `Range`. */
@@ -510,36 +404,23 @@ async function publicar(req: Request, env: Env, url: URL): Promise<Response> {
     return json(await subida.uploadPart(n, req.body))
   }
   if (req.method === 'POST' && url.pathname === '/publicar/fin') {
-    const { partes, version, paraTodos, firmada } = (await cuerpo(req)) as { partes: R2UploadedPart[]; version: string; paraTodos?: boolean; firmada?: boolean }
-    // Una versión nueva: la que había pasa a `anterior/` (su ultima.json y su latest.yml, que aún no se reemplaza: va al
-    // final), salvo que aún fuera solo de quien apoya; entonces la anterior sigue siendo la de antes. Si esa ya no tiene
-    // instalador, a quien no apoya se le estaba dando la que había: pasa a ser la anterior, o la nueva le llegaría ya.
+    const { partes, version, firmada } = (await cuerpo(req)) as { partes: R2UploadedPart[]; version: string; firmada?: boolean }
     const so = instaladorDe(archivo)
     const previa = so ? await (await env.DESCARGAS.get(ULTIMAS[so]))?.json<Ultima>() : undefined
     // macOS solo pone encima una versión firmada por el mismo equipo de Apple: una sin firma dejaría a todos sin actualizar.
     if (previa?.firmada && !firmada) throw new Rechazo(409, `La última de ${NOMBRES[so!]} va firmada por Apple: una sin firma no se podría poner encima. Faltan los secretos de Apple en GitHub.`)
-    if (so && previa && previa.version !== String(version) && (deTodos(previa) || !(await anteriorDe(env, so)))) {
-      const yml = YML[so]
-      const actual = await env.DESCARGAS.get(yml)
-      // Sin `todos`: la anterior ya es de todos, aunque su fecha no hubiera llegado.
-      const { todos: _, ...anterior } = previa
-      await env.DESCARGAS.put(`anterior/${ULTIMAS[so]}`, JSON.stringify(anterior), { httpMetadata: { contentType: 'application/json' } })
-      if (actual) await env.DESCARGAS.put(`anterior/${yml}`, await actual.arrayBuffer(), { httpMetadata: { contentType: 'text/yaml; charset=utf-8' } })
-    }
     const obj = await subida.complete(partes)
     const tipo = BINARIO.exec(archivo)?.groups?.tipo
     if (tipo) {
       const iguales = (await env.DESCARGAS.list({ prefix: 'Hermit-' })).objects.filter((o) => BINARIO.exec(o.key)?.groups?.tipo === tipo)
-      const anteriores = await Promise.all(Object.values(ULTIMAS).map(async (n) => (await (await env.DESCARGAS.get(`anterior/${n}`))?.json<Ultima>())?.version))
-      const viejos = sobran(iguales, anteriores.filter((v) => v !== undefined))
+      const viejos = sobran(iguales)
       if (viejos.length) await env.DESCARGAS.delete(viejos)
     }
     if (!so) return json({ archivo, bytes: obj.size })
-    // La misma versión otra vez (se volvió a publicar) conserva cuándo salió; una nueva es de quien apoya `ANTICIPO`.
+    // La misma versión otra vez (se volvió a publicar) conserva cuándo salió.
     const misma = previa?.version === String(version)
     const publicado = misma ? previa.publicado : new Date().toISOString()
-    const todos = paraTodos ? undefined : misma ? previa.todos : new Date(Date.parse(publicado) + ANTICIPO).toISOString()
-    const u: Ultima = { archivo, version: String(version), bytes: obj.size, publicado, ...(todos ? { todos } : {}), ...(firmada ? { firmada: true } : {}) }
+    const u: Ultima = { archivo, version: String(version), bytes: obj.size, publicado, ...(firmada ? { firmada: true } : {}) }
     await env.DESCARGAS.put(ULTIMAS[so], JSON.stringify(u), { httpMetadata: { contentType: 'application/json' } })
     return json(u)
   }
@@ -578,11 +459,13 @@ async function suscribir(env: Env, c: Record<string, unknown>, desde: string): P
   if (!EMAIL.test(email) || email.length > 254) throw new Rechazo(400, 'Escribe un correo válido.')
   const plan: Plan = c.plan === 'gratis' ? 'gratis' : c.plan === 'anual' ? 'anual' : 'mensual'
   const equipo = c.equipo === undefined && plan !== 'gratis' ? undefined : equipoDe(c)
-  // El consentimiento expreso de los términos y, si se paga, del cobro automático (LFPC art. 76 Bis VIII), con la versión aceptada.
-  const terminos = String(c.terminos ?? '')
+  // El consentimiento expreso de los términos y, si se paga, del cobro automático (Ley N.º 453, Bolivia), con la versión aceptada.
+  // La versión publicada la manda la página (`TERMINOS` en landing/lib/cobro.ts); la app no la fija y no manda ninguna, así
+  // que vale el día en que aceptó. Una versión vieja se sigue aceptando: solo se comprueba que sea una fecha.
+  const acepto = new Date().toISOString()
+  const terminos = String(c.terminos ?? '') || acepto.slice(0, 10)
   if (c.acepto !== true || !TERMINOS.test(terminos))
     throw new Rechazo(400, plan === 'gratis' ? 'Para unirte, acepta los términos.' : 'Para suscribirte, acepta el cobro automático y los términos.')
-  const acepto = new Date().toISOString()
   if (plan === 'gratis') return unirse(env, email, equipo!, acepto, terminos, desde, c.porCorreo === true)
   // Con una ya pagada, otra cobraría dos veces; con un lugar gratis de por vida, no hace falta. Con una cuenta, sí se apoya.
   await sinOtra(env, email, true)
@@ -606,7 +489,6 @@ async function suscribir(env: Env, c: Record<string, unknown>, desde: string): P
     monto: plan === 'anual' ? p.anual : p.mensual,
     moneda: p.moneda,
     fundador: p.quedan > 0 ? 1 : 0,
-    preapproval: null,
     enlace: null,
     estado: 'pending',
     pagado_hasta: null,
@@ -619,7 +501,6 @@ async function suscribir(env: Env, c: Record<string, unknown>, desde: string): P
     cancelada: null,
     avisado_para: null,
     modo: env.PAYPAL_MODO,
-    preferencia: null,
     paypal: null,
     orden: null
   }
@@ -715,8 +596,8 @@ async function guardarIdPaypal(env: Env, llave: string, id: string): Promise<str
 }
 
 /**
- * Abre el pago del año siguiente de un año pagado de una vez, con PayPal aunque el primero fuera con Mercado Pago: la
- * misma fila y la misma clave. Antes guarda lo cobrado de la orden que deja de ser la última. Da adónde ir a pagar.
+ * Abre el pago del año siguiente de un año pagado de una vez: la misma fila y la misma clave. Antes guarda lo cobrado
+ * de la orden que deja de ser la última. Da adónde ir a pagar.
  */
 async function renovar(env: Env, f: Fila): Promise<string> {
   if (f.orden) await cobrarOrden(env, f, f.orden)
@@ -776,34 +657,33 @@ async function sinOtra(env: Env, email: string, apoyar: boolean) {
   if (!apoyar && results.length) throw new Rechazo(409, 'Ese correo ya tiene una cuenta de Hermit. Su clave te llegó por correo, en «Tu cuenta de Hermit».')
 }
 
-/** Si la clave sigue activa en esta computadora, firmado. Lee la suscripción o los pagos de PayPal (o de Mercado Pago) si hace rato que no. */
+/** Si la clave sigue activa en esta computadora, firmado. Lee la suscripción o los pagos de PayPal si hace rato que no. */
 async function licencia(env: Env, c: Record<string, unknown>): Promise<Response> {
   const equipo = equipoDe(c)
   let fila = await porClave(env, c.clave)
   const ahora = Date.now()
   const revisada = fila.revisada ? Date.parse(fila.revisada) : 0
-  // Si PayPal o Mercado Pago no contestan, vale lo último que dijeron.
-  if ((fila.paypal || fila.preapproval || deUnaVez(fila)) && ahora - revisada > (fila.estado === 'pending' ? REVISAR_PENDIENTE : REVISAR))
+  // Si PayPal no contesta, vale lo último que dijo.
+  if ((fila.paypal || deUnaVez(fila)) && ahora - revisada > (fila.estado === 'pending' ? REVISAR_PENDIENTE : REVISAR))
     fila = await refrescar(env, fila).catch(() => fila)
   if (!(await recordarEquipo(env, fila.clave, equipo, ahora)))
     throw new Rechazo(409, `Esta clave ya se usa en ${EQUIPOS} computadoras. Si cambiaste de computadora, escríbenos y la liberamos.`)
   return firmada(env, fila, equipo, ahora)
 }
 
-/** Cancela la suscripción en PayPal (o en Mercado Pago, las de antes). Lo ya pagado sigue valiendo hasta su fecha. */
+/** Cancela la suscripción en PayPal. Lo ya pagado sigue valiendo hasta su fecha. */
 async function cancelar(env: Env, c: Record<string, unknown>): Promise<Response> {
   const equipo = equipoDe(c)
   let fila = await porClave(env, c.clave)
-  if ((fila.paypal || fila.preapproval) && fila.estado !== 'cancelled') {
-    // Un 422 de PayPal o un 400 de Mercado Pago es casi siempre que ya estaba cancelada (desde la cuenta del cliente, o
-    // tras cobros rechazados): basta con volver a leerla.
+  if (fila.paypal && fila.estado !== 'cancelled') {
+    // Un 422 de PayPal es casi siempre que ya estaba cancelada (desde la cuenta del cliente, o tras cobros rechazados):
+    // basta con volver a leerla.
     const yaEstaba = (e: unknown) => {
-      if (!(e instanceof Rechazo) || e.status !== (fila.paypal ? 422 : 400)) throw e
+      if (!(e instanceof Rechazo) || e.status !== 422) throw e
     }
-    if (fila.paypal) await paypal(env, 'POST', `/v1/billing/subscriptions/${encodeURIComponent(fila.paypal)}/cancel`, { reason: 'Cancelada desde Hermit' }).catch(yaEstaba)
-    else await mp(env, 'PUT', `/preapproval/${encodeURIComponent(fila.preapproval!)}`, { status: 'cancelled' }).catch(yaEstaba)
+    await paypal(env, 'POST', `/v1/billing/subscriptions/${encodeURIComponent(fila.paypal)}/cancel`, { reason: 'Cancelada desde Hermit' }).catch(yaEstaba)
     fila = await refrescar(env, fila)
-    if (fila.estado !== 'cancelled') throw new Rechazo(502, `${pasarela(fila)} no pudo cancelar la suscripción. Intenta otra vez en un momento.`)
+    if (fila.estado !== 'cancelled') throw new Rechazo(502, 'PayPal no pudo cancelar la suscripción. Intenta otra vez en un momento.')
   }
   // El comprobante de la cancelación (Profeco pide dar un folio), una sola vez.
   if (fila.estado === 'cancelled' && !fila.folio) {
@@ -812,7 +692,7 @@ async function cancelar(env: Env, c: Record<string, unknown>): Promise<Response>
     const hasta = fila.pagado_hasta && Date.parse(fila.pagado_hasta) > Date.now() ? ` Hermit sigue abierta hasta el ${fecha(fila.pagado_hasta)}, lo que ya pagaste.` : ''
     await correo(env, fila.email, `Cancelaste tu suscripción a Hermit · folio ${fila.folio}`, [
       'Hola:',
-      `Cancelamos tu suscripción a Hermit. Tu folio de cancelación es ${fila.folio}. ${pasarela(fila)} ya no te hará más cobros.${hasta}`,
+      `Cancelamos tu suscripción a Hermit. Tu folio de cancelación es ${fila.folio}. PayPal ya no te hará más cobros.${hasta}`,
       'Si no fuiste tú, responde a este correo.'
     ]).catch((e) => console.error('Correo de cancelación', e instanceof Error ? e.message : e))
   }
@@ -821,46 +701,15 @@ async function cancelar(env: Env, c: Record<string, unknown>): Promise<Response>
 
 /**
  * Adónde se va a pagar desde Hermit: con un año pagado de una vez, el pago del año siguiente. La tarjeta de la
- * suscripción mensual se cambia en la cuenta de PayPal (o de Mercado Pago) del cliente.
+ * suscripción mensual se cambia en la cuenta de PayPal del cliente.
  */
 async function pago(env: Env, c: Record<string, unknown>): Promise<Response> {
   const equipo = equipoDe(c)
   const fila = await porClave(env, c.clave)
-  if (!deUnaVez(fila) || fila.estado !== 'pagado') throw new Rechazo(400, `Esta suscripción se paga con ${pasarela(fila)}: cambia tu tarjeta desde tu cuenta de ${pasarela(fila)}.`)
+  if (!deUnaVez(fila) || fila.estado !== 'pagado') throw new Rechazo(400, 'Esta suscripción se paga con PayPal: cambia tu tarjeta desde tu cuenta de PayPal.')
   if (!(await recordarEquipo(env, fila.clave, equipo, Date.now())))
     throw new Rechazo(409, `Esta clave ya se usa en ${EQUIPOS} computadoras. Si cambiaste de computadora, escríbenos y la liberamos.`)
   return json({ enlace: await renovar(env, fila) })
-}
-
-/**
- * Un aviso de Mercado Pago. Se comprueba su firma, se contesta enseguida y luego se lee la suscripción de su API: el
- * cuerpo solo dice cuál cambió. Los cobros de cada mes llegan como `subscription_authorized_payment`, y los del año
- * pagado de una vez, como `payment`.
- */
-async function webhook(req: Request, env: Env, ctx: ExecutionContext, url: URL): Promise<Response> {
-  const c = (await req.json().catch(() => ({}))) as { type?: string; data?: { id?: string | number } }
-  const id = url.searchParams.get('data.id') ?? (c.data?.id === undefined ? '' : String(c.data.id))
-  const tipo = url.searchParams.get('type') ?? c.type ?? ''
-  if (!id || !(await firmaDeMercadoPago(req.headers.get('x-signature'), req.headers.get('x-request-id'), id, env.MP_WEBHOOK_SECRET)))
-    return new Response('Firma inválida', { status: 401 })
-  ctx.waitUntil(aviso(env, tipo, id).catch((e) => console.error('Aviso', tipo, id, e instanceof Error ? e.message : e)))
-  return new Response('ok')
-}
-
-async function aviso(env: Env, tipo: string, id: string) {
-  if (tipo === 'payment') {
-    const p = await mp<PagoMp>(env, 'GET', `/v1/payments/${encodeURIComponent(id)}`)
-    const fila = p.external_reference ? await env.DB.prepare('SELECT * FROM licencias WHERE id = ?').bind(p.external_reference).first<Fila>() : null
-    // Los cobros de las suscripciones también avisan aquí: esos los cuenta su suscripción.
-    if (fila?.preferencia) await refrescar(env, fila, { mp: p })
-    return
-  }
-  let preapproval: string | undefined
-  if (tipo === 'subscription_preapproval') preapproval = id
-  if (tipo === 'subscription_authorized_payment') preapproval = (await mp<{ preapproval_id?: string }>(env, 'GET', `/authorized_payments/${encodeURIComponent(id)}`)).preapproval_id
-  if (!preapproval) return
-  const fila = await env.DB.prepare('SELECT * FROM licencias WHERE preapproval = ?').bind(preapproval).first<Fila>()
-  if (fila) await refrescar(env, fila)
 }
 
 /**
@@ -913,36 +762,29 @@ async function firmaDePaypal(h: Headers, texto: string, env: Env): Promise<boole
 }
 
 /**
- * Vuelve a leer la suscripción (de PayPal o de Mercado Pago) o los pagos del año pagado de una vez, y la guarda. `otros`:
- * lo que trajo un aviso, por si la búsqueda aún no lo ve (el pago de Mercado Pago) o no es la última orden (las de PayPal).
+ * Vuelve a leer la suscripción o los pagos del año pagado de una vez, y la guarda. `otros.ordenes`: las de PayPal que
+ * trajo un aviso, por si no es la última orden de la fila.
  */
-async function refrescar(env: Env, fila: Fila, otros: { mp?: PagoMp; ordenes?: string[] } = {}): Promise<Fila> {
+async function refrescar(env: Env, fila: Fila, otros: { ordenes?: string[] } = {}): Promise<Fila> {
   if (deUnaVez(fila)) return guardarEstado(env, fila, leerPagos(await pagosDelAño(env, fila, otros), fila))
   if (fila.paypal) return guardarEstado(env, fila, leerPaypal(await paypal<SuscripcionPaypal>(env, 'GET', `/v1/billing/subscriptions/${encodeURIComponent(fila.paypal)}`)))
-  if (fila.preapproval) return guardarEstado(env, fila, leerMp(await mp<Preapproval>(env, 'GET', `/preapproval/${encodeURIComponent(fila.preapproval)}`)))
   return fila
 }
 
-/** Una suscripción de Mercado Pago, como la guarda el cobro. Cancelada, ya no dice hasta cuándo se pagó: vale la del último cobro que se vio. */
-function leerMp(p: Preapproval): Lectura {
-  return { estado: p.status as Estado, hasta: p.status === 'authorized' ? p.next_payment_date : undefined }
-}
-
-/** Una suscripción de PayPal, con los estados de Mercado Pago, que son los que entiende Hermit. Como allá, cancelada vale la fecha del último cobro que se vio. */
+/** Una suscripción de PayPal, con los estados que entiende Hermit. */
 export function leerPaypal(s: Pick<SuscripcionPaypal, 'status' | 'billing_info'>): Lectura {
   const estado: Estado =
     s.status === 'ACTIVE' ? 'authorized' : s.status === 'SUSPENDED' ? 'paused' : s.status === 'CANCELLED' || s.status === 'EXPIRED' ? 'cancelled' : 'pending'
   return { estado, hasta: estado === 'authorized' ? s.billing_info?.next_billing_time : undefined }
 }
 
-/** Los pagos de un año pagado de una vez: los de Mercado Pago, si empezó ahí, y lo cobrado de sus órdenes de PayPal. */
-async function pagosDelAño(env: Env, f: Fila, otros: { mp?: PagoMp; ordenes?: string[] }): Promise<Pick<PagoMp, 'status' | 'transaction_amount' | 'currency_id' | 'date_approved'>[]> {
-  const deMp = f.preferencia ? await pagosMp(env, f, otros.mp) : []
+/** Los pagos de un año pagado de una vez: lo cobrado de sus órdenes de PayPal. `otros.ordenes`: las que trajo un aviso. */
+async function pagosDelAño(env: Env, f: Fila, otros: { ordenes?: string[] }): Promise<Pick<Pago, 'status' | 'transaction_amount' | 'currency_id' | 'date_approved'>[]> {
   for (const orden of new Set([f.orden, ...(otros.ordenes ?? [])])) if (orden) await cobrarOrden(env, f, orden)
   const { results } = await env.DB.prepare('SELECT estado AS status, monto AS transaction_amount, moneda AS currency_id, aprobado AS date_approved FROM paypal_pagos WHERE licencia = ?')
     .bind(f.id)
-    .all<Pick<PagoMp, 'status' | 'transaction_amount' | 'currency_id' | 'date_approved'>>()
-  return [...deMp, ...results]
+    .all<Pick<Pago, 'status' | 'transaction_amount' | 'currency_id' | 'date_approved'>>()
+  return results
 }
 
 /**
@@ -969,18 +811,12 @@ async function cobrarOrden(env: Env, f: Fila, id: string) {
     .run()
 }
 
-/** Los pagos de un año pagado de una vez: los de su fila. La búsqueda tarda en ver uno recién hecho: el del aviso va aparte. */
-async function pagosMp(env: Env, f: Fila, avisado?: PagoMp): Promise<PagoMp[]> {
-  const { results } = await mp<{ results: PagoMp[] }>(env, 'GET', `/v1/payments/search?external_reference=${encodeURIComponent(f.id)}&limit=50`)
-  return avisado && !results.some((p) => p.id === avisado.id) ? [...results, avisado] : results
-}
-
 /**
  * Un año pagado de una vez, como lo guarda el cobro: cada pago que vale, en su moneda y de su monto, suma un año desde
  * que se aprobó, o desde que acaba lo ya pagado si se renovó antes. Sin ninguno que valga: reembolsado o con contracargo,
  * se acabó; si no, espera el pago.
  */
-export function leerPagos(pagos: Pick<PagoMp, 'status' | 'transaction_amount' | 'currency_id' | 'date_approved'>[], f: Pick<Fila, 'monto' | 'moneda'>): Lectura {
+export function leerPagos(pagos: Pick<Pago, 'status' | 'transaction_amount' | 'currency_id' | 'date_approved'>[], f: Pick<Fila, 'monto' | 'moneda'>): Lectura {
   const aprobados = pagos
     .filter((p) => VALEN.has(p.status) && p.currency_id === f.moneda && p.transaction_amount >= f.monto && p.date_approved)
     .map((p) => Date.parse(p.date_approved!))
@@ -1020,7 +856,7 @@ async function guardarEstado(env: Env, fila: Fila, l: Lectura): Promise<Fila> {
 function bienvenida(env: Env, f: Fila) {
   return correo(env, f.email, `Tu clave de Hermit: ${f.clave}`, [
     'Hola:',
-    `${pasarela(f)} confirmó tu pago: gracias por apoyar a Hermit. Guarda este correo, es donde queda tu clave.`,
+    'PayPal confirmó tu pago: gracias por apoyar a Hermit. Guarda este correo, es donde queda tu clave.',
     `Tu clave: ${f.clave}`,
     `Pégala en Hermit, en Opciones, y deja de salirte el recordatorio. Si aún no la tienes, descárgala en ${env.ORIGEN}/descargar (Mac: ${env.ORIGEN}/descargar?so=mac; Linux: ${env.ORIGEN}/descargar?so=linux). La clave sirve en dos computadoras a la vez.`,
     'Hermit trabaja con tu propia cuenta de Claude Pro o Max, que pagas aparte a Anthropic. Si tienes dudas, responde a este correo.'
@@ -1028,7 +864,7 @@ function bienvenida(env: Env, f: Fila) {
 }
 
 /**
- * Si abre Hermit y hasta cuándo, sin volver a preguntar. Autorizada, abre mientras PayPal o Mercado Pago la mantengan así
+ * Si abre Hermit y hasta cuándo, sin volver a preguntar. Autorizada, abre mientras PayPal la mantenga así
  * (reintentan los cobros que fallan y la cancela si no puede); cancelada, en pausa o pagada de una vez, hasta el fin de
  * lo pagado. Un lugar gratis abre siempre.
  */
@@ -1100,20 +936,6 @@ export function letras(n: number): string {
 }
 
 /**
- * La firma de un aviso: `x-signature` trae `ts` y `v1`, el HMAC-SHA256 en hex de `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`
- * con la clave secreta de los webhooks. El `data.id` alfanumérico va en minúsculas.
- */
-export async function firmaDeMercadoPago(cabecera: string | null, solicitud: string | null, id: string, secreto: string | undefined): Promise<boolean> {
-  if (!cabecera || !solicitud || !secreto) return false
-  const partes = Object.fromEntries(cabecera.split(',').map((p) => p.split('=').map((s) => s.trim())))
-  if (!partes.ts || !partes.v1) return false
-  const manifiesto = `id:${/^[a-z0-9]+$/i.test(id) ? id.toLowerCase() : id};request-id:${solicitud};ts:${partes.ts};`
-  const llave = await crypto.subtle.importKey('raw', new TextEncoder().encode(secreto), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
-  const firma = [...new Uint8Array(await crypto.subtle.sign('HMAC', llave, new TextEncoder().encode(manifiesto)))].map((b) => b.toString(16).padStart(2, '0')).join('')
-  return iguales(firma, partes.v1)
-}
-
-/**
  * Anota algo que `quien` hizo (`tipo`) si en el último día lleva menos de `max`: contar y anotar es un solo paso, así
  * que varias peticiones a la vez no se lo saltan, y borrar lo hecho no lo devuelve (migración 0012).
  */
@@ -1136,27 +958,6 @@ export function iguales(a: string, b: string): boolean {
   let distinta = a.length ^ b.length
   for (let i = 0; i < a.length; i++) distinta |= a.charCodeAt(i) ^ (b.charCodeAt(i) || 0)
   return distinta === 0
-}
-
-function tokenMp(env: Env): string {
-  const token = env.MP_MODO === 'produccion' ? env.MP_ACCESS_TOKEN_PRODUCCION : env.MP_ACCESS_TOKEN
-  if (!token) throw new Error(`Falta el token de Mercado Pago del modo ${env.MP_MODO}.`)
-  return token
-}
-
-async function mp<T>(env: Env, metodo: string, ruta: string, cuerpo?: unknown): Promise<T> {
-  const r = await fetch(`${MP}${ruta}`, {
-    method: metodo,
-    headers: { authorization: `Bearer ${tokenMp(env)}`, 'content-type': 'application/json' },
-    body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo)
-  })
-  const datos = (await r.json().catch(() => ({}))) as { message?: string }
-  if (!r.ok) {
-    // Solo el estado y el mensaje: nada del cliente.
-    console.error('Mercado Pago', metodo, ruta.replace(/\?.*$/, '').replace(/\/[\w-]{12,}$/, '/…'), r.status, datos.message ?? '')
-    throw new Rechazo(r.status, datos.message ?? `Mercado Pago respondió ${r.status}`)
-  }
-  return datos as T
 }
 
 /** El acceso a PayPal, que dura horas: se reusa mientras viva este Worker. */
@@ -1230,7 +1031,7 @@ export async function avisarCobros(env: Env, ahora = Date.now()) {
         ])
       : correo(env, f.email, `Tu próximo cobro de Hermit: ${fecha(f.pagado_hasta!)}`, [
           'Hola:',
-          `El ${fecha(f.pagado_hasta!)} ${pasarela(f)} te cobrará ${f.monto.toLocaleString('es-MX')} ${f.moneda} (IVA incluido) por tu suscripción ${cada} a Hermit.`,
+          `El ${fecha(f.pagado_hasta!)} PayPal te cobrará ${f.monto.toLocaleString('es-MX')} ${f.moneda} (IVA incluido) por tu suscripción ${cada} a Hermit.`,
           'Si no quieres que se renueve, cancélala antes de esa fecha en Hermit: Opciones, Suscripción, «Cancelar suscripción». También puedes responder a este correo o escribirnos por WhatsApp. Lo ya pagado sigue valiendo hasta su fecha.'
         ])
     ).catch((e) => (console.error('Aviso de cobro', e instanceof Error ? e.message : e), false))
@@ -1305,11 +1106,11 @@ ${correoAviso(escapar(fila.email))}
   if (fila.estado === 'pending')
     return pagina(
       'Esperando tu pago…',
-      `<p>En cuanto ${pasarela(fila)} lo confirme, aquí aparecen tu clave y el instalador. Suele tardar unos segundos.</p>${correoAviso(escapar(fila.email))}${fila.enlace ? `<p class="otros">¿Saliste sin pagar? <a href="${escapar(fila.enlace)}">Volver al pago</a></p>` : ''}`,
+      `<p>En cuanto PayPal lo confirme, aquí aparecen tu clave y el instalador. Suele tardar unos segundos.</p>${correoAviso(escapar(fila.email))}${fila.enlace ? `<p class="otros">¿Saliste sin pagar? <a href="${escapar(fila.enlace)}">Volver al pago</a></p>` : ''}`,
       5
     )
   return pagina(
-    `${pasarela(fila)} no confirmó el pago`,
+    'PayPal no confirmó el pago',
     '<p>Vuelve a <a href="https://myhermit.vercel.app">myhermit.vercel.app</a> e inténtalo otra vez, o escríbenos desde ahí.</p>'
   )
 }
@@ -1321,7 +1122,7 @@ ${correoAviso(escapar(fila.email))}
 async function renovacion(env: Env, url: URL): Promise<Response> {
   const id = url.searchParams.get('s') ?? ''
   const fila = /^[\w-]{36}$/.test(id) ? await env.DB.prepare('SELECT * FROM licencias WHERE id = ?').bind(id).first<Fila>() : null
-  if (!fila?.preferencia || fila.estado !== 'pagado')
+  if (!fila || !deUnaVez(fila) || fila.estado !== 'pagado')
     return pagina('Este enlace ya no sirve', '<p>Para apoyar a Hermit, entra a <a href="https://myhermit.vercel.app">myhermit.vercel.app</a>, o responde al correo y te ayudamos.</p>')
   return Response.redirect(await renovar(env, fila), 303)
 }

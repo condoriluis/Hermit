@@ -41,6 +41,17 @@ jobs:
         os: [windows-latest, macos-15-intel, macos-15, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
+    # Para los cuatro sistemas: HERMIT_TUYO revisa que lo que se vende no lleve nada del dueño, y electron-builder
+    # firma con lo que haya de Apple (CSC_*) o de Windows (WIN_CSC_*).
+    env:
+      HERMIT_TUYO: ${{ secrets.HERMIT_TUYO }}
+      CSC_LINK: ${{ secrets.CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+      WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -55,16 +66,24 @@ jobs:
       - run: node scripts/version-venta.mjs
         env:
           VERSION: ${{ needs.version.outputs.version }}
-      - run: npm run compilar
-        env:
-          HERMIT_TUYO: ${{ secrets.HERMIT_TUYO }}
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
-          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      # El DMG de Mac se arma montando un volumen y desmontándolo al final (dmgbuild, por dentro con hdiutil). Si algo
+      # lo tiene tomado —Spotlight indexa todo lo que se monta—, el desmontaje falla con «Resource busy» y se cae la
+      # compilación: le pasó a la 0.3.49 en el Mac Intel. Se apaga Spotlight antes, y se reintenta por si vuelve.
+      - name: Apagar Spotlight
+        if: runner.os == 'macOS'
+        run: sudo mdutil -a -i off
+      - name: Compilar
+        if: runner.os != 'macOS'
+        run: npm run compilar
+      - name: Compilar (Mac)
+        if: runner.os == 'macOS'
+        run: |
+          for intento in 1 2 3; do
+            npm run compilar && exit 0
+            echo "::warning::La compilación falló (intento $intento); desmonto lo que quedara montado y la repito."
+            for v in /Volumes/Hermit*; do hdiutil detach -force "$v" >/dev/null 2>&1 || true; done
+          done
+          exit 1
       - run: npm run publicar
         env:
           PUBLICAR: ${{ secrets.PUBLICAR }}

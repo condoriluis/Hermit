@@ -27,6 +27,8 @@ const VENTANA = join(DIST, 'ventana')
 const ICONO = join(REPO, 'assets', 'icon.ico')
 /** El de Mac y Linux, de web/public/icon.svg a 1024 px. */
 const ICONO_PNG = join(REPO, 'assets', 'icon.png')
+/** La franja del asistente de Windows (164×314, BMP): el cangrejo sobre el fondo de la app. */
+const FRANJA = join(REPO, 'assets', 'instalador.bmp')
 const WINDOWS = process.platform === 'win32'
 const MAC = process.platform === 'darwin'
 // GitHub pasa vacío un secreto que no existe, y electron-builder tomaría ese vacío por un certificado.
@@ -301,15 +303,20 @@ const hechos = await empaquetar({
     // sale sin firma, como siempre.
     win: { icon: ICONO },
     nsis: {
-      oneClick: true,
+      // Asistente, como el de VS Code: bienvenida, dónde se instala, accesos y «Ejecutar Hermit». Antes instalaba de un
+      // tirón, sin mostrar nada. Las actualizaciones siguen en silencio (electron/main.ts, quitAndInstall).
+      oneClick: false,
+      allowToChangeInstallationDirectory: true,
       perMachine: false,
       runAfterFinish: true,
       createDesktopShortcut: true,
+      createStartMenuShortcut: true,
       shortcutName: 'Hermit',
       uninstallDisplayName: 'Hermit',
       artifactName: 'Hermit-Setup-${version}.${ext}',
       installerIcon: ICONO,
       uninstallerIcon: ICONO,
+      installerSidebar: FRANJA,
       include: join(REPO, 'scripts', 'instalador.nsh'),
       installerLanguages: ['es_ES'],
       language: '3082'

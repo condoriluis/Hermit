@@ -561,7 +561,9 @@ function actualizaciones() {
     actualizacion = { ...actualizacion, avance: 1 }
     cerrando = true
     detener()
-    autoUpdater.quitAndInstall(false, true)
+    // En silencio: el instalador de Windows es ahora un asistente (scripts/compilar.mjs), y sin esto lo abriría en cada
+    // actualización. Aquí la actualización sigue sola, como siempre.
+    autoUpdater.quitAndInstall(true, true)
   })
   // Sin internet al preguntar: se vuelve a preguntar en la próxima vuelta. Al bajar, los fallos los ve bajar().
   autoUpdater.on('error', (e) => bajada && anotar(`La descarga falló: ${e.message}`))

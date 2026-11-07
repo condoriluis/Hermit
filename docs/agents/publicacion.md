@@ -81,13 +81,17 @@ solo afecta al servidor local. `scripts/nube.mjs` usa una sesión de Cloudflare 
 `npm run nube -- login` o `npm run licencias -- login` la abre. La cuenta de Cloudflare no va en el repo: es la variable
 `HERMIT_CLOUDFLARE_CUENTA` (su id) de quien despliega.
 
-## Página de venta: otro repo
+## Página de venta: landing/
 
-`myhermit.vercel.app` vive en **`condoriluis/Hermit-web`**, en `web/public/hermit/index.html`. Un checkout puede estar
-atrasado o tener cambios sin guardar: consulta
-`git status`, actualiza las referencias con `git fetch origin` y parte de `origin/main` en un worktree aparte si hace
-falta. El proyecto de Astro está dentro de `web/`: ahí se corre `npm ci` y `npm run build` antes de subir los cambios
-al `main` de ese repo. Vercel despliega ese push.
+`myhermit.vercel.app` es `landing/` de **este** repo: un proyecto Next.js (App Router) con TypeScript y Tailwind, sin
+paso propio en Actions. Lo despliega Vercel desde este repo, con el **Root Directory** fijado en `landing`; no hay
+`vercel.json` ni workflow, así que basta con que `landing/` entre a la rama que sigue Vercel para que reconstruya la
+página.
+
+Para probarla en local, desde `landing/`: `npm ci` y `npm run dev` (copia `.env.example` a `.env.local` si quieres
+apuntar a otro Worker o cambiar el QR). Los instaladores no viven aquí: los sirve el cobro (`licencias/`, ruta
+`/descargar`) y `landing/lib/descargas.ts` arma los enlaces.
 
 Comprueba el despliegue de Vercel y la página publicada en `https://myhermit.vercel.app`, incluidos los enlaces de descarga
-y pago que hayas cambiado. Cambiar este repo o desplegar `licencias/` no modifica esa página.
+y pago que hayas cambiado. Cambiar `landing/` en este repo la actualiza; desplegar `licencias/` o publicar una versión de
+la app no la tocan.

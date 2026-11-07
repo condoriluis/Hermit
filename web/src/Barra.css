@@ -11,8 +11,10 @@
 .new-chat, .buscar { display: flex; align-items: center; gap: 9px; height: 34px; margin: 0 8px 2px; padding: 0 8px; border-radius: 8px; text-align: left; transition: background 0.15s, color 0.15s; }
 .new-chat { color: var(--text); font-weight: 600; }
 .new-chat:hover, .new-chat.active { background: var(--panel-2); }
-.new-chat-icon { width: 18px; height: 18px; flex: none; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 5px; font-size: 14px; line-height: 1; color: var(--accent); }
-.new-chat-icon .ico { width: 12px; height: 12px; stroke-width: 2.2; }
+/* El icono de cada fila, sin caja: solo el trazo, apagado, y en azul cuando la fila es la vista o pasa el ratón. */
+.new-chat-icon { width: 18px; height: 18px; flex: none; display: grid; place-items: center; color: var(--muted); transition: color 0.15s; }
+.new-chat:hover .new-chat-icon, .new-chat.active .new-chat-icon { color: var(--accent); }
+.new-chat-icon .ico, .new-chat-icon svg { width: 15px; height: 15px; stroke-width: 1.8; }
 /* comunidad: los avisos sin leer, a la derecha de «Comunidad»; plegada, un punto sobre su icono. */
 .nav-cuenta { min-width: 18px; height: 18px; margin-left: auto; padding: 0 5px; display: grid; place-items: center; border-radius: 999px; background: var(--accent); color: var(--on-solid); font-size: 10.5px; font-weight: 750; font-variant-numeric: tabular-nums; }
 .buscar { margin-bottom: 4px; color: var(--muted); cursor: text; }

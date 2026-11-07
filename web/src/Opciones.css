@@ -4,7 +4,8 @@
  */
 
 .opciones { padding: 56px 48px 72px; max-width: 720px; width: 100%; margin: 0 auto; overflow-y: auto; display: flex; flex-direction: column; gap: 26px; }
-.opciones h1 { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -0.02em; }
+/* El título, con la misma medida y el mismo peso que el del inicio: una sola escala en toda la app. */
+.opciones h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
 .opciones-titulo { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .opciones-titulo-acciones { display: flex; align-items: center; gap: 10px; }
 .opciones > .ghost { align-self: flex-start; margin-bottom: -20px; }

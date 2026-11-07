@@ -106,22 +106,20 @@ input, textarea, select { font: inherit; color: inherit; }
 .card-actions span { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 6px; background: var(--scrim-control); color: var(--text); font-size: 12px; }
 .card-actions span:hover { background: var(--panel); }
 .card-actions span.danger:hover { color: var(--bad); }
-/* Ribbon diagonal "Gratis" en esquina superior derecha */
+/* «Gratis», como los demás distintivos de Hermit: una píldora discreta en la esquina, no una cinta torcida. */
 .card-badge-gratis {
   position: absolute;
-  top: 12px;
-  right: -22px;
+  top: 8px;
+  left: 8px;
   z-index: 1;
-  width: 80px;
-  text-align: center;
-  transform: rotate(45deg);
-  background: var(--ok-soft);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--scrim-control);
+  border: 1px solid var(--ok-border);
   color: var(--ok);
-  border-top: 1px solid var(--ok-border);
-  border-bottom: 1px solid var(--ok-border);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   line-height: 1.6;
   pointer-events: none;
   text-transform: uppercase;
@@ -157,8 +155,8 @@ input, textarea, select { font: inherit; color: inherit; }
 .video-compartir-ico { width: 13px; height: 13px; }
 
 /* El compositor */
-.composer { background: var(--panel-2); border: 1px solid var(--line); border-radius: 16px; padding: 12px 12px 10px 16px; transition: border-color 0.15s; }
-.composer:focus-within { border-color: var(--line-fuerte); }
+.composer { background: var(--panel-2); border: 1px solid var(--line); border-radius: 16px; padding: 12px 12px 10px 16px; transition: border-color 0.15s, box-shadow 0.15s; }
+.composer:focus-within { border-color: var(--accent-border); box-shadow: 0 0 0 3px var(--accent-soft); }
 .composer.dragging { border-color: var(--accent); border-style: dashed; }
 .thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
 .composer .thumbs { margin-bottom: 8px; }

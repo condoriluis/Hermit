@@ -1384,7 +1384,18 @@ export interface PantallaNavegador {
   alto: number
 }
 
-export type AccionNavegador = 'atras' | 'adelante' | 'recargar' | 'parar' | 'fuera' | 'acercar' | 'alejar' | 'zoomNormal' | 'menu' | 'cerrar'
+export type AccionNavegador =
+  | 'atras'
+  | 'adelante'
+  | 'recargar'
+  /** El mismo botón de recargar con Mayús: se salta lo que quedó en caché. */
+  | 'recargarSinCache'
+  | 'parar'
+  | 'fuera'
+  | 'acercar'
+  | 'alejar'
+  | 'zoomNormal'
+  | 'cerrar'
 
 export interface PuenteNavegador {
   /**

@@ -97,6 +97,15 @@ nativeTheme.themeSource = 'dark'
 if (!app.requestSingleInstanceLock()) app.quit()
 else {
   mudarPerfil()
+  // Ctrl+Mayús+I (y F12) abren la consola del navegador en que se apoya Hermit. En la que se le instala al cliente no hay
+  // menú que la ofrezca (menu()) y por aquí queda cerrada del todo: es un programa, no un navegador. En el repo siguen
+  // funcionando, para trabajar.
+  app.on('web-contents-created', (_e, wc) => {
+    if (!app.isPackaged) return
+    wc.on('before-input-event', (e, t) => {
+      if (t.type === 'keyDown' && (t.key === 'F12' || ((t.control || t.meta) && t.shift && t.key.toLowerCase() === 'i'))) e.preventDefault()
+    })
+  })
   app.on('second-instance', () => abrir())
   app.on('activate', () => abrir())
   // Cerrar la ventana cierra Hermit entera, también en Mac: el servidor y lo que lanzó se detienen (`before-quit`).
@@ -157,7 +166,8 @@ function abrir() {
     accentColor: FONDO,
     // La compilada lleva el logo en Hermit.exe y en Hermit.app; en el repo es electron.exe, con el suyo. Linux lo pide siempre.
     icon: MAC || (WINDOWS && app.isPackaged) ? undefined : app.isPackaged ? join(process.resourcesPath, 'icon.png') : join(APP, 'assets', WINDOWS ? 'icon.ico' : 'icon.png'),
-    webPreferences: { preload: join(__dirname, 'preload.cjs'), sandbox: true, autoplayPolicy: 'no-user-gesture-required' }
+    // Sin consola en la que se le instala al cliente: es un programa, no un navegador. En el repo sigue, para trabajar.
+    webPreferences: { preload: join(__dirname, 'preload.cjs'), sandbox: true, devTools: !app.isPackaged, autoplayPolicy: 'no-user-gesture-required' }
   })
   ventana = v
   v.setMenuBarVisibility(false)

@@ -26,7 +26,7 @@ import { mkdirSync, readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { join } from 'node:path'
-import { app, ipcMain, Menu, session, shell, WebContentsView, type BrowserWindow, type Session, type WebContents } from 'electron'
+import { app, ipcMain, session, shell, WebContentsView, type BrowserWindow, type Session, type WebContents } from 'electron'
 import { WebSocketServer, type WebSocket } from 'ws'
 import { guardar } from '../server/disco.ts'
 import { crearRelevo, type Relevo } from './relevo.ts'
@@ -416,7 +416,8 @@ function hacer(hilo: string, accion: AccionNavegador) {
   const wc = h.vista.webContents
   if (accion === 'atras') wc.navigationHistory.goBack()
   if (accion === 'adelante') wc.navigationHistory.goForward()
-  if (accion === 'recargar') void (h.fallida ? wc.loadURL(h.fallida).catch(() => {}) : wc.reload())
+  if (accion === 'recargar' || accion === 'recargarSinCache')
+    void (h.fallida ? wc.loadURL(h.fallida).catch(() => {}) : accion === 'recargarSinCache' ? wc.reloadIgnoringCache() : wc.reload())
   if (accion === 'parar') wc.stop()
   if (accion === 'fuera' && /^https?:\/\//i.test(wc.getURL())) void shell.openExternal(wc.getURL())
   if (accion === 'acercar' || accion === 'alejar' || accion === 'zoomNormal') {
@@ -425,14 +426,6 @@ function hacer(hilo: string, accion: AccionNavegador) {
     wc.setZoomFactor(h.zoom)
     avisar(h)
   }
-  // Un menú de la ventana, no de la interfaz: la página va encima de todo y taparía uno de HTML.
-  if (accion === 'menu')
-    Menu.buildFromTemplate([
-      { label: 'Recargar sin caché', click: () => wc.reloadIgnoringCache() },
-      // «Herramientas de desarrollo» solo en el repo: al cliente le abriría la consola del navegador, que no es cosa de un
-      // programa (igual que en el menú de la ventana, electron/main.ts).
-      ...(app.isPackaged ? [] : [{ label: 'Herramientas de desarrollo', click: () => wc.openDevTools({ mode: 'detach' }) }])
-    ]).popup(ventana ? { window: ventana } : {})
   // La primera pestaña es la del hilo y no se cierra.
   if (accion === 'cerrar' && hilo.includes('~')) {
     ultimas.delete(hilo)

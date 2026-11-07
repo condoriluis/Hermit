@@ -338,7 +338,12 @@ export function PanelNavegador({ hilo, trabajando }: { hilo: string; trabajando:
         <button className="navegador-boton" disabled={!e?.adelante} title="Adelante" onClick={() => hacer('adelante')}>
           <Icono de="flecha" />
         </button>
-        <button className="navegador-boton" disabled={!e?.url} title={e?.cargando ? 'Detener' : 'Recargar'} onClick={() => hacer(e?.cargando ? 'parar' : 'recargar')}>
+        <button
+          className="navegador-boton"
+          disabled={!e?.url}
+          title={e?.cargando ? 'Detener' : 'Recargar (Mayús+clic: sin caché)'}
+          onClick={(ev) => hacer(e?.cargando ? 'parar' : ev.shiftKey ? 'recargarSinCache' : 'recargar')}
+        >
           <Icono de={e?.cargando ? 'cerrar' : 'recargar'} />
         </button>
         <form className="navegador-direccion" onSubmit={ir}>
@@ -377,9 +382,6 @@ export function PanelNavegador({ hilo, trabajando }: { hilo: string; trabajando:
         )}
         <button className="navegador-boton" disabled={!e?.url} title="Abrir en tu navegador" onClick={() => hacer('fuera')}>
           <Icono de="fuera" />
-        </button>
-        <button className="navegador-boton" disabled={!e?.url} title="Más" onClick={() => hacer('menu')}>
-          <Icono de="puntos" />
         </button>
         <button className="navegador-boton" title="Esconder el navegador" onClick={() => abrirNavegador(hilo, false)}>
           <Icono de="cerrar" />

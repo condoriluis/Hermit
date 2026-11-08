@@ -236,8 +236,12 @@ async function esperar(page: Page, tarjeta: Locator, tipo: PedidoFlow['tipo'], a
     }, tipo === 'video')
     if (e.lista) return
     if (e.avanza) sinAvance = Date.now()
-    // Sin % y sin resultado: Flow lo rechazó y deja la tarjeta con su motivo.
-    else if (Date.now() - sinAvance > 60_000) throw new Error(`Flow no lo generó: ${e.texto.replace(/\s+/g, ' ').slice(0, 200)}`)
+    else if (Date.now() - sinAvance > 60_000) {
+      // Sin % y sin resultado: Flow lo rechazó y deja la tarjeta con su motivo (y «You have not been charged»). No
+      // gastó, así que es el mismo caso que no empezar: la cuenta descansa y el pedido puede ir a otra.
+      const dicho = e.texto.replace(/\s+/g, ' ').slice(0, 200)
+      throw new SinEmpezar(`Flow no lo generó: ${dicho}`, dicho)
+    }
     await page.waitForTimeout(2000)
   }
   throw new Error(`Flow no acabó en ${TERMINA / 60_000} minutos.`)

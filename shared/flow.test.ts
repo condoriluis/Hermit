@@ -29,6 +29,7 @@ test('el aviso de Flow dice si la cuenta se quedó sin créditos o la frenaron',
   assert.equal(motivoDeAviso('No tienes suficientes créditos', 'video'), 'creditos')
   assert.equal(motivoDeAviso('You have reached your daily limit', 'video'), 'creditos')
   assert.equal(motivoDeAviso('Demasiadas solicitudes. Inténtalo más tarde', 'video'), 'frenada')
+  assert.equal(motivoDeAviso('We noticed some unusual activity', 'video'), 'frenada')
   assert.equal(motivoDeAviso('', 'video'), 'creditos')
   assert.equal(motivoDeAviso('', 'imagen'), 'frenada')
 })

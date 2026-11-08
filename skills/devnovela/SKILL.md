@@ -1,6 +1,6 @@
 ---
 name: devnovela
-description: Hace una devnovela, vertical (TikTok, Reels, Shorts) u horizontal (YouTube). Es una telenovela cómica de un minuto o dos con lenguajes y herramientas de programación convertidos en personajes 3D originales estilo Pixar, con cabeza de objeto o símbolo y cuerpo humano, que hablan con sus propias voces y viven dramas de oficina, deploys, código legacy y merges imposibles. Los mismos personajes en todos los clips, un conflicto en el primer segundo y un final que pide la siguiente parte. Úsala cuando pidan una devnovela, una novela de programación, una historia con lenguajes de programación como personajes, otro capítulo o la parte 2 de una que ya se hizo.
+description: Crea devnovelas verticales u horizontales con lenguajes y herramientas como personajes 3D humanos cuya cabeza es su logo o símbolo reconocible. Úsala para episodios nuevos o continuaciones de una devnovela.
 ---
 
 # Devnovela
@@ -11,16 +11,16 @@ errores ya vistos), [`FORMATO.md`](../video-base/FORMATO.md), [`FLOW.md`](../vid
 
 ## La esencia
 
-- **Personajes que se reconocen.** Cada uno es un lenguaje o una herramienta de programación convertido en un personaje
-  3D original: su **cabeza es un objeto o símbolo** que lo representa —un corchete, un servidor, una taza, un pergamino,
-  una gema, un contenedor—, con ojos, boca, cejas y cara expresiva, sobre un cuerpo humano con su ropa de siempre. Nunca
-  es un animal genérico. Salen idénticos en todos los clips, porque cada clip parte de un cuadro armado con sus hojas de
-  personaje. Si un personaje cambia de cara, de cabeza, de cuerpo o de ropa entre clips, el video se cae.
+- **Personajes que se reconocen.** Cada lenguaje o herramienta es un personaje con cuerpo humano y una cabeza 3D formada
+  por su logo oficial reconocible o por su símbolo icónico. El logo es la cabeza misma, no una insignia flotante, una
+  máscara genérica ni un objeto vagamente relacionado. Lleva ojos, cejas y boca integrados sin perder la silueta que lo
+  identifica, y ropa urbana inspirada en sus colores. No inventes una papelera, un bote, una caja o un cilindro cuando
+  el usuario espera el logo. Salen idénticos en todos los clips, porque cada clip parte de un cuadro armado con sus hojas
+  de personaje. Si un personaje cambia de cara, cabeza, cuerpo o ropa entre clips, el video se cae.
 - **Drama de telenovela, dicho serio.** Deploy del viernes, herencia del código legacy, merge conflict, bug en
   producción, auditoría, despido, traición entre frontend y backend. Los personajes lo viven en serio. La gracia es que
-  son lenguajes de programación y que su objeto pesa en la historia: el corchete que encierra todo, el servidor que
-  aguanta, la taza que habla en párrafos, el pergamino que carga con lo viejo, la gema que presume, el contenedor que se
-  lo lleva a otra parte.
+  el lenguaje o la herramienta es el personaje: su símbolo reconocible forma parte de su cara y su identidad, no se
+  sustituye por un objeto genérico.
 - **Hablan ellos, sin narrador.** Cada clip son 8 s de uno o dos personajes diciéndose algo. Veo genera las voces con la
   boca a tiempo, y las voces son las que dice el guion para cada personaje.
 - **Cámara casi quieta.** Plano medio o entero, dos o tres personajes, un lugar por escena. Lo que se mueve es la cara y
@@ -33,13 +33,14 @@ errores ya vistos), [`FORMATO.md`](../video-base/FORMATO.md), [`FLOW.md`](../vid
 - **Gasta créditos del usuario.** Antes de pedir los clips, dile cuántos son, el modelo y el total. Ejemplo: 10 clips en
   Lite, 100 créditos. Las imágenes (hojas, lugares, cuadros) no gastan. Hermit pide la autorización antes del primer
   clip: si la herramienta dice que espera permiso, pídeselo y espera con `estado_flow`.
-- **Cabeza de objeto o símbolo, no animal ni logo.** Los personajes son diseños originales: la cabeza es un objeto o
-  símbolo que representa al lenguaje o la herramienta, con cara, y el cuerpo es humano. No uses logos, mascotas
-  oficiales, capturas de pantalla, colores registrados ni tipografías de la marca, ni animales genéricos. Puedes nombrar
-  «Python», «PHP» o «Java» en los diálogos, pero no reproducir sus marcas. Tampoco personas reales ni historias copiadas
-  de otro canal: se miden, no se copian.
-- **Sin texto en lo generado.** Ni letreros, ni logos, ni subtítulos, ni marcas de agua en los cuadros o los clips. Los
-  subtítulos los pone `unir.py`.
+- **Logo como cabeza.** Usa la forma y los colores principales del logo o símbolo reconocible del lenguaje o herramienta.
+  La cabeza completa adopta esa silueta y tiene ojos, cejas y boca integrados. No la conviertas en una cabeza humana,
+  una mascota, un robot ni un recipiente genérico. Si el símbolo oficial representa un animal, úsalo como emblema gráfico
+  3D, no como un animal realista. No inventes una marca cuando no puedas confirmar cuál es: pregunta o usa una referencia
+  que proporcione el usuario. No añadas logos sueltos a la escena ni copies historias de otro canal.
+- **Sin texto añadido.** No generes letreros, subtítulos ni marcas de agua. Las letras que formen parte inseparable del
+  icono oficial pueden permanecer en la cabeza; no añadas nombres o palabras a la ropa ni al fondo. Los subtítulos los
+  pone `unir.py`.
 - El proyecto va en la carpeta de la línea `Carpeta: <nombre>` del mensaje, con ese nombre exacto (el estudio de Hermit
   la busca ahí). Sin la línea, `devnovela-<tema>`.
 
@@ -61,29 +62,15 @@ Todo cuadro va en el formato del video: un cuadro vertical animado en horizontal
 
 Los personajes viven en `personajes/`, en la carpeta donde arrancas (la de todas las devnovelas). Así se usan otra vez
 en la parte 2 sin rehacerlos. Cada uno lleva su hoja `personajes/<nombre>.jpg` y su renglón en
-`personajes/ELENCO.md`: nombre, qué lenguaje o herramienta representa, **qué objeto o símbolo lleva por cabeza**, cómo es
-su cara, qué ropa lleva, su voz (edad, tono, acento) y en qué capítulos sale. Antes de inventar a uno, mira si ya está.
+`personajes/ELENCO.md`: nombre, qué lenguaje o herramienta representa, **cuál es el logo o símbolo exacto de su cabeza**,
+su silueta y colores, cómo son sus rasgos, qué ropa lleva, su voz (edad, tono, acento) y en qué capítulos sale. Antes de
+inventar a uno, mira si ya está y conserva su diseño.
 
 Un elenco de cuatro a seis funciona mejor que uno de doce. Cada uno necesita una silueta distinta y una personalidad que
-se entienda en un solo plano. La cabeza siempre es un objeto o símbolo con cara, nunca un animal. Estos son ejemplos
-originales, no obligatorios:
-
-- **Corchete** (Python): cabeza de dos corchetes entrelazados, ojos curiosos y sonrisa lenta; cuerpo humano, ropa verde
-  de trabajo. Habla poco y resuelve.
-- **Servidor** (PHP): cabeza de torre de servidor con luces y cara de veterano; cuerpo humano, chaqueta gastada. Aguanta
-  todo y no suelta el servidor.
-- **Taza** (Java): cabeza de taza de café humeante con cejas dramáticas; cuerpo humano, traje corporativo. Nunca dice en
-  una frase lo que cabe en tres.
-- **Pergamino** (Perl): cabeza de rollo de pergamino con cara de sabio; cuerpo humano, ropa vieja. Carga con el código
-  que nadie más quiere tocar.
-- **Gema** (Ruby): cabeza de gema facetada con cara presumida; cuerpo humano, ropa elegante. Convence a todos de que su
-  idea es la más bonita.
-- **Contenedor** (Docker): cabeza de caja de contenedor con ojos tranquilos; cuerpo humano, ropa de mudanza. Mete todo y
-  se lo lleva a otra parte.
-
-Si el usuario pide un lenguaje o una herramienta que no está, invéntalo con la misma regla: un objeto o símbolo 3D con
-cara, un cuerpo humano, una personalidad clara y una paleta propia. Si no se te ocurre un objeto, inventa un símbolo
-abstracto; no pongas un animal ni copies el logo o la mascota oficial.
+se entienda en un solo plano. No hay una lista cerrada de lenguajes compatibles: representa los que pida el usuario,
+incluidos lenguajes nuevos o poco conocidos, sin intentar enumerarlos todos ni reemplazar sus marcas por objetos
+inventados. Si no conoces su símbolo oficial, compruébalo en una fuente fiable; si no puedes identificarlo con certeza,
+pide una referencia antes de generar.
 
 ## Pasos
 
@@ -95,28 +82,37 @@ abstracto; no pongas un animal ni copies el logo o la mascota oficial.
    comillas y con quién lo dice. Que sean de 8 a 12 escenas (de 64 a 96 s). En cada escena caben unas 20 palabras, de uno
    o dos personajes. El drama tiene que entenderse sin saber programar: el lenguaje es el disfraz, no el chiste. Listo
    cuando el primer clip ya es el conflicto, cada escena empuja la historia y el último deja la pregunta.
-3. **Personajes.** Los que falten, con `generar_imagen` en `formato` `9:16`, a `personajes/<nombre>.jpg`. Cada uno de
-   cuerpo entero, de frente, de pie, con su ropa, sobre un fondo liso claro y sin texto, logos ni animales. El pedido, en
-   inglés: `3D animated character, Pixar style, human body with a <object or symbol> for a head, the head has expressive
-   eyes, eyebrows and mouth, <features>, wearing <clothes>, full body, front view, standing, neutral expression, plain
-   light background, no text, no logos, no animals`. Míralos. Si uno no salió como dice `ELENCO.md` o salió con cabeza de
-   animal, pídelo otra vez diciendo qué corregir. Listo cuando cada personaje del capítulo tiene su hoja y su renglón en
-   `ELENCO.md`.
+3. **Personajes.** Los que falten, con `generar_imagen` en `formato` `9:16`, a `personajes/<nombre>.jpg`, uno por imagen.
+   Cada uno debe tener cuerpo humano completo, dos brazos, dos manos, dos piernas y dos pies; estar de frente y de pie,
+   con ropa urbana inspirada en los colores de su marca, sobre fondo claro y liso. Identifica el símbolo con precisión y
+   describe su silueta y colores en el prompt; no basta con escribir el nombre del lenguaje o «su logo». Si el logo no es
+   reconocible para el modelo, usa una imagen de referencia verificada en `referencias`. Rellena esta plantilla en inglés
+   con el diseño anotado en `ELENCO.md`:
+
+   ```text
+   Create one high-quality stylized 3D animated humanoid character representing <LANGUAGE OR TOOL>. The entire head itself is the recognizable official <LOGO OR ICON, DESCRIBED BY ITS DISTINCTIVE SHAPE AND COLORS>, rendered as a dimensional sculptural head. Preserve its distinctive silhouette and main colors; do not reinterpret it as a trash can, bin, box, cylinder, helmet, human head, or unrelated object. Integrate large expressive cartoon eyes, eyebrows, and a mouth into the logo surface without obscuring its identity. Fully human body with two arms, two hands, two legs, and two feet; natural proportions and expressive body language. Modern streetwear inspired by <BRAND COLORS>, no extra logos or words on clothing. <PERSONALITY>. Full body, standing upright, facing the camera, neutral pose, centered on a clean light gray background. Premium polished 3D animated feature-film style, consistent visual universe for the DevNovelas series. No floating logo, no extra text, no watermark, no realistic animal head, no robot body.
+   ```
+
+   Mírala. Si la cabeza no conserva el símbolo reconocible, parece un objeto genérico, o Flow la interpreta como animal
+   real, papelera o recipiente, vuelve a pedir solo esa hoja: nombra el error concreto y exige la silueta del logo. Si hay
+   una referencia fiable del logo, pásala en `referencias`. Lista cuando cada personaje del capítulo tiene su hoja y su
+   renglón en `ELENCO.md`.
 4. **Lugares.** Cada lugar del guion, vacío, con `generar_imagen` en el formato del video, a `lugares/<lugar>.jpg` del
    proyecto: el mismo 3D tipo Pixar, con luz cálida y sin personas, texto ni logos. Listo cuando cada lugar tiene su
    imagen.
 5. **Cuadros.** El primer cuadro de cada escena, con `generar_imagen` en el formato del video y en `referencias` las
    hojas de quienes salen más la del lugar (cuatro como mucho), a `cuadros/esc-<NN>.jpg`. El pedido dice dónde está cada
-   uno, hacia dónde mira, su gesto al empezar la escena, el plano, y que todo sea igual a las referencias y sin texto,
-   logos ni animales. Mira todos en una hoja (`node <base>/scripts/hoja.mjs cuadros revision/cuadros.png`). Si uno cambió
-   de cara, de cabeza o de ropa, o salió con texto, logo o cabeza de animal, pídelo otra vez: no gasta. Listo cuando los
-   personajes se ven iguales en todos.
+   uno, hacia dónde mira, su gesto al empezar la escena y el plano. Pide que coincidan con las referencias, incluidos
+   los logos integrados en sus cabezas; sin texto añadido, logos sueltos ni animales. Mira todos en una hoja
+   (`node <base>/scripts/hoja.mjs cuadros revision/cuadros.png`). Si cambia una cabeza, cara o ropa, o aparece un logo
+   suelto o texto, pídelo otra vez: no gasta. Listo cuando los personajes se ven iguales en todos.
 6. **Clips.** Mira con `estado_flow` sin `id` cuánto les queda a sus cuentas. Dile al usuario cuántos clips son, cuánto
    gastan y si alcanzan (paso «Lo que no se negocia»), y pídelos todos seguidos, sin esperar uno para pedir el siguiente.
    Se reparten entre sus cuentas, tres a la vez. Usa `generar_video` con `primerCuadro` `cuadros/esc-<NN>.jpg`, el
    formato del video, Veo 3.1 - Lite (salvo que el usuario pida otro) y `salida` `clips/esc-<NN>.mp4`. El prompt, en
    inglés, describe la acción. El diálogo va en español, entre comillas y con quién lo dice y cómo suena su voz (la de
-   `ELENCO.md`). Al final, `static camera, no music, no subtitles, no text on screen, no logos, no animals`. Espera los
+   `ELENCO.md`). Conserva las cabezas-logo de la imagen de referencia; al final, `static camera, no music, no subtitles,
+   no added text on screen, no extra logos, no realistic animals`. Espera los
    pendientes con `estado_flow`. Listo cuando están todos los clips. Si una cuenta se quedó sin créditos, la herramienta ya pasó a
    otra. Si ninguna puede, dile al usuario cuántos faltan y cuándo vuelven sus cuentas, y para ahí.
 7. **Montaje.** `python <skill>/scripts/unir.py <nombre> --formato <formato>` se corre desde la carpeta del proyecto.
@@ -128,11 +124,24 @@ abstracto; no pongas un animal ni copies el logo o la mascota oficial.
    Repetirlo gasta otra vez: si sigue mal, déjalo y díselo al usuario. Al final,
    `node <base>/scripts/comprobar.mjs out/devnovela-<nombre>.mp4 --duracion <s> --fps 30 --tamano <1080x1920 o
    1920x1080>`. Listo cuando pasa y cada escena dice lo del guion.
-8. **Portada.** Según [`PORTADA.md`](../video-base/PORTADA.md): el personaje del conflicto, grande y con su cara del
-   momento más fuerte, y de 2 a 5 palabras del drama («BORRARON MAIN», «EL DEPLOY DEL VIERNES», «LA HERENCIA DEL LEGACY»).
-   Van tres cuadros del video de referencia, para que sea el mismo elenco. En vertical va de primer fotograma
-   (`portada.mjs`). Entrega la ruta del video, el guion, los créditos gastados y con qué cuentas, y lo que no revisaste:
-   el audio no lo oyes, solo lo transcribes.
+8. **Portada.** Sigue [`PORTADA.md`](../video-base/PORTADA.md) para referencias, formato y área segura. Elige un título
+   gancho de 2 a 5 palabras que resuma el conflicto o giro más fuerte del episodio, no el nombre de la serie ni el tema
+   genérico. Que suene dramático y concreto («¡SE CAYÓ PRODUCCIÓN!», «BORRARON MAIN», «EL DEPLOY ARDIÓ»); conserva el
+   texto exacto, con sus acentos y signos, en español.
+
+   La portada debe reconocerse como Devnovela y mantener el mundo 3D de la serie. Usa al protagonista del conflicto,
+   grande y con una expresión intensa; conserva su cabeza-logo y su ropa según `ELENCO.md`. El título lleva tipografía
+   gruesa, compacta y muy legible, en mayúsculas y en dos o tres líneas. Elige colores vivos ligados al logo del
+   protagonista y a la escena: un color dominante brillante y, como máximo, un acento fuerte, sobre un fondo que dé
+   contraste. Por ejemplo, amarillo eléctrico o cian con acento naranja o rojo y contorno o sombra oscura. No uses un
+   arcoíris de colores, no tapes la cara ni la cabeza, y no añadas logos sueltos: el logo del personaje forma parte de
+   su cabeza. El único texto de la imagen es el título.
+
+   Genera la portada con tres cuadros del propio video como referencias para conservar el elenco y la escena. Mírala
+   entera y en miniatura: el título debe leerse y coincidir exactamente con el elegido, y el personaje, el texto y la
+   expresión deben quedar en el área segura que indica `PORTADA.md`. En horizontal, pon el título a un lado y el
+   protagonista al otro. En vertical va de primer fotograma (`portada.mjs`). Entrega la ruta del video, el guion, los
+   créditos gastados y con qué cuentas, y lo que no revisaste: el audio no lo oyes, solo lo transcribes.
 
 ## Las imágenes
 

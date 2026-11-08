@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FASES, type AvanceCorto, type Fase, type SessionMeta } from '../../shared/types'
+import { Icono } from './Iconos'
 
 /**
  * Lo de la barra lateral que no es la lista en sí (que vive en App): plegarla, y el avance de cada video bajo su título.
@@ -96,6 +97,7 @@ export function TituloDeFila({ titulo, vista }: { titulo: string; vista?: Vista 
     <span className="session-texto">
       <span className="session-title">{titulo}</span>
       <span className={`avance ${vista.clase ?? ''}`} title={vista.title}>
+        {vista.clase === 'hecho' && <Icono de="palomita" className="avance-ico" />}
         <span className="avance-texto">{vista.texto}</span>
         {vista.parte < 1 && (
           <span className="avance-barra">

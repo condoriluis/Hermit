@@ -134,7 +134,9 @@ button.barra-seccion:hover { color: var(--text); }
 .avance-barra { flex: 1; min-width: 20px; height: 3px; border-radius: 99px; background: var(--line); overflow: hidden; }
 .avance-barra span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width 0.4s ease; }
 .avance.espera { color: var(--warn); }
-.avance.hecho { color: var(--ok); }
+/* Terminado: el check verde dice el estado; el texto queda discreto, como el de las demás fases. */
+.avance.hecho { gap: 5px; }
+.avance.hecho .avance-ico { flex: none; width: 12px; height: 12px; color: var(--ok); stroke-width: 2.5; }
 
 /* Arriba: el logo, que abre un chat nuevo, y el botón que pliega la barra (Ctrl+B). */
 .brand-fila { display: flex; align-items: center; }

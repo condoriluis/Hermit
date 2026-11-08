@@ -358,7 +358,7 @@ export function Monitor({ m, escena, antes, despues, vertical, label, children }
             {modo === 'nada' && <div className="monitor-vacio muted">{m.motor?.armando ? 'Preparando el video en vivo…' : errorMotor && m.error ? `No se pudo armar el video en vivo: ${errorMotor}` : 'El video aparece aquí en cuanto el agente lo arme…'}</div>}
             {modo === 'render' && !m.playing && (
               <span className="monitor-play">
-                <Icono de="video" />
+                <Icono de="play" />
               </span>
             )}
             {armando && (
@@ -379,7 +379,7 @@ export function Monitor({ m, escena, antes, despues, vertical, label, children }
           <Icono de="atras" />
         </button>
         <button className="transporte-play" disabled={modo === 'nada'} title="Reproducir o pausar (espacio)" onClick={m.toggle}>
-          <Icono de={m.playing ? 'pausa' : 'video'} />
+          <Icono de={m.playing ? 'pausa' : 'play'} />
         </button>
         <button className="transporte-boton" disabled={!despues} title="Escena siguiente" onClick={despues}>
           <Icono de="adelante" />

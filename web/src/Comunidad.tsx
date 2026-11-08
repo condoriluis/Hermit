@@ -552,7 +552,7 @@ function Tarjeta({ p, yo, nueva, visto, onAbrir, onMegusta }: { p: PublicacionCo
             {imagen ? <img src={imagen} alt="" loading="lazy" /> : <video src={portada.url} muted preload="metadata" />}
             {portada.tipo === 'video' && (
               <span className="com-play">
-                <Icono de="video" />
+                <Icono de="play" />
               </span>
             )}
             {p.adjuntos.length > 1 && <span className="com-mas-fotos">+{p.adjuntos.length - 1}</span>}

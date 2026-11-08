@@ -38,6 +38,8 @@
 .etapa-rejilla a { display: block; }
 .etapa-rejilla img, .etapa-rejilla video { display: block; width: 100%; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--line); }
 .etapa-rejilla.c2 img, .etapa-rejilla.c3 img { aspect-ratio: 4 / 3; object-fit: cover; }
+/* Una sola pieza en su rejilla (la portada de la Entrega): se contiene en alto y se centra, para que no obligue a bajar (eje Y). */
+.etapa-rejilla.c1 > a:only-child img { width: auto; max-width: 100%; max-height: min(72vh, 600px); margin: 0 auto; }
 .etapa-rejilla a:hover img { border-color: var(--accent); }
 .etapa-nuevo { animation: etapa-entra 0.5s ease-out; }
 @keyframes etapa-entra { from { opacity: 0; transform: scale(0.97); filter: blur(4px); } }

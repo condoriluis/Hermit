@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { AgentEvent } from '../../shared/types.ts'
+import { partirOpciones } from '../../shared/opciones.ts'
 import { porcentaje } from './Arranque.tsx'
-import { buildTimeline, errorLlano, partirOpciones, toolSummary, type EstadoSubagente, type Item, type Subagente } from './items.ts'
+import { buildTimeline, errorLlano, toolSummary, type EstadoSubagente, type Item, type Subagente } from './items.ts'
 
 /** Como se armaba el hilo antes de leerlo por partes: todo de cero cada vez. Es la referencia. */
 function deCero(events: AgentEvent[]): Item[] {

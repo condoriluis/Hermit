@@ -44,7 +44,7 @@ function preparar(t: test.TestContext, model = 'codex:gpt-prueba') {
     /** Un turno que trabaja y acaba (`ok`) con `texto` como último mensaje; luego pasa el rato de calma. */
     turno(texto = 'Preparé un borrador. El video aún no está terminado.', { ok = true, herramienta = 'Bash' } = {}) {
       emit({ t: 'tool', id: `h${Math.random()}`, name: herramienta, input: {} })
-      for (const trozo of texto.match(/.{1,12}/g) ?? []) emit({ t: 'text', id: 'm', delta: trozo })
+      for (const trozo of texto.match(/[\s\S]{1,12}/g) ?? []) emit({ t: 'text', id: 'm', delta: trozo })
       emit({ t: 'turn_end', at: Date.now(), ok })
       t.mock.timers.tick(4000)
     }
@@ -93,6 +93,13 @@ test('si abre otro turno antes de la calma, no se le pide nada', (t) => {
   h.emit({ t: 'turn_end', at: Date.now(), ok: true })
   h.emit({ t: 'turn_start', at: Date.now() })
   t.mock.timers.tick(5000)
+  assert.equal(h.pedidos().length, 0)
+})
+
+test('no se le insiste si la pregunta va con su bloque `<opciones>` detrás', (t) => {
+  const h = preparar(t)
+  h.sessions.send(h.meta.id, 'Hazme el video')
+  h.turno('Los clips gastan 80 créditos. ¿Lo autorizas?\n\n<opciones>\nSí, sigue\nNo, cámbialo\n</opciones>')
   assert.equal(h.pedidos().length, 0)
 })
 

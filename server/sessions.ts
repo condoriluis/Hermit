@@ -2,6 +2,7 @@ import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readdirSync
 import { join } from 'node:path'
 import { hardware, ramLibreBytes } from './gobernador.ts'
 import { historialLigero } from '../shared/historial.ts'
+import { partirOpciones } from '../shared/opciones.ts'
 import { leerHistorial, primerUsuario } from './historial.ts'
 import type { AgentEvent, FileDraft, SessionMeta } from '../shared/types.ts'
 import { NOMBRE_AGENTE, programaDe, proveedorDe } from '../shared/providers.ts'
@@ -554,7 +555,9 @@ export class Sessions {
     const list = this.load(id)
     const turno = list.slice(list.findLastIndex((e) => e.t === 'turn_start') + 1)
     const suyas = turno.filter((e) => e.t === 'tool' && !e.parent)
-    if (!suyas.length || suyas.some((e) => e.t === 'tool' && PREGUNTAS.test(e.name)) || /\?[\s*_`)"»]*$/.test(ultimoTexto(turno))) return
+    // El bloque `<opciones>` va detrás de la pregunta, así que se quita antes de mirar si el turno acaba preguntando algo.
+    const cierre = partirOpciones(ultimoTexto(turno)).texto
+    if (!suyas.length || suyas.some((e) => e.t === 'tool' && PREGUNTAS.test(e.name)) || /\?[\s*_`)"»]*$/.test(cierre)) return
     clearTimeout(this.aMedias.get(id))
     const reloj = setTimeout(() => {
       this.aMedias.delete(id)

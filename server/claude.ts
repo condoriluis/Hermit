@@ -61,7 +61,7 @@ export async function claudeModels(): Promise<Model[]> {
 }
 
 /**
- * Hermit dibuja como botones las respuestas de una pregunta cerrada (`partirOpciones`, en web/src/items.ts). Así se lo
+ * Hermit dibuja como botones las respuestas de una pregunta cerrada (`partirOpciones`, en shared/opciones.ts). Así se lo
  * pide al agente de cada hilo, sin tocar las skills. Una skill que ya dice cómo preguntar (la entrevista de Ideas) manda.
  */
 export const OPCIONES = `Hermit, la app donde te usan, enseña botones para contestar. Cuando le hagas al usuario una pregunta de respuestas cerradas (de 2 a 5, cortas), termina el mensaje con este bloque, una respuesta por línea y nada después:

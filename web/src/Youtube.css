@@ -2,7 +2,6 @@
 .youtube-pasos { margin: 0; padding-left: 20px; }
 .youtube-pasos li + li { margin-top: 5px; }
 .youtube-terminado, .youtube-revisado.listo, .youtube-estado.listo { color: var(--ok); }
-.video-con-subida { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .youtube-boton { padding: 3px 9px; border: 1px solid var(--line); border-radius: 7px; font-size: 11.5px; color: var(--muted); }
 .youtube-boton:hover { color: var(--accent); border-color: var(--accent); }
 .youtube-lote-barra { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--radio); background: var(--panel-2); }

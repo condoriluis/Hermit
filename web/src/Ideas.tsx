@@ -43,6 +43,7 @@ import type {
   TerminoYT,
   VideoYT
 } from '../../shared/types'
+import { esDeVideo } from '../../shared/types'
 import { api } from './api'
 import { Icon, type Choice } from './Composer'
 import { Confirm } from './Confirm'
@@ -1983,8 +1984,8 @@ function Anteriores({ d, corriendo, onCambio }: { d: CanalCompleto; corriendo: b
   )
 }
 
-/** Las cards con que se puede hacer una idea: todas las de video, que hacen los dos formatos (`Formato:` del brief). */
-const estilos = (cards: Card[]) => cards.filter((c) => c.etapas)
+/** Las cards con que se puede hacer una idea: las de video (`produce: 'video'`), que hacen los dos formatos (`Formato:` del brief). */
+const estilos = (cards: Card[]) => cards.filter(esDeVideo)
 
 /**
  * Lo que recibe la card al hacer una idea. Sin enlaces: con dos o más, El Diff ofrecería un video por enlace. Por eso la

@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { join, relative, resolve, isAbsolute } from 'node:path'
 import { fechaRitmo, huecos, RITMO_YOUTUBE, validarRitmo } from '../shared/ritmo.ts'
-import type { Card, EstadoRitmo, Model, Ritmo, VideoHecho } from '../shared/types.ts'
+import { esDeVideo, type Card, type EstadoRitmo, type Model, type Ritmo, type VideoHecho } from '../shared/types.ts'
 import type { BorradorYoutube, CalendarioYoutube, CatalogoYoutube, ConexionYoutube, CuentaYoutube, DatosYoutube, EstadoSubidaYoutube, VideoParaYoutube } from '../shared/youtube.ts'
 import { aLaPapelera, guardar, huella } from './disco.ts'
 import { folderOf, servir, videosDe } from './etapas.ts'
@@ -144,13 +144,13 @@ export function youtube(app: string, sessions: Sessions, cards: () => Card[], re
   const publico = (s: SubidaYoutube): EstadoSubidaYoutube => ({ estado: s.datos.cuando && s.estado === 'terminado' ? 'preparando' : s.estado, enviados: s.enviados, total: s.total, id: s.id, error: s.error, datos: s.datos })
   function todos(cardId?: string) {
     const unicos = new Map<string, VideoHecho>()
-    for (const c of cards()) if (c.etapas?.length && (!cardId || c.id === cardId))
+    for (const c of cards()) if (esDeVideo(c) && (!cardId || c.id === cardId))
       for (const v of videosDe(c, sessions)) if (!unicos.has(huella(v.ruta))) unicos.set(huella(v.ruta), v)
     return [...unicos.values()]
   }
   function buscar(cardId: unknown, ruta: unknown): VideoHecho {
     const card = cards().find((c) => c.id === cardId)
-    const v = card?.etapas?.length && typeof ruta === 'string' && videosDe(card, sessions).find((v) => v.ruta.toLowerCase() === resolve(ruta).toLowerCase())
+    const v = card && esDeVideo(card) && typeof ruta === 'string' && videosDe(card, sessions).find((v) => v.ruta.toLowerCase() === resolve(ruta).toLowerCase())
     if (!v) throw new Error('Este archivo no es un video terminado de Hermit.')
     return v
   }
@@ -468,7 +468,7 @@ export function youtube(app: string, sessions: Sessions, cards: () => Card[], re
       if (url.pathname === '/api/youtube/subida' && (post || req.method === 'GET')) {
         const b = post ? await body(req) : Object.fromEntries(url.searchParams)
         const card = cards().find((c) => c.id === b.cardId)
-        const video = card?.etapas?.length && typeof b.ruta === 'string' && videosDe(card, sessions).find((v) => v.ruta.toLowerCase() === resolve(b.ruta).toLowerCase())
+        const video = card && esDeVideo(card) && typeof b.ruta === 'string' && videosDe(card, sessions).find((v) => v.ruta.toLowerCase() === resolve(b.ruta).toLowerCase())
         if (!video) return json(res, 404, { error: 'Este archivo no es un video terminado de Hermit.' })
         if (!conectado() || !datos.cuenta) return post ? json(res, 400, { error: 'Conecta tu canal de YouTube en Opciones antes de subir.' }) : json(res, 200, null)
         const clave = `${datos.cuenta.id}:${huella(video.ruta)}`

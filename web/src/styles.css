@@ -63,7 +63,7 @@ input, textarea, select { font: inherit; color: inherit; }
 /* Inicio: arriba las skills, a lo ancho; abajo, centradas, la elegida y el compositor, que no se mueven de su sitio. Si
    sobran skills, hacen scroll ellas solas y el compositor sigue a la vista. */
 .new-session { height: 100%; display: flex; flex-direction: column; gap: 28px; padding: 32px 48px 24px; }
-.new-top { flex: 1; min-height: 0; width: 100%; max-width: 1560px; margin: 0 auto; display: flex; flex-direction: column; justify-content: safe flex-end; }
+.new-top { flex: 1; min-height: 0; width: 100%; max-width: 1560px; margin: 0 auto; display: flex; flex-direction: column; justify-content: flex-start; }
 .new-bottom { flex: none; width: 100%; max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
 .new-head { text-align: center; }
 .new-head h1 { margin: 2px 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
@@ -81,11 +81,16 @@ input, textarea, select { font: inherit; color: inherit; }
 .tus-cambios-lista button:hover { background: var(--panel-2); color: var(--text); }
 .new-bottom .cuenta-aviso, .new-bottom .requisitos-aviso { border-color: var(--warn); }
 
-/* El estante: cada skill es un cartel. Con previa, su último video (quieto hasta pasar el ratón); sin ella, su icono y
-   qué hace. Abajo, sobre una sombra, el nombre y cuánto se usa. */
-.estante { min-height: 0; display: flex; flex-direction: column; gap: 12px; }
-.estante header { display: flex; align-items: center; gap: 2px; }
-.estante h2 { flex: 1; margin: 0; font-size: 11px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+/* El estante: cada skill es un cartel, agrupado por lo que produce. Con previa, su último video (quieto hasta pasar el
+   ratón) o su última imagen; sin ella, su icono y qué hace. Abajo, sobre una sombra, el nombre y cuánto se usa. */
+.estante { min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+/* Un grupo a la vez: la pestaña activa lleva una línea fina, sin fondos ni más cajas. */
+.cards-tabs { flex: none; display: flex; align-items: baseline; gap: 18px; margin: 0 6px; border-bottom: 1px solid var(--line); }
+.cards-tab { position: relative; padding-bottom: 7px; color: var(--muted); font-size: 12.5px; font-weight: 600; white-space: nowrap; transition: color 0.15s; }
+.cards-tab:hover { color: var(--text); }
+.cards-tab[aria-pressed='true'] { color: var(--text); }
+.cards-tab[aria-pressed='true']::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 2px; background: var(--accent); }
+.cards-tab .cuenta { margin-left: 5px; color: var(--muted); font-size: 11px; font-weight: 500; }
 .cards { min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); grid-auto-rows: max-content; gap: 14px; margin: 0 -6px; padding: 4px 6px 6px; }
 .card { position: relative; aspect-ratio: 3 / 4; overflow: hidden; isolation: isolate; border-radius: 14px; border: 1px solid var(--line); background: var(--panel-2); text-align: left; transition: border-color 0.15s, transform 0.15s; }
 .card:hover { border-color: var(--line-fuerte); transform: translateY(-2px); }
@@ -106,14 +111,17 @@ input, textarea, select { font: inherit; color: inherit; }
 .card-actions span { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 6px; background: var(--scrim-control); color: var(--text); font-size: 12px; }
 .card-actions span:hover { background: var(--panel); }
 .card-actions span.danger:hover { color: var(--bad); }
-/* «Gratis», como los demás distintivos de Hermit: una píldora discreta en la esquina, no una cinta torcida. */
+/* «Gratis»: cinta diagonal en la esquina superior derecha, cruzando el borde (la recorta el `overflow: hidden` de la
+   card). No tapa el icono, que va arriba a la izquierda; se aparta al pasar el ratón, que ahí salen duplicar y borrar. */
 .card-badge-gratis {
   position: absolute;
-  top: 8px;
-  left: 8px;
+  top: 15px;
+  right: -51px;
   z-index: 1;
-  padding: 2px 8px;
-  border-radius: 999px;
+  width: 150px;
+  padding: 3px 0;
+  text-align: center;
+  transform: rotate(45deg);
   background: var(--scrim-control);
   border: 1px solid var(--ok-border);
   color: var(--ok);
@@ -123,7 +131,9 @@ input, textarea, select { font: inherit; color: inherit; }
   line-height: 1.6;
   pointer-events: none;
   text-transform: uppercase;
+  transition: opacity 0.15s;
 }
+.card:hover .card-badge-gratis, .card:focus-visible .card-badge-gratis { opacity: 0; }
 /* Un estilo elegido: sus videos en el sitio de las cards. */
 .estilo { min-height: 0; display: flex; flex-direction: column; gap: 10px; }
 .estilo-volver { align-self: flex-start; color: var(--muted); font-size: 12.5px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); transition: color 0.15s, border-color 0.15s; }
@@ -131,28 +141,22 @@ input, textarea, select { font: inherit; color: inherit; }
 .estilo-vacio { color: var(--muted); text-align: center; margin: 24px 0; }
 /* Mientras se desplaza una rejilla (`useDesplazando`), lo de dentro no responde al ratón. */
 .desplazando > * { pointer-events: none; }
-.videos { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 12px; min-height: 0; overflow-y: auto; margin: 0 -6px; padding: 6px; }
+/* La rejilla la comparten las tres galerías: una sola altura para todas las piezas (los videos y las imágenes la heredan),
+   fluida con la ventana para que crezcan en pantallas grandes y encogen en las chicas. El ancho de cada tarjeta sale de
+   su forma (vertical u horizontal), así caben juntos sin dejar huecos. */
+.videos { --pieza-alto: clamp(220px, 30vh, 340px); display: flex; flex-wrap: wrap; align-content: flex-start; gap: 12px; min-height: 0; overflow-y: auto; margin: 0 -6px; padding: 6px; }
 .video-tile { display: flex; flex-direction: column; gap: 6px; text-align: left; }
 /* Todos a la misma altura: el ancho sale de cada video, así caben juntos los verticales y los horizontales. */
-.video-tile video { display: block; height: 200px; width: auto; max-width: 100%; border-radius: var(--radio); background: var(--panel-2); border: 1px solid var(--line); transition: border-color 0.15s; }
+.video-tile video { display: block; height: var(--pieza-alto); width: auto; max-width: 100%; border-radius: var(--radio); background: var(--panel-2); border: 1px solid var(--line); transition: border-color 0.15s; }
 .video-tile:hover video { border-color: var(--accent); }
 /* Su forma, ya antes de cargar, y escrita abajo a la izquierda: un hilo puede tener el mismo episodio en las dos. */
 .video-marco { position: relative; display: block; align-self: flex-start; max-width: 100%; }
 .video-marco.vertical video { aspect-ratio: 9 / 16; object-fit: contain; }
 .video-marco.horizontal video { aspect-ratio: 16 / 9; object-fit: contain; }
 .video-forma { position: absolute; left: 7px; bottom: 7px; padding: 2px 7px; border-radius: 999px; background: var(--scrim-control); color: var(--text); font-size: 11px; font-weight: 600; pointer-events: none; }
-.video-titulo, .video-archivo { width: 0; min-width: 100%; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.video-archivo { margin-top: -6px; font-size: 11.5px; font-family: var(--mono); color: var(--muted); }
-/* El ✕ de cada video, como el de las cards: arriba a la izquierda (a la derecha va la palomita de redes), al pasar por encima. */
-.video-con-subida { position: relative; }
-.video-borrar { position: absolute; top: 7px; left: 7px; z-index: 1; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 6px; background: var(--scrim-control); color: var(--text); font-size: 12px; opacity: 0; transition: opacity 0.15s; }
-.video-con-subida:hover .video-borrar, .video-borrar:focus-visible { opacity: 1; }
-.video-borrar:hover { background: var(--panel); color: var(--bad); }
-/* comunidad: compartir el video, junto al ✕. */
-.video-compartir { position: absolute; top: 7px; left: 35px; z-index: 1; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 6px; background: var(--scrim-control); color: var(--text); opacity: 0; transition: opacity 0.15s; }
-.video-con-subida:hover .video-compartir, .video-compartir:focus-visible { opacity: 1; }
-.video-compartir:hover { background: var(--panel); color: var(--accent); }
-.video-compartir-ico { width: 13px; height: 13px; }
+/* El título y el dato de una pieza, con un ancho que no estira la tarjeta de al lado. */
+.pieza-titulo, .pieza-dato { width: 0; min-width: 100%; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pieza-dato { margin-top: -6px; font-size: 11.5px; font-family: var(--mono); color: var(--muted); }
 
 /* El compositor */
 .composer { background: var(--panel-2); border: 1px solid var(--line); border-radius: 16px; padding: 12px 12px 10px 16px; transition: border-color 0.15s, box-shadow 0.15s; }
@@ -268,7 +272,7 @@ a.link-chip:hover { border-color: var(--accent); }
 .attach:hover:not(:disabled) { color: var(--text); border-color: var(--line-fuerte); }
 .send { width: 34px; height: 34px; border-radius: 50%; background: var(--accent); color: var(--on-solid); font-weight: 800; font-size: 17px; }
 .send:hover:not(:disabled) { background: var(--accent-hover); }
-.send.stop { background: var(--text); font-size: 12px; }
+.send.stop { background: var(--accent); font-size: 12px; }
 /* Un video del lote que espera su turno, pegado encima del compositor. */
 .queue { display: flex; flex-direction: column; margin: 0 14px; border: 1px solid var(--line); border-bottom: 0; border-radius: 12px 12px 0 0; background: var(--panel); }
 .queued { display: flex; align-items: center; gap: 10px; padding: 4px 12px; }

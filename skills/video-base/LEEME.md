@@ -83,7 +83,8 @@ en el script.
 ## Un estilo nuevo
 
 Su skill dice lo suyo y usa de aquí lo que ya existe: si te ves copiando un párrafo o un script de otro estilo, va
-aquí. Nace con su card en `cards.json` de Hermit, con sus `etapas`, cada una con su `fase` (`idea`, `guion`, `sonido`,
+aquí. Nace con su card en `cards.json` de Hermit, con `produce: "video"` (lo que la hace un estilo de video: su
+estudio, su galería, sus redes) y sus `etapas`, cada una con su `fase` (`idea`, `guion`, `sonido`,
 `video` o `entrega`: Idea · Guion · Sonido y voz · Video · Entrega, ver `FASES` en `shared/types.ts` de Hermit). `listo`
 es el glob que la da por hecha y, si no dice otra cosa en `muestra`, lo que el panel enseña de ella. El video terminado
 es el de la etapa «Video». Hace los dos formatos, vertical y horizontal ([FORMATO.md](FORMATO.md)): su plantilla

@@ -4,14 +4,16 @@ import { existsSync, mkdirSync, readdirSync, renameSync, rmSync } from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
-import type { Card, Previa } from '../shared/types.ts'
-import { servir, ultimoVideo } from './etapas.ts'
+import { esDeVideo, type Card, type Previa } from '../shared/types.ts'
+import { articulosDe, imagenesDe, servir, ultimoVideo } from './etapas.ts'
+import type { Sessions } from './sessions.ts'
 
 /**
  * La previa de cada card de estilo: un clip mudo de 6 s, sacado a trozos de su video terminado más nuevo, y su primer
- * cuadro. FFmpeg la hace una sola vez por video (menos de un segundo) y queda en `data/previas`. La card enseña el cuadro
- * quieto y reproduce el clip solo al pasar el ratón, así que mientras nadie la mira no gasta nada. Quitarlo es borrar este
- * archivo, sus líneas en `server/index.ts` y las marcadas «previas» en `web/src`.
+ * cuadro; o, si la card genera imágenes o artículos, su última imagen o la portada del último artículo. FFmpeg hace el clip
+ * una sola vez por video (menos de un segundo) y queda en `data/previas`. La card enseña el cuadro quieto y reproduce el
+ * clip solo al pasar el ratón, así que mientras nadie la mira no gasta nada. Quitarlo es borrar este archivo, sus líneas en
+ * `server/index.ts` y las marcadas «previas» en `web/src`.
  */
 
 const execFileP = promisify(execFile)
@@ -23,7 +25,7 @@ const TRAMO = 1.5
 const LADO = 320
 const FPS = 24
 
-export function previas(dir: string, cards: () => Card[]) {
+export function previas(dir: string, cards: () => Card[], sessions: Sessions) {
   // Las que se están haciendo, para que dos peticiones a la vez esperen al mismo FFmpeg. Al acabar, bien o mal, salen: una
   // que falló (FFmpeg que faltaba, un render que ahogó la máquina) se vuelve a intentar en la siguiente petición.
   const enCurso = new Map<string, Promise<string | undefined>>()
@@ -74,7 +76,10 @@ export function previas(dir: string, cards: () => Card[]) {
     return hecha
   }
 
-  /** `GET /api/previas`: la de cada card de estilo que tenga un video terminado. `GET /api/previas/<archivo>` sirve una. */
+  /**
+   * `GET /api/previas`: la de cada card de estilo que tenga un video terminado, su última imagen o la portada de su último
+   * artículo. `GET /api/previas/<archivo>` sirve una.
+   */
   async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean> {
     if (req.method !== 'GET') return false
     const archivo = /^\/api\/previas\/(\w+\.(?:mp4|jpg))$/.exec(url.pathname)
@@ -82,10 +87,23 @@ export function previas(dir: string, cards: () => Card[]) {
     if (url.pathname !== '/api/previas') return false
 
     const todas: Record<string, Previa> = {}
-    const nombres = await Promise.all(cards().map(async (c) => [c.id, c.etapas ? await previa(c) : undefined] as const))
-    for (const [id, n] of nombres) if (n) todas[id] = { video: `/api/previas/${n}.mp4`, cuadro: `/api/previas/${n}.jpg` }
+    const lista = cards()
+    const nombres = await Promise.all(lista.map(async (c) => [c.id, esDeVideo(c) ? await previa(c) : undefined] as const))
+    for (const [id, n] of nombres) if (n) todas[id] = { tipo: 'video', video: `/api/previas/${n}.mp4`, cuadro: `/api/previas/${n}.jpg` }
+    // Una card que genera imágenes enseña la última; una de artículos, la portada del último. Sin copiarlas: se sirven con
+    // `/api/piezas/archivo`.
+    for (const c of lista) {
+      if (esDeVideo(c)) continue
+      if (c.produce === 'imagen') {
+        const ultima = imagenesDe(c, sessions)[0]
+        if (ultima) todas[c.id] = { tipo: 'imagen', imagen: `/api/piezas/archivo?ruta=${encodeURIComponent(ultima.ruta)}&t=${Math.round(ultima.t)}` }
+      } else if (c.produce === 'articulo') {
+        const ultimo = articulosDe(c, sessions)[0]
+        if (ultimo?.portada) todas[c.id] = { tipo: 'imagen', imagen: `/api/piezas/archivo?ruta=${encodeURIComponent(ultimo.portada)}&t=${Math.round(ultimo.t)}` }
+      }
+    }
     // Las de videos que ya no son los últimos sobran.
-    const usadas = new Set(nombres.map(([, n]) => n))
+    const usadas = new Set(nombres.map(([, n]) => n).filter((n): n is string => !!n))
     try {
       for (const f of readdirSync(dir)) if (!f.startsWith('_') && !usadas.has(f.split('.')[0])) rmSync(join(dir, f), { force: true })
     } catch {}

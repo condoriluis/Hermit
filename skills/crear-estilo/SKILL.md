@@ -51,6 +51,7 @@ Hermit la enseña en el inicio en cuanto ese archivo cambia, y enlaza la skill d
      "title": "Receta rápida",
      "description": "Una receta en 30 segundos: los ingredientes vuelan a la olla y tu voz cuenta los pasos.",
      "skill": "<id>",
+     "produce": "video",
      "icon": "claqueta",
      "etapas": [
        { "nombre": "Guion", "listo": "guion.md", "copiar": true, "fase": "guion" },
@@ -61,13 +62,15 @@ Hermit la enseña en el inicio en cuanto ese archivo cambia, y enlaza la skill d
    }
    ```
 
+   - `produce`: `"video"`. Es lo que declara que tu estilo hace videos: de ahí salen su estudio, su galería
+     («Mis videos»), sus redes y el selector de formato. Sin `produce` la card es una herramienta, no un estilo.
    - `etapas`: los pasos que el estudio enseña; `listo` es un glob dentro de la carpeta del video que existe cuando el
      paso está hecho. `fase` es una de `idea`, `guion`, `sonido`, `video`, `entrega`, en ese orden. `espera` es lo que
      le toca hacer al usuario; `copiar`, que el texto se lee en voz alta; `muestra`, qué se enseña si no es lo de `listo`.
    - `icon`: uno de trazo, nunca un emoji: `noticiero`, `pizarra`, `claqueta`, `risa`, `video`, `imagen`, `megafono`,
      `personas`, `foco`, `globo`, `escena`, `sonido`, `calendario`, `lapiz`.
    - `lote: { "prefijo": "<algo>-" }` si sirve hacer varios a la vez, uno por enlace.
-   - El selector de formato (Vertical u Horizontal) sale solo en toda card con `etapas`: no lleva nada para eso. El de
+   - El selector de formato (Vertical u Horizontal) sale solo en las cards con `etapas`: no lleva nada para eso. El de
      la voz (mandarla tú o una de AI Studio), también; si la voz es la grabación a cámara del usuario, `"voz": false`,
      y si el estilo hace la suya (edge-tts), `"voz": { "propia": "Voz de edge-tts" }`.
 

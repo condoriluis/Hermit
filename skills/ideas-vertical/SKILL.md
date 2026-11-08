@@ -292,7 +292,7 @@ cambia una sola cosa. En resumen: si no te da nervios arruinar la idea, todavía
   tiene que ser algo que el usuario de verdad tiene; el plan, apenas. Se apoya en cómo abren los outliers que leíste y
   viste, y `porque` dice en cuál, con sus palabras. Si su evidencia no está transcrita, o es `sinVoz` y su portada no
   enseña el gancho, no está comprobado: dilo en `riesgo`.
-- **`estilo`** es el `id` de una card de `cards.json` que hace video (las que tienen `etapas`). Elígela por su
+- **`estilo`** es el `id` de una card de `cards.json` que hace video (las de `produce: "video"`). Elígela por su
   `description` y por lo que la idea necesita enseñar. Si ninguna puede hacerlo (la idea pide su cara o su pantalla en
   vivo), déjalo fuera y dilo en `ejecucion`.
 - **`piso`** son las vistas realistas en las cuentas del usuario: mira la `mediana` de su cuenta en `tusCuentas`, en la

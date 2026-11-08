@@ -1,8 +1,8 @@
-import { closeSync, createReadStream, existsSync, fstatSync, globSync, mkdirSync, openSync, readdirSync, readSync, type Stats, statSync, watch } from 'node:fs'
+import { closeSync, createReadStream, existsSync, fstatSync, globSync, mkdirSync, openSync, readFileSync, readdirSync, readSync, type Stats, statSync, watch } from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { basename, extname, isAbsolute, join, matchesGlob, relative, resolve, sep } from 'node:path'
 import { enCurso } from '../shared/etapas.ts'
-import type { Archivo, Avance, AvanceCorto, Card, CarpetaDeVideo, MarcasDeRedes, Render, ServerPush, SessionMeta, VideoFinal, VideoHecho, VideosDeTodos } from '../shared/types.ts'
+import { deTipo, type Archivo, type ArticuloHecho, type Avance, type AvanceCorto, type Card, type CarpetaDeVideo, type ImagenHecha, type MarcasDeRedes, type Pieza, type PiezasDeTodos, type Produce, type Render, type ServerPush, type SessionMeta, type VideoFinal, type VideoHecho } from '../shared/types.ts'
 import { cuerpo, json } from './http.ts'
 import { IMAGE_TYPES } from './agent.ts'
 import { aLaPapelera, huella } from './disco.ts'
@@ -244,55 +244,88 @@ function otraVersion(meta: SessionMeta, sessions: Sessions): { antes: string; nu
 }
 
 /**
- * `GET /api/cards/<id>/videos`: los videos terminados de un estilo, los de sus hilos y los de carpetas de fuera, del más
- * nuevo al más viejo. `GET /api/cards/<id>/video?ruta=…` sirve uno. `GET /api/videos`, para «Mis videos»: los de todos
- * los estilos juntos, con sus marcas de redes (`marcas`, de `server/redes/`), sacadas de la misma lista: el disco se
- * recorre una vez. Un video que sale en dos estilos (una card duplicada mira las mismas carpetas) va una vez, con el
- * primero. `POST /api/videos/borrar` manda uno a la Papelera. Devuelve si atendió la petición.
+ * `GET /api/piezas`: las piezas terminadas de todas las cards, del más nuevo al más viejo, para las galerías («Mis
+ * videos», «Mis imágenes», «Mis artículos»). El `tipo` de cada una sale del `produce` de su card. Van con las marcas de
+ * redes de los videos (`marcas`, de `server/redes/`), sacadas de esa misma lista: el disco se recorre una vez, y `marcas`
+ * solo ve los videos. Una pieza que sale en dos cards (una card duplicada mira las mismas carpetas) va una vez, con la
+ * primera. `GET /api/piezas/archivo?ruta=…` sirve su archivo (el video, la portada de un artículo, una imagen), en
+ * pequeño si se pide `&cuadro`. `POST /api/piezas/borrar` manda una a la Papelera.
+ * `GET /api/cards/<id>/videos`: los videos terminados de un estilo, para la galería de su card. Devuelve si atendió la
+ * petición.
  */
-export async function videosApi(req: IncomingMessage, res: ServerResponse, url: URL, sessions: Sessions, cards: Card[], marcas?: (videos: VideoHecho[]) => Promise<MarcasDeRedes | undefined>, cuadro?: (video: string) => Promise<string>): Promise<boolean> {
-  if (url.pathname === '/api/videos' && req.method === 'GET') {
-    const porRuta = new Map<string, VideoHecho>()
-    for (const c of cards) if (c.etapas?.length) for (const v of videosDe(c, sessions)) if (!porRuta.has(v.ruta)) porRuta.set(v.ruta, v)
-    const videos = [...porRuta.values()].sort((a, b) => b.t - a.t)
-    return json(res, 200, { videos, redes: await marcas?.(videos) } satisfies VideosDeTodos)
+export async function piezasApi(
+  req: IncomingMessage,
+  res: ServerResponse,
+  url: URL,
+  sessions: Sessions,
+  cards: Card[],
+  marcas?: (videos: VideoHecho[]) => Promise<MarcasDeRedes | undefined>,
+  cuadro?: (video: string) => Promise<string>
+): Promise<boolean> {
+  if (url.pathname === '/api/piezas' && req.method === 'GET') {
+    const porRuta = new Map<string, Pieza>()
+    for (const c of cards) for (const p of piezasDe(c, sessions)) if (!porRuta.has(p.ruta)) porRuta.set(p.ruta, p)
+    const piezas = [...porRuta.values()].sort((a, b) => b.t - a.t)
+    return json(res, 200, { piezas, redes: await marcas?.(deTipo(piezas, 'video')) } satisfies PiezasDeTodos)
   }
-  // El ✕ de un video terminado: su archivo va a la Papelera; lo demás de su carpeta se queda. No si un agente trabaja en
-  // ella, ni si espera en la cola de una red (fallaría sin archivo): ahí se descarta antes.
-  if (url.pathname === '/api/videos/borrar' && req.method === 'POST') {
+  // Sirve el archivo de una pieza, pero solo si está dentro de las carpetas de una card que produce: no se sirve
+  // cualquier ruta del disco.
+  if (url.pathname === '/api/piezas/archivo' && req.method === 'GET') {
+    const file = resolve(url.searchParams.get('ruta') ?? '')
+    if (!enPiezas(cards, file)) return json(res, 403, { error: 'Fuera de las carpetas de tus piezas' })
+    // `&cuadro`: el primer cuadro de un video, en pequeño, para su tarjeta (`server/miniaturas.ts`). Si FFmpeg falla, no
+    // hay imagen y la tarjeta se ve al reproducirlo.
+    if (url.searchParams.has('cuadro') && cuadro) return servir(req, res, await cuadro(file).catch(() => ''))
+    return servir(req, res, file)
+  }
+  // El ✕ de una pieza terminada: su archivo va a la Papelera; lo demás de su carpeta se queda. No si un agente trabaja en
+  // ella, ni, en un video, si espera en la cola de una red (fallaría sin archivo): ahí se descarta antes.
+  if (url.pathname === '/api/piezas/borrar' && req.method === 'POST') {
     let texto = ''
     for await (const trozo of req) texto += trozo
     const ruta = String(JSON.parse(texto || '{}').ruta ?? '')
-    const video = cards.flatMap((c) => (c.etapas?.length ? videosDe(c, sessions) : [])).find((v) => v.ruta === ruta)
-    if (!video) return json(res, 404, { error: 'Ese video ya no está.' })
-    const estilos = new Set(cards.filter((c) => c.etapas?.length).map((c) => c.id))
-    const trabaja = sessions.list().some((s) => {
-      const rel = relative(resolve(folderOf(s)), ruta)
-      return estilos.has(s.cardId) && (s.running || !!s.background?.length) && !rel.startsWith('..') && !isAbsolute(rel)
-    })
-    if (trabaja) return json(res, 409, { error: 'Un agente trabaja en su carpeta. Espera a que termine.' })
-    const ps = (await marcas?.([video]))?.publicaciones[ruta] ?? []
+    const pieza = cards.flatMap((c) => piezasDe(c, sessions)).find((p) => p.ruta === ruta)
+    if (!pieza) return json(res, 404, { error: 'Esa pieza ya no está.' })
+    if (trabajaEnPieza(cards, sessions, ruta)) return json(res, 409, { error: 'Un agente trabaja en su carpeta. Espera a que termine.' })
+    const ps = pieza.tipo === 'video' ? ((await marcas?.([pieza]))?.publicaciones[ruta] ?? []) : []
     if (ps.some((p) => p.estado === 'cola' || p.estado === 'subiendo')) return json(res, 409, { error: 'Está en la cola de una red: descártalo ahí (✕ en su insignia) antes de borrarlo.' })
     if ((await aLaPapelera([ruta])).length) return json(res, 409, { error: 'Windows no lo dejó mover a la Papelera: puede que otro programa lo tenga abierto.' })
     return json(res, 200, { ok: true })
   }
-  const m =/^\/api\/cards\/([\w-]+)\/(videos|video)$/.exec(url.pathname)
+  const m = /^\/api\/cards\/([\w-]+)\/videos$/.exec(url.pathname)
   if (!m || req.method !== 'GET') return false
   const card = cards.find((c) => c.id === m[1])
   if (!card) return json(res, 404, { error: 'No existe' })
-  const carpetas = carpetasDe(card)
-
-  if (m[2] === 'video') {
-    // Solo sirve lo que está dentro de las carpetas del estilo.
-    const file = resolve(url.searchParams.get('ruta') ?? '')
-    if (!carpetas.some((f) => file.startsWith(f + sep))) return json(res, 403, { error: 'Fuera de las carpetas del estilo' })
-    // `&cuadro`: su primer cuadro, en pequeño, para su tarjeta (`server/miniaturas.ts`). Si FFmpeg falla, no hay imagen y la
-    // tarjeta se ve al reproducirlo.
-    if (url.searchParams.has('cuadro') && cuadro) return servir(req, res, await cuadro(file).catch(() => ''))
-    return servir(req, res, file)
-  }
-
   return json(res, 200, videosDe(card, sessions))
+}
+
+/**
+ * Cómo se listan las piezas terminadas de una card, según lo que produzca (`produce`). Añadir un tipo es añadir su línea;
+ * un `produce` que todavía no tiene lista no aporta piezas.
+ */
+const LISTAS: Partial<Record<Produce, (card: Card, sessions: Sessions) => Pieza[]>> = {
+  video: (card, sessions) => videosDe(card, sessions).map((v) => ({ ...v, tipo: 'video' })),
+  articulo: (card, sessions) => articulosDe(card, sessions).map((a) => ({ ...a, tipo: 'articulo' })),
+  imagen: (card, sessions) => imagenesDe(card, sessions).map((i) => ({ ...i, tipo: 'imagen' }))
+}
+
+/** Las piezas terminadas de una card, sea del tipo que sea. Una card sin `produce` es una herramienta: no enseña nada. */
+export function piezasDe(card: Card, sessions: Sessions): Pieza[] {
+  return (card.produce && LISTAS[card.produce]?.(card, sessions)) || []
+}
+
+/** Si el archivo está dentro de las carpetas de una card que produce piezas: lo único que se sirve y se borra. */
+function enPiezas(cards: Card[], file: string): boolean {
+  return cards.some((c) => !!c.produce && carpetasDe(c).some((f) => file.startsWith(f + sep)))
+}
+
+/** Si un agente trabaja en la carpeta del archivo: hasta que termine, no se borra. */
+function trabajaEnPieza(cards: Card[], sessions: Sessions, ruta: string): boolean {
+  const productoras = new Set(cards.filter((c) => c.produce).map((c) => c.id))
+  return sessions.list().some((s) => {
+    const rel = relative(resolve(folderOf(s)), ruta)
+    return productoras.has(s.cardId) && (s.running || !!s.background?.length) && !rel.startsWith('..') && !isAbsolute(rel)
+  })
 }
 
 /** Los videos terminados de un estilo, del más nuevo al más viejo. También los usan las redes (`server/redes/`). */
@@ -316,7 +349,7 @@ export function videosDe(card: Card, sessions: Sessions): VideoHecho[] {
       if (!h || vistos.has(h)) continue
       vistos.add(h)
       videos.push({
-        src: `/api/cards/${card.id}/video?ruta=${encodeURIComponent(file)}&t=${Math.round(a.t)}`,
+        src: `/api/piezas/archivo?ruta=${encodeURIComponent(file)}&t=${Math.round(a.t)}`,
         titulo: hilo?.title ?? basename(folder),
         archivo: a.ruta,
         ruta: file,
@@ -328,6 +361,81 @@ export function videosDe(card: Card, sessions: Sessions): VideoHecho[] {
     }
   }
   return videos.sort((a, b) => b.t - a.t)
+}
+
+/** El título de un artículo, el de su `articulo.json`; `undefined` si no está o no se pudo leer. */
+function tituloDeArticulo(file: string): string | undefined {
+  try {
+    const { title } = JSON.parse(readFileSync(file, 'utf8')) as { title?: string }
+    return title?.trim() || undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Los artículos terminados de una card que escribe artículos, del más nuevo al más viejo. Cada pieza es su carpeta (ahí
+ * viven el artículo, su portada y lo publicado): `archivo` es el artículo, que es lo que su hilo abre en el monitor, y
+ * `portada`, su imagen. Sirve para las tres galerías y para el borrado, que manda la carpeta entera a la Papelera.
+ */
+export function articulosDe(card: Card, sessions: Sessions): ArticuloHecho[] {
+  // La carpeta de cada hilo sale de su meta, igual que en `videosDe`.
+  const hilos = new Map<string, SessionMeta>()
+  for (const meta of sessions.list().filter((s) => s.cardId === card.id && suyaDe(s))) {
+    const folder = resolve(folderOf(meta))
+    if ((hilos.get(folder)?.createdAt ?? Infinity) > meta.createdAt) hilos.set(folder, meta)
+  }
+  const articulos: ArticuloHecho[] = []
+  for (const folder of carpetasDe(card)) {
+    // El `articulo.md` es el que se lee en el monitor; el `articulo.json`, el que trae el título. Cualquiera de los dos
+    // da el artículo por terminado.
+    const json = one(folder, 'articulo.json')
+    const articulo = one(folder, 'articulo.md') ?? json
+    if (!articulo) continue
+    const portada = one(folder, 'portada.png')
+    articulos.push({
+      titulo: (json && tituloDeArticulo(join(folder, json.ruta))) ?? basename(folder),
+      archivo: articulo.ruta,
+      ruta: folder,
+      t: articulo.t,
+      sessionId: hilos.get(folder)?.id,
+      cardId: card.id,
+      portada: portada ? join(folder, portada.ruta) : undefined
+    })
+  }
+  return articulos.sort((a, b) => b.t - a.t)
+}
+
+/** Los archivos que son una imagen terminada: PNG, JPEG o WebP. Las que empiezan por `_` son a medias, como los videos. */
+const ES_IMAGEN = /\.(png|jpe?g|webp)$/i
+
+/**
+ * Las imágenes terminadas de una card que genera imágenes, de la más nueva a la más vieja. Cada pieza es una imagen (su
+ * archivo), no su carpeta: el ✕ manda solo esa imagen a la Papelera y lo demás de su carpeta se queda. Sirve para «Mis
+ * imágenes», la previa de su card y el borrado.
+ */
+export function imagenesDe(card: Card, sessions: Sessions): ImagenHecha[] {
+  // La carpeta de cada hilo sale de su meta, igual que en `videosDe` y `articulosDe`.
+  const hilos = new Map<string, SessionMeta>()
+  for (const meta of sessions.list().filter((s) => s.cardId === card.id && suyaDe(s))) {
+    const folder = resolve(folderOf(meta))
+    if ((hilos.get(folder)?.createdAt ?? Infinity) > meta.createdAt) hilos.set(folder, meta)
+  }
+  const imagenes: ImagenHecha[] = []
+  for (const folder of carpetasDe(card)) {
+    for (const a of files(folder, '*')) {
+      if (!ES_IMAGEN.test(a.ruta) || basename(a.ruta).startsWith('_')) continue
+      imagenes.push({
+        titulo: hilos.get(folder)?.title ?? basename(a.ruta, extname(a.ruta)),
+        archivo: a.ruta,
+        ruta: join(folder, a.ruta),
+        t: a.t,
+        sessionId: hilos.get(folder)?.id,
+        cardId: card.id
+      })
+    }
+  }
+  return imagenes.sort((a, b) => b.t - a.t)
 }
 
 /** El video terminado más nuevo de un estilo, sin mirar sus hilos: es el que enseña su card (`server/previas.ts`). */

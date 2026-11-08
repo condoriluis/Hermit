@@ -1,5 +1,11 @@
 /** Lo que comparten el servidor y la interfaz. */
 
+/** Lo que produce una card. Sin `produce` no produce nada: es una herramienta («Nuevo estilo»). */
+export type Produce = 'video' | 'articulo' | 'imagen'
+
+/** Si esta card produce videos: su galería, sus redes y su formato son cosa de los videos, no de tener etapas. */
+export const esDeVideo = (card?: Card) => card?.produce === 'video'
+
 /** Una card de la pantalla de inicio. Si trae `skill`, el primer mensaje de cada sesión la invoca. */
 export interface Card {
   id: string
@@ -10,6 +16,8 @@ export interface Card {
   /** Carpeta donde trabaja el agente. `{app}` es la carpeta de Hermit. Si falta, es `<trabajo>/<id>` (`carpetaTrabajo`). */
   cwd: string
   icon?: string
+  /** Lo que produce esta card. Manda sobre sus `etapas`: la galería de videos, sus redes y su «Mis videos» miran esto. */
+  produce?: Produce
   /** Con varios enlaces, un video por enlace, cada uno en su hilo. */
   lote?: LoteConf
   /** Los pasos de su trabajo. Si dicen su `fase`, el hilo se ve en el estudio de video (`Estudio.tsx`). */
@@ -21,7 +29,7 @@ export interface Card {
   /** Un estilo que hiciste con «Nuevo estilo» (`data/tus-cards.json`): lo pone el servidor. Se borra también en la venta. */
   tuya?: boolean
   /**
-   * La voz del video. Sin esto, un estilo (con `etapas`) deja elegir en el compositor entre mandarla tú o que el agente la
+   * La voz del video. Sin esto, un estilo (con `produce: 'video'`) deja elegir en el compositor entre mandarla tú o que el agente la
    * genere en AI Studio (`shared/voz.ts`). `false`: no hay qué elegir, la voz es tu grabación a cámara o la de cada clip
    * de Veo (la frutinovela). `propia`: cómo la
    * hace el estilo si no eliges AI Studio, cuando no es mandándola tú.
@@ -62,19 +70,62 @@ export interface VideoHecho {
 }
 
 /**
- * `GET /api/videos`, para «Mis videos»: los videos terminados de todos los estilos, del más nuevo al más viejo, con sus
- * marcas de redes. Sin `redes` si no hay redes, o si su archivo está dañado.
+ * Un artículo terminado de una card que escribe artículos. `archivo` es lo que abre su hilo en el monitor (el artículo);
+ * `portada`, la imagen de su tarjeta, si la tiene.
  */
-export interface VideosDeTodos {
-  videos: VideoHecho[]
+export interface ArticuloHecho {
+  titulo: string
+  archivo: string
+  ruta: string
+  t: number
+  sessionId?: string
+  cardId: string
+  portada?: string
+}
+
+/**
+ * Una imagen terminada de una card que genera imágenes. `archivo` es su nombre dentro de la carpeta del hilo, que es lo
+ * que abre su hilo en el monitor; `ruta`, la ruta completa, que es como la conocen las galerías.
+ */
+export interface ImagenHecha {
+  titulo: string
+  archivo: string
+  ruta: string
+  t: number
+  sessionId?: string
+  cardId: string
+}
+
+/**
+ * Una pieza terminada: lo que enseña la galería, sea del tipo que sea. El `tipo` sale del `produce` de su card y es lo
+ * que elige cómo se dibuja su tarjeta.
+ */
+export type Pieza = ({ tipo: 'video' } & VideoHecho) | ({ tipo: 'articulo' } & ArticuloHecho) | ({ tipo: 'imagen' } & ImagenHecha)
+
+/** El tipo de una pieza: lo que elige su tarjeta y la galería donde sale. */
+export type TipoPieza = Pieza['tipo']
+
+/**
+ * `GET /api/piezas`, para las galerías («Mis videos», «Mis imágenes», «Mis artículos»): las piezas terminadas de todas
+ * las cards, del más nuevo al más viejo, con las marcas de redes de los videos. Sin `redes` si no hay redes, o si su
+ * archivo está dañado.
+ */
+export interface PiezasDeTodos {
+  piezas: Pieza[]
   redes?: MarcasDeRedes
 }
 
-/** La previa de la card de un estilo: un clip mudo de pocos segundos de su último video y su primer cuadro. */
-export interface Previa {
-  video: string
-  cuadro: string
-}
+/** De las piezas, las de un tipo: lo que enseña cada galería («Mis videos», «Mis imágenes», «Mis artículos»). */
+export const deTipo = <T extends TipoPieza>(piezas: Pieza[], tipo: T): Extract<Pieza, { tipo: T }>[] =>
+  piezas.filter((p): p is Extract<Pieza, { tipo: T }> => p.tipo === tipo)
+
+/**
+ * La previa de la card de un estilo: un clip mudo de pocos segundos de su último video y su primer cuadro, o la última
+ * imagen o portada de una card que genera imágenes o artículos.
+ */
+export type Previa =
+  | { tipo: 'video'; video: string; cuadro: string }
+  | { tipo: 'imagen'; imagen: string }
 
 /**
  * Un lote: el compositor manda cada enlace a su propio hilo, con su carpeta ya nombrada. `prefijo` va delante del nombre

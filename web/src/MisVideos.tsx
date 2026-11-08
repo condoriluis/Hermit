@@ -1,32 +1,25 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { type Card, NAVEGADOR_REDES, type SessionMeta, type VideoHecho, type VideosDeTodos } from '../../shared/types'
+import { deTipo, esDeVideo, type Card, NAVEGADOR_REDES, type SessionMeta, type VideoHecho } from '../../shared/types'
 import { api } from './api'
 import { Icon } from './Composer'
 import { compartirVideo } from './Comunidad'
 import { Confirm } from './Confirm'
 import { Icono } from './Iconos'
+import { Galeria, Rejilla, usePiezas } from './Piezas'
 import { Ritmos } from './Ritmos'
 import { abrirNavegador, BotonNavegador } from './Navegador'
-import { useDesplazando } from './desplazando'
 import { YoutubeBoton } from './Youtube'
 import { YoutubeLote } from './YoutubeProgramar'
 import { CalendarioYoutube } from './YoutubeCalendario'
 import { CalendarioRedes, type EstadoRedes, estadoEnRedes, Marcas, ResumenRedes } from './Redes' // redes
-import './MisVideos.css'
 
 /**
  * «Mis videos»: los videos terminados de todos los estilos, del más nuevo al más viejo, con un filtro por estilo (el
- * elegido va en el hash). Llegan en una sola petición (`GET /api/videos`), con sus marcas de redes. Las tarjetas son las
- * de la galería de cada estilo (`VideoDe`), y se dibujan por tandas al bajar: con cientos de videos, solo se cargan los
- * que se ven.
+ * elegido va en el hash). Las piezas llegan con las marcas de redes (`usePiezas`), y las tarjetas son las de la galería
+ * de cada estilo (`VideoDe`). Lo que es de los videos (el filtro por estilo, las redes, YouTube, el ritmo) vive aquí.
  */
-
-/** Cuántas tarjetas se dibujan de una vez. Al acercarse al final, otras tantas. */
-const TANDA = 30
-
 export function MisVideos({ cards, sessions, estilo, onEstilo }: { cards: Card[]; sessions: SessionMeta[]; estilo?: string; onEstilo(id?: string): void }) {
-  const [todos, setTodos] = useState<VideosDeTodos | null>(null)
-  const [error, setError] = useState('')
+  const { datos, error, otraVuelta } = usePiezas(cards, sessions)
   // Lo que falló al tocar una marca de redes (reintentar, descartar).
   const [fallo, setFallo] = useState('')
   // El video de una carpeta de fuera, sin hilo que abrir, se ve en grande.
@@ -37,30 +30,7 @@ export function MisVideos({ cards, sessions, estilo, onEstilo }: { cards: Card[]
   // redes: con un estado elegido en el resumen (los que faltan, los que fallaron…), solo esos.
   const [porEstado, setPorEstado] = useState<EstadoRedes | null>(null)
 
-  // Se vuelve a pedir cuando un hilo de un estilo empieza o acaba un turno (puede haber un video nuevo) y cuando cambia algo
-  // en redes. Lo que llega junto (una acción de redes y su aviso por el WebSocket) se pide una sola vez.
-  const [vuelta, setVuelta] = useState(0)
-  const otraVuelta = () => setVuelta((n) => n + 1)
-  useEffect(() => {
-    addEventListener('hermit-redes', otraVuelta)
-    addEventListener('hermit-videos', otraVuelta)
-    return () => { removeEventListener('hermit-redes', otraVuelta); removeEventListener('hermit-videos', otraVuelta) }
-  }, [])
-  const estilos = cards.filter((c) => c.etapas?.length).map((c) => c.id)
-  const clave = estilos.join() + '|' + sessions.flatMap((s) => (estilos.includes(s.cardId) ? [s.id + s.updatedAt] : [])).join()
-  useEffect(() => {
-    let vivo = true
-    const t = setTimeout(
-      () => api<VideosDeTodos>('/api/videos').then((r) => vivo && (setTodos(r), setError('')), (e) => vivo && setError(e.message)),
-      todos ? 300 : 0
-    )
-    return () => {
-      vivo = false
-      clearTimeout(t)
-    }
-  }, [clave, vuelta])
-
-  const videos = todos?.videos ?? []
+  const videos = datos ? deTipo(datos.piezas, 'video') : []
   const cuantos = new Map<string, number>()
   for (const v of videos) cuantos.set(v.cardId, (cuantos.get(v.cardId) ?? 0) + 1)
   const conVideos = cards.filter((c) => cuantos.has(c.id))
@@ -68,13 +38,13 @@ export function MisVideos({ cards, sessions, estilo, onEstilo }: { cards: Card[]
   const filtro = estilo && cuantos.has(estilo) ? estilo : undefined
   const vistos = filtro ? videos.filter((v) => v.cardId === filtro) : videos
   // Un estado que ya no tiene videos (los arreglaste) es como ninguno.
-  const enEstado = porEstado && todos?.redes ? vistos.filter((v) => estadoEnRedes(todos.redes!, v.ruta) === porEstado) : []
+  const enEstado = porEstado && datos?.redes ? vistos.filter((v) => estadoEnRedes(datos.redes!, v.ruta) === porEstado) : []
   const enRejilla = enEstado.length ? enEstado : vistos
   // redes: los que se ven y ya están en todas las redes conectadas. Su archivo sobra en el disco.
-  const programados = vistos.filter((v) => todos?.redes?.programados?.includes(v.ruta))
+  const programados = vistos.filter((v) => datos?.redes?.programados?.includes(v.ruta))
   // redes: mientras Hermit sube a TikTok, su navegador se ve a la derecha (`ConNavegadorRedes`); al acabar la cola, se
   // esconde. Entre un video y el siguiente no se cierra. Si lo escondes tú, sigue escondido.
-  const enNavegador = !!todos?.redes?.enNavegador
+  const enNavegador = !!datos?.redes?.enNavegador
   const abrio = useRef(false)
   useEffect(() => {
     if (enNavegador) {
@@ -87,17 +57,15 @@ export function MisVideos({ cards, sessions, estilo, onEstilo }: { cards: Card[]
   }, [enNavegador])
 
   return (
-    <div className="mis-videos">
-      <header className="mis-videos-head">
-        <div>
-          <h1>Mis videos</h1>
-          <p className="muted">
-            {todos
-              ? `${videos.length === 1 ? '1 video terminado' : `${videos.length} videos terminados`} de todos tus estilos, del más nuevo al más viejo.`
-              : !error && 'Buscando los videos terminados…'}
-          </p>
-        </div>
-        <div className="mis-videos-acciones">
+    <Galeria
+      titulo="Mis videos"
+      cuenta={
+        datos
+          ? `${videos.length === 1 ? '1 video terminado' : `${videos.length} videos terminados`} de todos tus estilos, del más nuevo al más viejo.`
+          : !error && 'Buscando los videos terminados…'
+      }
+      acciones={
+        <>
           <button className={`mis-ritmo${ritmo ? ' on' : ''}`} aria-expanded={ritmo} title="Cuántos videos salen y cada cuántos días, en TikTok, Instagram y YouTube" onClick={() => setRitmo(!ritmo)}>
             <Icono de="calendario" /> Ritmo de publicación
           </button>
@@ -107,8 +75,9 @@ export function MisVideos({ cards, sessions, estilo, onEstilo }: { cards: Card[]
             </button>
           )}
           <BotonNavegador hilo={NAVEGADOR_REDES} trabajando={enNavegador} /> {/* redes */}
-        </div>
-      </header>
+        </>
+      }
+    >
       {conVideos.length > 1 && (
         <div className="mis-filtros">
           <button className={filtro ? '' : 'on'} onClick={() => onEstilo()}>
@@ -121,17 +90,17 @@ export function MisVideos({ cards, sessions, estilo, onEstilo }: { cards: Card[]
           ))}
         </div>
       )}
-      <ResumenRedes marcas={todos?.redes} videos={vistos} estado={enEstado.length ? porEstado : null} onEstado={setPorEstado} onCambio={otraVuelta} /> {/* redes */}
+      <ResumenRedes marcas={datos?.redes} videos={vistos} estado={enEstado.length ? porEstado : null} onEstado={setPorEstado} onCambio={otraVuelta} /> {/* redes */}
       {/* La app que se vende aún no publica: sin marcas de redes, lo de redes no se dibuja; lo de YouTube se quita aquí. */}
       {ritmo && <Ritmos />}
       <YoutubeLote videos={vistos} cardId={filtro} />
-      <CalendarioRedes marcas={todos?.redes} /> {/* redes */}
+      <CalendarioRedes marcas={datos?.redes} /> {/* redes */}
       <CalendarioYoutube />
       {error && <p className="bad small">{error}</p>}
       {fallo && <p className="bad small">{fallo}</p>}
-      {!todos ? null : vistos.length ? (
+      {!datos ? null : vistos.length ? (
         // Por estilo y por estado, una rejilla nueva: empieza arriba y con la primera tanda.
-        <Rejilla key={`${filtro ?? ''}|${enEstado.length ? porEstado : ''}`} videos={enRejilla}>
+        <Rejilla key={`${filtro ?? ''}|${enEstado.length ? porEstado : ''}`} items={enRejilla}>
           {(v) => (
             <VideoDe
               key={v.src}
@@ -139,7 +108,7 @@ export function MisVideos({ cards, sessions, estilo, onEstilo }: { cards: Card[]
               // En «Todos», cada uno dice de qué estilo es.
               estilo={filtro ? undefined : conVideos.find((c) => c.id === v.cardId)}
               onVer={() => setViendo(v.src)}
-              insignia={<Marcas marcas={todos.redes} ruta={v.ruta} onCambio={otraVuelta} onError={setFallo} />}
+              insignia={<Marcas marcas={datos.redes} ruta={v.ruta} onCambio={otraVuelta} onError={setFallo} />}
             />
           )}
         </Rejilla>
@@ -168,33 +137,7 @@ export function MisVideos({ cards, sessions, estilo, onEstilo }: { cards: Card[]
           redes. En las redes no cambia nada: siguen saliendo a su hora. Los que están en cola o fallaron se quedan.
         </Confirm>
       )}
-    </div>
-  )
-}
-
-/**
- * Las tarjetas, por tandas: la primera al abrir y otra cada vez que el final se acerca a la vista. Cada video que se
- * dibuja pide su primer cuadro en pequeño; los de más abajo no piden nada hasta que bajas. Mientras se desplaza, no
- * responden al ratón (`useDesplazando`): los que pasan bajo el cursor no empiezan a bajarse.
- */
-export function Rejilla({ videos, children }: { videos: VideoHecho[]; children(v: VideoHecho): ReactNode }) {
-  const [hasta, setHasta] = useState(TANDA)
-  const rejilla = useRef<HTMLDivElement>(null)
-  const fin = useRef<HTMLDivElement>(null)
-  const quedan = videos.length > hasta
-  useDesplazando(rejilla)
-  // Se vuelve a mirar tras cada tanda: si el final sigue cerca (una pantalla alta), entra otra.
-  useEffect(() => {
-    if (!quedan || !fin.current) return
-    const io = new IntersectionObserver(([e]) => e.isIntersecting && setHasta((n) => n + TANDA), { root: rejilla.current, rootMargin: '0px 0px 600px' })
-    io.observe(fin.current)
-    return () => io.disconnect()
-  }, [quedan, hasta])
-  return (
-    <div className="videos" ref={rejilla}>
-      {videos.slice(0, hasta).map(children)}
-      {quedan && <div className="mis-videos-fin" ref={fin} />}
-    </div>
+    </Galeria>
   )
 }
 
@@ -209,13 +152,13 @@ export function VideoDe({ video, onVer, insignia, estilo }: { video: VideoHecho;
   const { sessionId } = video
   const [borrar, setBorrar] = useState(false)
   return (
-    <div className="video-con-subida">
-      <button className="video-borrar" title="Borrar este video" onClick={() => setBorrar(true)}>
+    <div className="pieza-card">
+      <button className="pieza-borrar" title="Borrar este video" onClick={() => setBorrar(true)}>
         ✕
       </button>
       {/* comunidad: lo publica en «Lo que hice», con su portada. */}
-      <button className="video-compartir" title="Compartir en la comunidad" onClick={() => compartirVideo(video)}>
-        <Icono de="compartir" className="video-compartir-ico" />
+      <button className="pieza-compartir" title="Compartir en la comunidad" onClick={() => compartirVideo(video)}>
+        <Icono de="compartir" className="pieza-compartir-ico" />
       </button>
       {borrar && (
         <Confirm
@@ -224,11 +167,11 @@ export function VideoDe({ video, onVer, insignia, estilo }: { video: VideoHecho;
           danger
           onClose={() => setBorrar(false)}
           onConfirm={async () => {
-            await api('/api/videos/borrar', { ruta: video.ruta })
+            await api('/api/piezas/borrar', { ruta: video.ruta })
             dispatchEvent(new Event('hermit-videos'))
           }}
         >
-          <code>{video.archivo.split('/').pop()}</code> va a la Papelera de reciclaje, de donde puedes recuperarlo. Lo demás de su carpeta se queda, y lo
+          El archivo del video va a la Papelera de reciclaje, de donde puedes recuperarlo. Lo demás de su carpeta se queda, y lo
           que ya está programado o subido en tus redes sigue igual.
         </Confirm>
       )}
@@ -239,7 +182,7 @@ export function VideoDe({ video, onVer, insignia, estilo }: { video: VideoHecho;
           <video src={video.src} poster={`${video.src}&cuadro`} muted loop playsInline preload="none" onMouseEnter={(e) => e.currentTarget.play().catch(() => {})} onMouseLeave={(e) => e.currentTarget.pause()} />
           {video.vertical !== undefined && <span className="video-forma">{video.vertical ? 'Vertical' : 'Horizontal'}</span>}
         </span>
-        <span className="video-titulo">
+        <span className="pieza-titulo">
           {estilo && (
             <span className="video-estilo" title={estilo.title}>
               <Icon icon={estilo.icon ?? '✦'} />
@@ -247,7 +190,7 @@ export function VideoDe({ video, onVer, insignia, estilo }: { video: VideoHecho;
           )}
           {video.titulo}
         </span>
-        <span className="video-archivo">{video.archivo.split('/').pop()}</span>
+        <span className="pieza-dato">{video.archivo.split('/').pop()}</span>
         {insignia}
       </button>
       {/* YouTube solo programa horizontales: un vertical no lleva el botón. */}

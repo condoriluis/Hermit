@@ -25,7 +25,7 @@ test('OAuth comprueba el estado y el canal; solo sube finales y evita repetir un
   const ruta = join(cwd, 'episodio', 'video.mp4')
   writeFileSync(ruta, 'video de prueba')
   utimesSync(ruta, new Date(Date.now() - 60_000), new Date(Date.now() - 60_000))
-  const cards: Card[] = [{ id: 'prueba', title: 'Prueba', description: '', cwd, etapas: [{ nombre: 'Video', listo: 'video.mp4', muestra: 'video.mp4' }] }]
+  const cards: Card[] = [{ id: 'prueba', title: 'Prueba', description: '', cwd, produce: 'video', etapas: [{ nombre: 'Video', listo: 'video.mp4', muestra: 'video.mp4' }] }]
   const sessions = new Sessions(join(dir, 'sesiones'), () => {}, () => {}, () => {}, () => {})
   let trabajandoRuta = ''
   t.mock.method(sessions, 'list', () => trabajandoRuta ? [{ id: 'agente-ocupado', cardId: 'prueba', title: 'Trabajo en el video', model: 'sonnet', cwd: resolve(trabajandoRuta, '..'), createdAt: 0, updatedAt: 0, running: true }] : [])

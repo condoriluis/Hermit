@@ -1,6 +1,7 @@
 import { memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CANAL_CARD, IDEAS_CARD } from '../../shared/ideas' // ideas
-import type { AvanceCorto, AvisoComunidad, Card, Model, Previa, Serie, ServerPush, SessionMeta, VideoHecho } from '../../shared/types'
+import type { AvanceCorto, AvisoComunidad, Card, Model, Previa, Produce, Serie, ServerPush, SessionMeta, TipoPieza, VideoHecho } from '../../shared/types'
+import { esDeVideo } from '../../shared/types'
 import { NOMBRE_AGENTE, proveedorDe } from '../../shared/providers'
 import { AvisoVideos } from './AvisoVideos'
 import { VENTA } from '../../shared/venta'
@@ -24,7 +25,10 @@ import { conReferencia, ReferenciaVideo } from './Referencia'
 import { useSoltar } from './Soltar'
 import { CON_CHATGPT, conOpenCode, conPrimero, elegirModelos, lineaSubagentes, Modelos, type Avanzado } from './Modelos'
 import { AvisoEquipo } from './Equipo' // tu equipo
-import { MisVideos, Rejilla, VideoDe } from './MisVideos'
+import { MisVideos, VideoDe } from './MisVideos'
+import { Rejilla } from './Piezas'
+import { MisArticulos } from './MisArticulos'
+import { MisImagenes } from './MisImagenes'
 import { Modelos3D } from './Modelos3D' // modelos 3D
 import { abrirPublicacion, Comunidad } from './Comunidad' // comunidad
 import { PedirMejora } from './PedirMejora' // comunidad
@@ -53,9 +57,12 @@ type View =
   | { kind: 'session'; id: string }
   | { kind: 'opciones' }
   | { kind: 'ideas'; canalId?: string }
-  | { kind: 'videos'; estilo?: string }
+  | { kind: 'galeria'; tipo: TipoPieza; estilo?: string }
   | { kind: 'modelos3d' } // modelos 3D
   | { kind: 'comunidad' } // comunidad
+
+/** La ruta de cada galería en el hash. Su `tipo` es el `produce` de las cards que la llenan. */
+const RUTA_GALERIA: Record<TipoPieza, string> = { video: 'mis-videos', imagen: 'mis-imagenes', articulo: 'mis-articulos' }
 
 /** Lo que se escribió en un hilo nuevo sin mandarlo. Vive en localStorage hasta que se manda o se borra. */
 type Saved = Draft & { cardId: string; at: number }
@@ -72,7 +79,9 @@ function readHash(): View {
   if (kind === 'd' && id) return { kind: 'draft', id }
   if (kind === 'opciones') return { kind: 'opciones' }
   if (kind === 'ideas') return { kind: 'ideas', canalId: id || undefined }
-  if (kind === 'mis-videos') return { kind: 'videos', estilo: id || undefined }
+  if (kind === 'mis-videos') return { kind: 'galeria', tipo: 'video', estilo: id || undefined }
+  if (kind === 'mis-imagenes') return { kind: 'galeria', tipo: 'imagen' }
+  if (kind === 'mis-articulos') return { kind: 'galeria', tipo: 'articulo' }
   if (kind === 'modelos-3d') return { kind: 'modelos3d' } // modelos 3D
   if (kind === 'comunidad' || kind === 'mejoras') return { kind: 'comunidad' } // comunidad (antes, Mejoras)
   return { kind: 'new', cardId: kind === 'new' ? id : undefined }
@@ -88,8 +97,8 @@ function go(view: View) {
           ? '/opciones'
           : view.kind === 'ideas'
             ? `/ideas${view.canalId ? `/${view.canalId}` : ''}`
-            : view.kind === 'videos'
-              ? `/mis-videos${view.estilo ? `/${view.estilo}` : ''}`
+            : view.kind === 'galeria'
+              ? `/${RUTA_GALERIA[view.tipo]}${view.tipo === 'video' && view.estilo ? `/${view.estilo}` : ''}`
               : view.kind === 'modelos3d' // modelos 3D
                 ? '/modelos-3d'
                 : view.kind === 'comunidad' // comunidad
@@ -480,11 +489,35 @@ export function App() {
             Ideas
           </button>
         )}
-        <button className={`new-chat${view.kind === 'videos' ? ' active' : ''}`} onClick={() => go({ kind: 'videos' })} title={plegada ? 'Mis videos' : undefined}>
+        <button
+          className={`new-chat${view.kind === 'galeria' && view.tipo === 'video' ? ' active' : ''}`}
+          onClick={() => go({ kind: 'galeria', tipo: 'video' })}
+          title={plegada ? 'Mis videos' : undefined}
+        >
           <span className="new-chat-icon">
             <Icono de="video" />
           </span>{' '}
           Mis videos
+        </button>
+        <button
+          className={`new-chat${view.kind === 'galeria' && view.tipo === 'imagen' ? ' active' : ''}`}
+          onClick={() => go({ kind: 'galeria', tipo: 'imagen' })}
+          title={plegada ? 'Mis imágenes' : undefined}
+        >
+          <span className="new-chat-icon">
+            <Icono de="imagen" />
+          </span>{' '}
+          Mis imágenes
+        </button>
+        <button
+          className={`new-chat${view.kind === 'galeria' && view.tipo === 'articulo' ? ' active' : ''}`}
+          onClick={() => go({ kind: 'galeria', tipo: 'articulo' })}
+          title={plegada ? 'Mis artículos' : undefined}
+        >
+          <span className="new-chat-icon">
+            <Icono de="lapiz" />
+          </span>{' '}
+          Mis artículos
         </button>
         {/* modelos 3D */}
         <button className={`new-chat${view.kind === 'modelos3d' ? ' active' : ''}`} onClick={() => go({ kind: 'modelos3d' })} title={plegada ? 'Modelos 3D' : undefined}>
@@ -631,11 +664,13 @@ export function App() {
         {view.kind === 'comunidad' && <Comunidad />}
         {/* comunidad: «Pedir una mejora», que abre el símbolo del agente de cualquier hilo y la publica en Mejoras. */}
         <PedirMejora sessions={sessions} />
-        {view.kind === 'videos' && (
+        {view.kind === 'galeria' && view.tipo === 'video' && (
           <ConNavegadorRedes>
-            <MisVideos cards={cards} sessions={sessions} estilo={view.estilo} onEstilo={(estilo) => go({ kind: 'videos', estilo })} />
+            <MisVideos cards={cards} sessions={sessions} estilo={view.estilo} onEstilo={(estilo) => go({ kind: 'galeria', tipo: 'video', estilo })} />
           </ConNavegadorRedes>
         )}
+        {view.kind === 'galeria' && view.tipo === 'imagen' && <MisImagenes cards={cards} sessions={sessions} />}
+        {view.kind === 'galeria' && view.tipo === 'articulo' && <MisArticulos cards={cards} sessions={sessions} />}
         {newCard && draftId && (
           <div className="avisos-nuevo">
             <AvisoAgentes /> {/* versiones nuevas de los agentes */}
@@ -803,9 +838,9 @@ function NewSession(props: {
     return () => removeEventListener('hashchange', ver)
   }, []) // redes
   const hilos = props.sessions.filter((s) => s.cardId === card.id).sort((a, b) => b.createdAt - a.createdAt)
-  const videos = useTerminados(enEstilo && card.etapas ? card : null, hilos)
+  const videos = useTerminados(enEstilo && esDeVideo(card) ? card : null, hilos)
   const previas = usePrevias(props.cards, props.sessions) // previas de las cards
-  const publicar = usePublicar(enEstilo && card.etapas ? card : null, videos) // redes
+  const publicar = usePublicar(enEstilo && esDeVideo(card) ? card : null, videos) // redes
   // El video de una carpeta de fuera, sin hilo que abrir, se ve en grande.
   const [viendo, setViendo] = useState<string | null>(null)
   // Con dos enlaces o más, la card que hace lotes ofrece un video por enlace. Hay que elegirlo: dos enlaces también pueden
@@ -847,7 +882,7 @@ function NewSession(props: {
   const alCartel = useRef<AccionesCartel>(null as never)
   alCartel.current = {
     // Sin videos terminados (sin previa) solo se elige: su galería saldría vacía.
-    elegir: (c) => (props.onPick(c), setEnEstilo(!!c.etapas && !!previas[c.id])),
+    elegir: (c) => (props.onPick(c), setEnEstilo(esDeVideo(c) && !!previas[c.id])),
     duplicar: (c) => void duplicar(c),
     borrar: setBorrando
   }
@@ -939,7 +974,7 @@ function NewSession(props: {
       {/* Arriba las skills (o, con un estilo elegido, sus videos), que hacen scroll solas; abajo la skill elegida y el
           compositor, que no se mueven de su sitio. */}
       <div className="new-top">
-        {enEstilo && card.etapas ? (
+        {enEstilo && esDeVideo(card) ? (
           <div className="estilo">
             <button className="estilo-volver" onClick={() => setEnEstilo(false)}>
               ← Todos los estilos
@@ -948,7 +983,7 @@ function NewSession(props: {
             {videos && <YoutubeLote videos={videos} cardId={card.id} />}
             <CalendarioYoutube />
             {!videos ? null : videos.length ? (
-              <Rejilla videos={videos}>{(v) => <VideoDe key={v.src} video={v} onVer={() => setViendo(v.src)} insignia={publicar.insignia(v.ruta)} />}</Rejilla>
+              <Rejilla items={videos}>{(v) => <VideoDe key={v.src} video={v} onVer={() => setViendo(v.src)} insignia={publicar.insignia(v.ruta)} />}</Rejilla>
             ) : (
               <p className="estilo-vacio">Aún no hay videos terminados de este estilo.</p>
             )}
@@ -960,11 +995,8 @@ function NewSession(props: {
           </div>
         ) : (
           <section className="estante">
-            <header>
-              <h2>Estilos</h2>
-            </header>
             {fallo && <p className="bad small">{fallo}</p>}
-            {/* Cada skill es un cartel: su último video si lo tiene y, si no, su icono y qué hace. Abajo, cuánto se usa. */}
+            {/* Cada skill es un cartel, agrupado por lo que produce. */}
             <Carteles cards={props.cards} activa={card.id} previas={previas} sessions={props.sessions} acciones={accionesCartel} />
           </section>
         )}
@@ -978,8 +1010,8 @@ function NewSession(props: {
         </div>
         {/* Hasta saber qué cuentas hay no sale: el aviso de Claude no se asoma a quien solo tiene ChatGPT u OpenCode. */}
         {sinClaude !== undefined && <CuentaClaude model={choice?.model} onFalta={setSinCuenta} />}
-        {/* Las herramientas de video solo hacen falta en los estilos de video, y de los paquetes, los de su skill. */}
-        {card.etapas && <Requisitos skill={card.skill} />}
+        {/* Las herramientas de video (FFmpeg, Python, yt-dlp) solo hacen falta en los estilos de video, y de los paquetes, los de su skill. */}
+        {esDeVideo(card) && <Requisitos skill={card.skill} />}
         {composer}
         <TarjetasEnlaces enlaces={enlaces} />
       </div>
@@ -1011,69 +1043,116 @@ function NewSession(props: {
 type AccionesCartel = { elegir(c: Card): void; duplicar(c: Card): void; borrar(c: Card): void }
 
 /**
- * Las skills del inicio, cada una un cartel. Memorizadas: escribir en el compositor de abajo no las vuelve a dibujar (ni a
- * sus videos de fondo).
+ * Las skills del inicio, agrupadas por lo que produce cada una (`produce`): Videos, Artículos, Imágenes y, al final, las
+ * que no producen nada (herramientas). Cada cartel lleva su último video si lo tiene y, si no, su icono y qué hace; abajo,
+ * cuánto se usa. Memorizado: escribir en el compositor de abajo no las vuelve a dibujar (ni a sus videos de fondo).
  */
 const GASTAN_FLOW = new Set(['animalnovela', 'devnovela', 'frutinovela', 'minidrama', 'nuevo-estilo'])
 
+/** Los grupos del estante, en orden: lo que produce cada card y, al final, las que no producen nada (herramientas). */
+const GRUPOS: { titulo: string; produce?: Produce }[] = [
+  { titulo: 'Videos', produce: 'video' },
+  { titulo: 'Artículos', produce: 'articulo' },
+  { titulo: 'Imágenes', produce: 'imagen' },
+  { titulo: 'Herramientas' }
+]
+
+/** El estante: un grupo a la vez, elegido en una fila de pestañas; se recuerda el último. */
 const Carteles = memo(function Carteles({ cards, activa, previas, sessions, acciones }: { cards: Card[]; activa: string; previas: Record<string, Previa>; sessions: SessionMeta[]; acciones: AccionesCartel }) {
   // Al desplazarlas, las que pasan bajo el cursor no arrancan su video.
   const rejilla = useRef<HTMLDivElement>(null)
   useDesplazando(rejilla)
+  // Un grupo por tipo de producción; los grupos sin carteles no salen.
+  const grupos = GRUPOS.map((g) => [g, cards.filter((c) => c.produce === g.produce)] as const).filter(([, lista]) => lista.length)
+  const [grupo, setGrupo] = useStored<string>('grupoEstilos', '')
+  const grupoActiva = cards.find((c) => c.id === activa)?.produce ?? 'herramientas'
+  // Si el grupo guardado ya no existe, abre el de la card elegida (o el primero). Un grupo es su `produce` o «herramientas».
+  const activo = grupos.find(([g]) => (g.produce ?? 'herramientas') === grupo) ?? grupos.find(([g]) => (g.produce ?? 'herramientas') === grupoActiva) ?? grupos[0]
+  const claveActiva = activo ? (activo[0].produce ?? 'herramientas') : ''
+  // Al cambiar de grupo, sus cards empiezan arriba.
+  useEffect(() => {
+    rejilla.current?.scrollTo({ top: 0 })
+  }, [claveActiva])
+  if (!activo) return null
   return (
-    <div className="cards" ref={rejilla}>
-      {cards.map((c) => (
-        <button
-          key={c.id}
-          className={`card ${c.id === activa ? 'active' : ''}`}
-          onClick={() => acciones.elegir(c)}
-          title={c.description}
-          onMouseEnter={(e) => e.currentTarget.querySelector('video')?.play().catch(() => {})}
-          onMouseLeave={(e) => e.currentTarget.querySelector('video')?.load()}
-        >
-          {!GASTAN_FLOW.has(c.id) && (
-            <span
-              className="card-badge-gratis"
-              title="Voz, imágenes y montaje 100% gratuitos y locales. No consume créditos de Google Flow."
-            >
-              Gratis
-            </span>
-          )}
-          {/* previas de las cards: el cuadro quieto hasta que pasas por encima. Al salir, `load()` vuelve a él y suelta el video. */}
-          {previas[c.id] ? (
-            <video className="card-previa" src={previas[c.id].video} poster={previas[c.id].cuadro} muted loop playsInline preload="none" />
-          ) : (
-            <span className="card-fondo">
-              <span className="card-icon"><Icon icon={c.icon ?? '✦'} /></span>
-              <span className="card-desc">{c.description}</span>
-            </span>
-          )}
-          {/* En la app que se vende, las cards de Hermit ni se duplican ni se borran; las de tus estilos se borran. */}
-          {(!VENTA || c.tuya) && (
-            <span className="card-actions">
-              {!VENTA && (
-                <span
-                  role="button"
-                  title={`Duplicar: sale una card nueva con la misma skill${c.skill ? ` /${c.skill}` : ''}, que puedes cambiar a tu gusto en cards.json`}
-                  onClick={(e) => (e.stopPropagation(), acciones.duplicar(c))}
-                >
-                  ⧉
-                </span>
-              )}
-              <span role="button" className="danger" title="Eliminar" onClick={(e) => (e.stopPropagation(), acciones.borrar(c))}>
-                ✕
-              </span>
-            </span>
-          )}
-          <span className="card-pie">
-            <span className="card-title">{c.title}</span>
-            <Uso hilos={sessions.filter((s) => s.cardId === c.id && !s.archived)} />
-          </span>
-        </button>
-      ))}
-    </div>
+    <>
+      {grupos.length > 1 && (
+        <div className="cards-tabs" role="group" aria-label="Tipo de estilo">
+          {grupos.map(([g, lista]) => {
+            const clave = g.produce ?? 'herramientas'
+            return (
+              <button key={g.titulo} className="cards-tab" aria-pressed={clave === claveActiva} onClick={() => setGrupo(clave)}>
+                {g.titulo}<span className="cuenta">{lista.length}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+      <div className="cards" ref={rejilla} role="region" aria-label={`Estilos de ${activo[0].titulo}`}>
+        {activo[1].map((c) => (
+          <Cartel key={c.id} c={c} activa={c.id === activa} previa={previas[c.id]} hilos={sessions.filter((s) => s.cardId === c.id && !s.archived)} acciones={acciones} />
+        ))}
+      </div>
+    </>
   )
 })
+
+/** Un cartel del estante: su último video (quieto hasta pasar el ratón), su última imagen, la portada de su último artículo o su icono y qué hace, y abajo cuánto se usa. */
+function Cartel({ c, activa, previa, hilos, acciones }: { c: Card; activa: boolean; previa?: Previa; hilos: SessionMeta[]; acciones: AccionesCartel }) {
+  return (
+    <button
+      className={`card ${activa ? 'active' : ''}`}
+      onClick={() => acciones.elegir(c)}
+      title={c.description}
+      onMouseEnter={(e) => e.currentTarget.querySelector('video')?.play().catch(() => {})}
+      onMouseLeave={(e) => e.currentTarget.querySelector('video')?.load()}
+    >
+      {!GASTAN_FLOW.has(c.id) && (
+        <span
+          className="card-badge-gratis"
+          title="Voz, imágenes y montaje 100% gratuitos y locales. No consume créditos de Google Flow."
+        >
+          Gratis
+        </span>
+      )}
+      {/* previas de las cards: el cuadro quieto hasta que pasas por encima; en las de imágenes, la última imagen. Al salir,
+          `load()` vuelve a él y suelta el video. */}
+      {previa ? (
+        previa.tipo === 'video' ? (
+          <video className="card-previa" src={previa.video} poster={previa.cuadro} muted loop playsInline preload="none" />
+        ) : (
+          <img className="card-previa" src={previa.imagen} alt="" loading="lazy" />
+        )
+      ) : (
+        <span className="card-fondo">
+          <span className="card-icon"><Icon icon={c.icon ?? '✦'} /></span>
+          <span className="card-desc">{c.description}</span>
+        </span>
+      )}
+      {/* En la app que se vende, las cards de Hermit ni se duplican ni se borran; las de tus estilos se borran. */}
+      {(!VENTA || c.tuya) && (
+        <span className="card-actions">
+          {!VENTA && (
+            <span
+              role="button"
+              title={`Duplicar: sale una card nueva con la misma skill${c.skill ? ` /${c.skill}` : ''}, que puedes cambiar a tu gusto en cards.json`}
+              onClick={(e) => (e.stopPropagation(), acciones.duplicar(c))}
+            >
+              ⧉
+            </span>
+          )}
+          <span role="button" className="danger" title="Eliminar" onClick={(e) => (e.stopPropagation(), acciones.borrar(c))}>
+            ✕
+          </span>
+        </span>
+      )}
+      <span className="card-pie">
+        <span className="card-title">{c.title}</span>
+        <Uso hilos={hilos} />
+      </span>
+    </button>
+  )
+}
 
 /** Cuánto se usa una skill: los hilos que trabajan ahora, que es lo que más importa, o cuántos hay y cuándo fue el último. */
 function Uso({ hilos }: { hilos: SessionMeta[] }) {
@@ -1137,8 +1216,9 @@ function useSeries(card: Card) {
 }
 
 /**
- * La previa de cada card de estilo, de su último video terminado (`server/previas.ts`). Se vuelve a pedir cuando un hilo
- * deja de trabajar, que es cuando puede haber un video nuevo. La primera vez tarda lo que FFmpeg en hacerlas.
+ * La previa de cada card de estilo: su último video terminado o su última imagen (`server/previas.ts`). Se vuelve a pedir
+ * cuando un hilo deja de trabajar, que es cuando puede haber un video nuevo. La primera vez tarda lo que FFmpeg en hacer
+ * las de video.
  */
 function usePrevias(cards: Card[], sessions: SessionMeta[]) {
   const [previas, setPrevias] = useState<Record<string, Previa>>({})

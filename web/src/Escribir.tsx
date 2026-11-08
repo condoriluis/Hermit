@@ -1,7 +1,8 @@
 import { type CSSProperties, type MutableRefObject, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { NOMBRE_AGENTE, type Proveedor } from '../../shared/providers'
-import type { AdjuntoComunidad, AyudaMejora, OrigenMejora, VideoHecho, VideosDeTodos } from '../../shared/types'
+import type { AdjuntoComunidad, AyudaMejora, OrigenMejora, PiezasDeTodos, VideoHecho } from '../../shared/types'
+import { deTipo } from '../../shared/types'
 import { api } from './api'
 import { Icono as IconoBase, type NombreIcono } from './Iconos'
 import { MarcaAgente } from './Logos'
@@ -247,7 +248,7 @@ export function Escribir(props: {
               {a.tipo === 'imagen' ? <img src={a.url} alt="" /> : a.posterUrl ? <img src={a.posterUrl} alt="" /> : <video src={a.url} muted preload="metadata" />}
               {a.tipo === 'video' && (
                 <span className="esc-play">
-                  <Icono de="video" />
+                  <Icono de="play" />
                 </span>
               )}
               <button title="Quitar" onClick={() => setAdjuntos((l) => l.filter((x) => x !== a))}>
@@ -356,8 +357,8 @@ function MisVideosParaElegir({ onElegir, onCerrar }: { onElegir(v: VideoHecho): 
   // Donde está el botón «Video»: la caja se dibuja en `body`, encima de todo, y se coloca junto a él.
   const marca = useRef<HTMLSpanElement>(null)
   useEffect(() => {
-    api<VideosDeTodos>('/api/videos').then(
-      (r) => setVideos(r.videos.slice(0, 60)),
+    api<PiezasDeTodos>('/api/piezas').then(
+      (r) => setVideos(deTipo(r.piezas, 'video').slice(0, 60)),
       (e: Error) => setError(e.message)
     )
     const fuera = (e: MouseEvent) => {

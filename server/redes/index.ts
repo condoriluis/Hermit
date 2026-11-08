@@ -8,7 +8,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { promisify } from 'node:util'
 import type { BrowserContext, Page } from 'playwright-core'
 import { huecos, RITMO_VERTICAL, tocaElDia, validarRitmo } from '../../shared/ritmo.ts'
-import type { AvisoRedes, Borrador, CalendarioRed, Card, EstadoRitmo, MarcasDeRedes, Publicacion, Red, RedesDelEstilo, RedesEstilo, RedId, Ritmo, ServerPush, TandaRedes, VideoHecho } from '../../shared/types.ts'
+import { esDeVideo, type AvisoRedes, type Borrador, type CalendarioRed, type Card, type EstadoRitmo, type MarcasDeRedes, type Publicacion, type Red, type RedesDelEstilo, type RedesEstilo, type RedId, type Ritmo, type ServerPush, type TandaRedes, type VideoHecho } from '../../shared/types.ts'
 import { aLaPapelera, guardar as guardarArchivo, huella } from '../disco.ts'
 import { folderOf, servir, videosDe } from '../etapas.ts'
 import type { Sessions } from '../sessions.ts'
@@ -374,7 +374,7 @@ export function redes(app: string, sessions: Sessions, cards: () => Card[], avis
 
   /**
    * Las marcas de redes de unos videos terminados, de la lista que ya tiene quien las pide: los videos de un estilo y «Mis
-   * videos» (`GET /api/videos`, en `server/etapas.ts`), que así no recorre el disco otra vez.
+   * videos» (`GET /api/piezas`, en `server/etapas.ts`), que así no recorre el disco otra vez.
    */
   async function marcas(videos: VideoHecho[]): Promise<MarcasDeRedes> {
     // Sin esperar a la nube: si algo cambió, el aviso por el WebSocket hace que la vista lo vuelva a pedir.
@@ -610,11 +610,11 @@ export function redes(app: string, sessions: Sessions, cards: () => Card[], avis
   const mismaRuta = (a: string, b: string) => resolve(a).toLowerCase() === resolve(b).toLowerCase()
   const trabajaEn = (card: Card) => sessions.list().some((s) => (s.cardId === card.id || mismaRuta(s.cwd, card.cwd)) && (s.running || !!s.background?.length))
   /**
-   * Un hilo de un estilo de video trabaja (o dejó algo en marcha) en la carpeta de ese archivo. Los de una card sin
-   * etapas («Nuevo estilo») no cuentan: no hacen videos, y su carpeta no es la de ninguno.
+   * Un hilo de un estilo de video trabaja (o dejó algo en marcha) en la carpeta de ese archivo. Los de una card que no
+   * produce videos («Nuevo estilo», «Artículo para Blogi») no cuentan: su carpeta no es la de ningún video.
    */
   function enUso(ruta: string) {
-    const estilos = new Set(cards().filter((c) => c.etapas?.length).map((c) => c.id))
+    const estilos = new Set(cards().filter(esDeVideo).map((c) => c.id))
     return sessions.list().some((s) => {
       const rel = relative(resolve(folderOf(s)), ruta)
       return estilos.has(s.cardId) && (s.running || !!s.background?.length) && !rel.startsWith('..') && !isAbsolute(rel)
@@ -622,7 +622,7 @@ export function redes(app: string, sessions: Sessions, cards: () => Card[], avis
   }
   async function liberar(card: Card) {
     const redes = conectadas()
-    if (roto || !redes.length || !card.etapas || trabajaEn(card)) return
+    if (roto || !redes.length || !esDeVideo(card) || trabajaEn(card)) return
     const cwd = resolve(card.cwd)
     const carpetas = new Map<string, string[]>()
     for (const v of await verticalesDe(card)) {
@@ -847,7 +847,7 @@ export function redes(app: string, sessions: Sessions, cards: () => Card[], avis
     // Solo videos terminados de un estilo que ya salieron, y no los de una carpeta donde trabaja un agente.
     if (path === '/api/redes/eliminar' && post) {
       const { rutas } = await body<{ rutas: string[] }>(req)
-      const videos = new Set(cards().flatMap((c) => (c.etapas?.length ? videosDe(c, sessions).map((v) => v.ruta) : [])))
+      const videos = new Set(cards().flatMap((c) => (esDeVideo(c) ? videosDe(c, sessions).map((v) => v.ruta) : [])))
       const listas = rutas.filter((r) => videos.has(r) && yaSalio(r) && !enUso(r))
       const siguen = await aLaPapelera(listas)
       avisar({ type: 'redes', aviso: aviso() })

@@ -46,11 +46,13 @@ Este es el mapa:
   `~/.claude/skills`, enlazada también en `~/.codex/skills` y `~/.agents/skills` (`enlazarSkillsCodex`), para que Claude y
   Codex lean los mismos archivos; en el repo, `skills/` (su Claude usa su propia configuración, `data/claude`, y no toca la
   de la Hermit instalada). Los scripts de las skills la reciben en `HERMIT_SKILLS`. `cwd`, donde trabaja (`{app}` es la
-  carpeta de Hermit; sin él, `<trabajo>/<id>`, de `carpetaTrabajo` en `server/trabajo.ts`: fuera del repo en desarrollo). `etapas` es el avance, leído de los archivos del hilo (`server/etapas.ts`) con los
-  globs `listo`. Los videos terminados son los de la etapa «Video» (los `_*` son a medias); `server/reglas-repo.test.ts`
-  comprueba que ningún glob cuente un borrador. Los estilos que cada quien hace con la card «Nuevo estilo» (skill
-  `crear-estilo`) van en `data/tus-cards.json` y `skills/<id>`, que ninguna actualización toca. Son las únicas que la
-  venta deja borrar (`tuya`); la skill sale a `data/skills-tuyas` (`guardarSkillTuya`).
+  carpeta de Hermit; sin él, `<trabajo>/<id>`, de `carpetaTrabajo` en `server/trabajo.ts`: fuera del repo en desarrollo).
+  `produce` declara qué produce la card (`video`, `articulo`, `imagen`; sin él es una herramienta), y es lo que miran la
+  galería, «Mis videos», las redes y el formato (`esDeVideo`). `etapas` es el avance, leído de los archivos del hilo
+  (`server/etapas.ts`) con los globs `listo`. Los videos terminados son los de la etapa «Video» (los `_*` son a medias);
+  `server/reglas-repo.test.ts` comprueba que ningún glob cuente un borrador. Los estilos que cada quien hace con la card
+  «Nuevo estilo» (skill `crear-estilo`) van en `data/tus-cards.json` y `skills/<id>`, que ninguna actualización toca. Son
+  las únicas que la venta deja borrar (`tuya`); la skill sale a `data/skills-tuyas` (`guardarSkillTuya`).
 - Lo que el estudio ve en vivo: `server/claude.ts` saca los borradores de lo que escribe el agente (Write y los heredocs
   de Bash), el WebSocket los lleva a `web/src/App.tsx` y `Etapas.tsx` los dibuja.
 - El estudio de video (`web/src/Estudio.tsx`): toda card cuyas etapas tengan `fase` se ve igual, con las cinco fases
@@ -68,8 +70,14 @@ Este es el mapa:
 - `modelos` (`web/src/Modelos.tsx`): en «Optimizado», el modelo y el esfuerzo medidos para el hilo y sus subagentes
   (los de los subagentes van en la línea `Subagentes:`). Una card sin medir
   usa lo último que eligió el usuario a mano. En «Avanzado» se elige cada uno.
-- La galería: al elegir un estilo, sus videos terminados ocupan el sitio de las cards (`videosApi` en `etapas.ts`);
-  «Mis videos» (`MisVideos.tsx`) los junta todos. Cada card enseña de fondo el más nuevo (`server/previas.ts`).
+- Las galerías: `Piezas.tsx` pide todas las piezas terminadas (`GET /api/piezas`) y cada una enseña las de su tipo
+  (`deTipo`): «Mis videos» (`MisVideos.tsx`), «Mis imágenes» (`MisImagenes.tsx`) y «Mis artículos» (`MisArticulos.tsx`),
+  una por cada `produce`. El estante de inicio (`Carteles` en `App.tsx`) enseña un grupo a la vez en una fila de pestañas
+  por su `produce` (`GRUPOS`: Videos, Artículos, Imágenes y, sin `produce`, Herramientas; los grupos vacíos no se dibujan y
+  el último elegido se recuerda).
+  Al elegir un estilo, sus videos terminados ocupan el sitio de las cards (`/api/cards/<id>/videos` en `etapas.ts`).
+  Cada card de video enseña de fondo su video más nuevo, la de imágenes su última imagen y la de artículos la portada del
+  último (`server/previas.ts`).
 - `server/redes/` y `web/src/Redes.tsx`: los verticales terminados se programan al ritmo que eliges en «Mis videos» (`web/src/Ritmos.tsx`, las cuentas en `shared/ritmo.ts`; YouTube lleva el suyo).
   TikTok va por su página (ADR 0002), en la página `redes` del navegador integrado, con su propio perfil (sin la ventana
   de Hermit, en un Edge con `data/redes/perfil`);

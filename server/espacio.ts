@@ -4,7 +4,7 @@ import { lstat, readdir, readFile, rm } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { homedir, tmpdir } from 'node:os'
 import { dirname, isAbsolute, join, parse, relative, resolve } from 'node:path'
-import type { Card, Espacio, GrupoEspacio, IdEspacio } from '../shared/types.ts'
+import { esDeVideo, type Card, type Espacio, type GrupoEspacio, type IdEspacio } from '../shared/types.ts'
 import { carpetasDe, folderOf, terminados } from './etapas.ts'
 import type { Sessions } from './sessions.ts'
 import { TRABAJO_DEV, carpetaTrabajo } from './trabajo.ts'
@@ -60,7 +60,7 @@ export function espacio(o: OpcionesEspacio) {
 
   /** Si un hilo de un estilo de video trabaja (o dejó algo de fondo) en esa carpeta, o en una que la contiene. */
   function enUso(carpeta: string): boolean {
-    const estilos = new Set(o.cards().filter((c) => c.etapas?.length).map((c) => c.id))
+    const estilos = new Set(o.cards().filter(esDeVideo).map((c) => c.id))
     return o.sessions.list().some((s) => estilos.has(s.cardId) && (s.running || !!s.background?.length) && (dentro(folderOf(s), carpeta) || dentro(carpeta, folderOf(s))))
   }
 
@@ -82,7 +82,7 @@ export function espacio(o: OpcionesEspacio) {
     const enlazadas = new Set<string>()
     const vistos = new Set<string>() // los videos bajados, una vez aunque estén enlazados en dos carpetas
     const propias: { card: Card; carpeta: string; nm: string; edad: number }[] = []
-    for (const card of o.cards().filter((c) => c.etapas?.length && c.skill)) {
+    for (const card of o.cards().filter((c) => esDeVideo(c) && c.skill)) {
       for (const carpeta of carpetasDe(card)) {
         const nm = join(carpeta, 'node_modules')
         const destino = enlace(nm)

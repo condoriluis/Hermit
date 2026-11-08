@@ -22,9 +22,9 @@ export function guardar(archivo: string, texto: string) {
 const execFileP = promisify(execFile)
 
 /**
- * Manda archivos a la Papelera de reciclaje de Windows, de donde se pueden recuperar. Devuelve los que siguen en su sitio:
- * en uso, o porque cancelaste el aviso de Windows. Las rutas van por una variable de entorno y no dentro del comando,
- * para que ninguna comilla las rompa, de cien en cien para no pasar su límite.
+ * Manda archivos o carpetas a la Papelera de reciclaje de Windows, de donde se pueden recuperar. Devuelve los que siguen
+ * en su sitio: en uso, o porque cancelaste el aviso de Windows. Las rutas van por una variable de entorno y no dentro del
+ * comando, para que ninguna comilla las rompa, de cien en cien para no pasar su límite.
  */
 export async function aLaPapelera(rutas: string[]): Promise<string[]> {
   if (process.platform !== 'win32') {
@@ -32,7 +32,7 @@ export async function aLaPapelera(rutas: string[]): Promise<string[]> {
     return rutas.filter((r) => existsSync(r))
   }
   const ps =
-    "Add-Type -AssemblyName Microsoft.VisualBasic; foreach ($r in ($env:HERMIT_PAPELERA | ConvertFrom-Json)) { try { [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($r, 'OnlyErrorDialogs', 'SendToRecycleBin') } catch { [Console]::Error.WriteLine($_.Exception.Message) } }; exit 0"
+    "Add-Type -AssemblyName Microsoft.VisualBasic; foreach ($r in ($env:HERMIT_PAPELERA | ConvertFrom-Json)) { try { if (Test-Path -LiteralPath $r -PathType Container) { [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory($r, 'OnlyErrorDialogs', 'SendToRecycleBin') } else { [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($r, 'OnlyErrorDialogs', 'SendToRecycleBin') } } catch { [Console]::Error.WriteLine($_.Exception.Message) } }; exit 0"
   for (let i = 0; i < rutas.length; i += 100) {
     const { stderr } = await execFileP('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { env: { ...process.env, HERMIT_PAPELERA: JSON.stringify(rutas.slice(i, i + 100)) } })
     if (stderr.trim()) console.error('papelera:', stderr.trim())

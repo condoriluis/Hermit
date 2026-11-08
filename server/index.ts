@@ -5,7 +5,7 @@ import { createServer as servidorTcp } from 'node:net'
 import { basename, dirname, extname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { WebSocketServer, type WebSocket } from 'ws'
-import type { Card, Model, ServerPush } from '../shared/types.ts'
+import { esDeVideo, type Card, type Model, type ServerPush } from '../shared/types.ts'
 import { VENTA } from '../shared/venta.ts'
 import { cambiarAcceso } from './acceso.ts'
 import { cuerpo as body, json as send } from './http.ts'
@@ -23,7 +23,7 @@ import { conectandoCodex, conectarCodex, cuentaCodex, limitesCodex } from './cue
 import { conectando, conectarClaude, cuentaClaude, limitesClaude } from './cuenta.ts'
 import { cancelarOpenCode, conectandoOpenCode, conectarOpenCode, cuentaOpenCode, limitesOpenCode, quitarCuentaOpenCode, usarCuentaOpenCode } from './cuenta-opencode.ts'
 import { enlacesApi } from './enlaces.ts' // tarjeta de los enlaces
-import { cerrarVigilantesOciosos, esperaDe, etapasApi, folderOf, mismaCwd, queFalta, videosApi, videosDe } from './etapas.ts' // panel de etapas
+import { cerrarVigilantesOciosos, esperaDe, etapasApi, folderOf, mismaCwd, piezasApi, queFalta, videosDe } from './etapas.ts' // panel de etapas; `videosDe`, de comunidad
 import { cerrarMotoresOciosos } from './motor.ts'
 import { modelos3d } from './modelos3d.ts' // modelos 3D
 import { miniaturas } from './miniaturas.ts' // panel de etapas
@@ -120,9 +120,9 @@ const sessions = new Sessions(
   }
 )
 
-/** Si el hilo es de un estilo de video: solo su estudio enseña lo que va escribiendo. */
+/** Si el hilo tiene estudio (su card declara `etapas`): solo ahí se enseña lo que va escribiendo. */
 const conEtapas = (id: string) => !!cards().find((c) => c.id === sessions.meta(id)?.cardId)?.etapas?.length
-sessions.esVideo = (meta) => !!cards().find((c) => c.id === meta.cardId)?.etapas?.some((e) => e.fase)
+sessions.esVideo = (meta) => esDeVideo(cards().find((c) => c.id === meta.cardId))
 // Mientras un video trabaja, Whisper se queda cargado: el primero que empieza lo carga, antes de que sus agentes llenen la memoria.
 setInterval(() => {
   if (sessions.videosTrabajando()) void mantenerVoz(SKILLS)
@@ -169,8 +169,8 @@ function cards(): Card[] {
 const publicar = redes(APP, sessions, cards, broadcast) // redes
 const subirLargos = youtube(APP, sessions, cards, `http://127.0.0.1:${PORT}/api/youtube/oauth`, undefined, () => modelos)
 
-// Cada card de estilo enseña su último video terminado, en pequeño.
-const previa = previas(join(APP, 'data', 'previas'), cards) // previas de las cards
+// Cada card de estilo enseña su último video terminado o su última imagen, en pequeño.
+const previa = previas(join(APP, 'data', 'previas'), cards, sessions) // previas de las cards
 // Las imágenes que el panel de etapas enseña en rejilla, en pequeño.
 const { miniatura, cuadro } = miniaturas(join(APP, 'data', 'miniaturas')) // panel de etapas
 // Ideas para YouTube: investigar el nicho de un canal y que Claude proponga videos con evidencia.
@@ -184,7 +184,7 @@ const noticias = radar(APP) // radar
 const comunidadApi = comunidad(APP, {
   credencial: () => llaveDelCreador() ?? suscripcion?.credencial(),
   sessions,
-  video: (ruta) => cards().flatMap((c) => (c.etapas?.length ? videosDe(c, sessions) : [])).find((v) => v.ruta === ruta),
+  video: (ruta) => cards().flatMap((c) => (esDeVideo(c) ? videosDe(c, sessions) : [])).find((v) => v.ruta === ruta),
   cuadro,
   avisar: broadcast
 }) // comunidad
@@ -291,11 +291,12 @@ const RELLENO = new Set(
 )
 
 /**
- * La carpeta de un video suelto, como las de un lote: unas palabras de su título (`t-rex-naciendo`), sin enlaces ni
- * duración, con el prefijo de la card delante; sin palabras que sirvan, `video-1007-1530` (mes, día, hora y minuto). Si
- * ese nombre ya lo usa una carpeta u otro hilo, aunque su carpeta aún no exista, va `-2`, `-3`…
+ * La carpeta de una pieza suelta (un video, un artículo), como las de un lote: unas palabras de su título
+ * (`t-rex-naciendo`), sin enlaces ni duración, con el prefijo de la card delante; sin palabras que sirvan,
+ * `video-1007-1530` (mes, día, hora y minuto). Si ese nombre ya lo usa una carpeta u otro hilo, aunque su carpeta aún no
+ * exista, va `-2`, `-3`…
  */
-function carpetaDeVideo(card: Card, title: string): string {
+function carpetaDePieza(card: Card, title: string): string {
   const palabras = title
     .replace(/https?:\/\/\S+/g, ' ')
     .replace(/\b\d+\s*(segundos?|minutos?)\b/gi, ' ')
@@ -491,11 +492,11 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
   if (path === '/api/agentes/actualizar' && method === 'POST') return send(res, 200, await actualizarAgentes()), true
 
   // Las series de la skill de una card, para elegir una al crear un video. Se leen cada vez: viven en las skills, y
-  // todo estilo de video (la card con `etapas`) tiene las de video-base.
+  // todo estilo de video (la card con `produce: 'video'`) tiene las de video-base.
   const ser = /^\/api\/cards\/([\w-]+)\/series$/.exec(path)
   if (ser && method === 'GET') {
     const card = cards().find((c) => c.id === ser[1])
-    return send(res, 200, card?.skill ? seriesDe(card.skill, !!card.etapas) : []), true
+    return send(res, 200, card?.skill ? seriesDe(card.skill, esDeVideo(card)) : []), true
   }
 
   // «Con tus cambios»: lo que el usuario (o su agente) cambió en la skill de una card, y volver a la original, entera o un
@@ -539,14 +540,15 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
     const input = await body<{ cardId: string; model: string; effort?: string; text: string; images?: string[]; masDeDos?: boolean }>(req)
     const card = cards().find((c) => c.id === input.cardId)
     if (!card) return send(res, 404, { error: 'No existe esa card' }), true
-    if (card.etapas?.some((e) => e.fase) && pideConfirmar(res, input.masDeDos)) return true
+    if (esDeVideo(card) && pideConfirmar(res, input.masDeDos)) return true
     mkdirSync(card.cwd, { recursive: true })
     // Uno que sale de Ideas se llama como la idea (su línea `Título:`); los demás, como su primer mensaje, hasta que llegue
     // el título corto.
     const titulo = /^Título: (.+)$/m.exec(input.text)?.[1].trim()
     const title = (titulo ?? input.text.split('\n')[0]).slice(0, 80) || (input.images?.length ? 'Imagen' : card.title)
-    // Un video nuevo también nace con su carpeta, como los de un lote: la skill la crea con el nombre de la línea `Carpeta:`.
-    const nueva = card.etapas?.length ? carpetaDeVideo(card, title) : undefined // panel de etapas
+    // Cada pieza nueva (un video, un artículo) nace con su carpeta, como las de un lote: la skill la crea con el nombre
+    // que trae la línea `Carpeta:`. Una card sin `produce` es una herramienta y trabaja en `cwd`, sin carpeta propia.
+    const nueva = card.produce ? carpetaDePieza(card, title) : undefined // panel de etapas
     const meta = sessions.create({ cardId: card.id, title, model: input.model, effort: input.effort, cwd: card.cwd, carpeta: nueva })
     const text = [input.text, nueva && `Carpeta: ${nueva}`].filter(Boolean).join('\n\n')
     sessions.send(meta.id, text, card.skill ? skillRef(card.skill) : undefined, input.images)
@@ -597,7 +599,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
     if (meta && sessions.sumaVideo(meta) && pideConfirmar(res, masDeDos)) return true
   }
   if (await etapasApi(req, res, url, sessions, cards(), broadcast, miniatura)) return true // panel de etapas
-  if (await videosApi(req, res, url, sessions, cards(), publicar?.marcas, cuadro)) return true // panel de etapas; `publicar.marcas`, de redes
+  if (await piezasApi(req, res, url, sessions, cards(), publicar?.marcas, cuadro)) return true // galerías; `publicar.marcas`, de redes
   if (publicar && (await publicar.api(req, res, url))) return true // redes
   if (subirLargos && (await subirLargos.api(req, res, url))) return true // videos largos de YouTube
   if (await previa.api(req, res, url)) return true // previas de las cards

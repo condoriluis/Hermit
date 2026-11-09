@@ -40,10 +40,10 @@ import { CalendarioYoutube } from './YoutubeCalendario'
 import { avisarTanda, AvisoRedes, ConNavegadorRedes, usePublicar } from './Redes' // redes
 import { NombreDelHilo, Renombrar } from './Renombrar'
 import { Segmento } from './Segmento'
-import { SelectorVoz, useVoz } from './Voz' // voz de AI Studio
+import { nombreDeVoz, SelectorVoz, useVoz, vozPosible } from './Voz' // voz de AI Studio, Fish Audio o ElevenLabs
 import { lineaVoz } from '../../shared/voz'
-import { AvisoFlow, SelectorImagenes, useChatGPT, useFlow } from './Flow' // Google Flow
-import { imagenPosible, lineaImagenes } from '../../shared/flow'
+import { AvisoFlow, SelectorClips, SelectorImagenes, useChatGPT, useFlow } from './Flow' // Google Flow
+import { imagenPosible, lineaClips, lineaImagenes, OPCIONES_CLIPS } from '../../shared/flow'
 import { Timeline } from './Timeline'
 import { compact, duration } from './items'
 import { TooltipGlobal } from './Tooltip'
@@ -672,12 +672,6 @@ export function App() {
         {view.kind === 'galeria' && view.tipo === 'imagen' && <MisImagenes cards={cards} sessions={sessions} />}
         {view.kind === 'galeria' && view.tipo === 'articulo' && <MisArticulos cards={cards} sessions={sessions} />}
         {newCard && draftId && (
-          <div className="avisos-nuevo">
-            <AvisoAgentes /> {/* versiones nuevas de los agentes */}
-            <AvisoEquipo /> {/* tu equipo */}
-          </div>
-        )}
-        {newCard && draftId && (
           <NewSession
             key={draftId}
             card={newCard}
@@ -860,18 +854,23 @@ function NewSession(props: {
   const formatoPorDefecto = card.id === 'articulo-blog' ? 'horizontal' : 'vertical'
   const formato = formatoEscrito ?? formatos[card.id] ?? formatoPorDefecto
   const conFormato = !!card.etapas
-  // La voz: mandarla tú o que el agente la genere en AI Studio (`Voz.tsx`). La card recuerda la última; sin la cuenta
-  // de Google conectada, la mandas tú o la que hace el estilo de forma autónoma.
+  // Cuánto dura el video. Sin elegir, la que pida el mensaje; la skill reparte los clips de 8 s para llegar
+  // (`skills/video-base/DURACION.md`), y el montaje recorta a lo exacto.
+  const [duraciones, setDuraciones] = useStored<Record<string, string>>('duracion', {})
+  const duracion = duraciones[card.id] ?? ''
+  // La voz: mandarla tú o que el agente la genere en AI Studio, Fish Audio o ElevenLabs (`Voz.tsx`). La card recuerda
+  // la última; sin la cuenta o la llave de esa voz, la mandas tú.
   const voz = useVoz()
   const [voces, setVoces] = useStored<Record<string, string>>('voz', {})
-  const ultimaVoz = typeof localStorage !== 'undefined' ? (localStorage.getItem('hermit-ultima-voz') ?? '') : ''
-  const vozPorDefecto = voz.estado?.cuenta ? (voz.estado.voces.some((v) => v.nombre === ultimaVoz) ? ultimaVoz : (voz.estado.voces[0]?.nombre ?? '')) : ''
-  const vozElegida = voz.estado?.cuenta ? (voces[card.id] ?? vozPorDefecto) : ''
+  const vozElegida = vozPosible(voz.estado, voces[card.id] ?? '') ? voces[card.id] : ''
   // Las imágenes: con ChatGPT o con un modelo de Google Flow (`Flow.tsx`), según lo que tengas conectado.
   const hayChatGPT = useChatGPT()
   const [imagenes, setImagenes] = useStored<string>('imagenes', '')
   const flow = useFlow()
   const imagenElegida = imagenPosible(imagenes, { chatgpt: hayChatGPT, google: !!voz.estado?.cuenta || !!flow.estado?.cuentas.length })
+  // Los clips: con qué modelo de Flow se generan (`Flow.tsx`). Sin elegir, mandan los del estilo.
+  const [clips, setClips] = useStored<Record<string, string>>('clips', {})
+  const clipsElegidos = OPCIONES_CLIPS[clips[card.id] ?? ''] ? clips[card.id] : ''
   // Un archivo o un enlace soltado en cualquier parte del inicio va al mensaje.
   const soltar = useSoltar()
 
@@ -922,8 +921,31 @@ function NewSession(props: {
                 onCambio={(f) => setFormatos({ ...formatos, [card.id]: f })}
               />
             )}
+            {conFormato && (
+              <Picker
+                label={duracion ? `Duración: ${duracion}` : 'Duración: la que pida el mensaje'}
+                value={duracion}
+                groups={[
+                  { label: 'La que pida el mensaje', options: [{ value: '', label: 'La que pida el mensaje' }] },
+                  {
+                    label: 'Video',
+                    options: [
+                      { value: '10 s', label: '10 segundos' },
+                      { value: '15 s', label: '15 segundos' },
+                      { value: '30 s', label: '30 segundos' },
+                      { value: '45 s', label: '45 segundos' },
+                      { value: '1 min', label: '1 minuto' },
+                      { value: '2 min', label: '2 minutos' },
+                      { value: '3 min', label: '3 minutos' }
+                    ]
+                  }
+                ]}
+                onChange={(d) => setDuraciones({ ...duraciones, [card.id]: d })}
+              />
+            )}
             {conFormato && <SelectorVoz card={card} voz={voz} valor={vozElegida} onCambio={(v) => setVoces({ ...voces, [card.id]: v })} />}
             {conFormato && <SelectorImagenes valor={imagenElegida} hayChatGPT={hayChatGPT} voz={voz} flow={flow} onCambio={setImagenes} />}
+            {conFormato && <SelectorClips valor={clipsElegidos} onCambio={(c) => setClips({ ...clips, [card.id]: c })} />}
             {card.lote && enlaces.length > 1 && (
               <Segmento
                 label="Lote"
@@ -952,8 +974,10 @@ function NewSession(props: {
           const pide = [
             laSerie && `Serie: ${laSerie.nombre} (${laSerie.archivo}; cómo se usa, en video-base/SERIES.md)${text ? '' : '. Elige tú el tema.'}`,
             conFormato && !formatoEscrito && `Formato: ${formato}`,
-            conFormato && lineaVoz(card, vozElegida),
+            conFormato && duracion && `Duración: ${duracion} (reparte los clips de 8 s y recorta al final; video-base/DURACION.md)`,
+            conFormato && lineaVoz(card, vozElegida, nombreDeVoz(voz.estado, vozElegida)),
             conFormato && lineaImagenes(imagenElegida),
+            conFormato && clipsElegidos && lineaClips(clipsElegidos),
             // El modelo de cada subagente: lo medido, o lo que elegiste en «Avanzado». La skill lo lee aquí.
             lineaSubagentes(tareas)
           ]
@@ -971,6 +995,16 @@ function NewSession(props: {
   return (
     <div className="new-session" {...soltar.props}>
       {soltar.aviso}
+      <header className="new-session-head">
+        <div>
+          <h1>Nuevo chat</h1>
+          <p className="muted">Elige un formato para empezar a crear o escribe directamente en el compositor.</p>
+        </div>
+        <div className="new-session-acciones">
+          <AvisoAgentes />
+          <AvisoEquipo />
+        </div>
+      </header>
       {/* Arriba las skills (o, con un estilo elegido, sus videos), que hacen scroll solas; abajo la skill elegida y el
           compositor, que no se mueven de su sitio. */}
       <div className="new-top">

@@ -114,4 +114,4 @@ Remotion, que arma los videos, tiene su [propia licencia](https://www.remotion.d
 equipos pequeños; las empresas más grandes pagan la suya. Hermit no está afiliada, patrocinada ni respaldada por
 Anthropic ni por OpenAI.
 
-<p align="center"><sub>Hecho por <a href="https://myhermit.vercel.app">luchodev</a> en México</sub></p>
+<p align="center"><sub>Hecho por <a href="https://myhermit.vercel.app">luchodev</a> en Bolivia</sub></p>

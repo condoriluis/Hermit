@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { Heart, Sparkles, Crown, Download, ShieldCheck, QrCode, Check, CreditCard } from 'lucide-react'
+import { Sparkles, Crown, Download, ShieldCheck, QrCode, Check, CreditCard } from 'lucide-react'
 import CheckoutModal from './CheckoutModal'
 import { enBolivianos, precios, RESPALDO_BOB, type Plan, type Precios } from '@/lib/cobro'
 
@@ -195,13 +195,6 @@ export default function Pricing() {
             </div>
           </div>
         </div>
-
-        {p.quedan > 0 && (
-          <p className="mt-8 text-center text-xs font-mono text-warn">
-            <Heart className="w-3.5 h-3.5 inline-block mr-1" />
-            {/* Quedan {p.quedan} lugares de Fundador: las primeras personas que apoyan llevan su insignia. */}
-          </p>
-        )}
 
         {/* Payment Methods Banner */}
         <div className="mt-8 text-center flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs text-muted">

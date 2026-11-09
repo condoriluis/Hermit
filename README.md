@@ -20,23 +20,6 @@
 
 Creado y mantenido por **luchodev**. Es libre, sin costo oculto y con soporte opcional.
 
-## Ejemplos
-
-<table>
-  <tr>
-    <td align="center" width="50%">
-      <img src="docs/imagenes/el-diff.gif" alt="Un episodio de El Diff" width="270"><br>
-      <b>El Diff</b><br>
-      <sub>Noticiero vertical con fuentes, capturas, guion y portada.</sub>
-    </td>
-    <td align="center" width="50%">
-      <img src="docs/imagenes/explicativo.gif" alt="Un video explicativo" width="270"><br>
-      <b>Video explicativo</b><br>
-      <sub>Temas dinámicos en un entorno visual fluido con subtítulos sincronizados.</sub>
-    </td>
-  </tr>
-</table>
-
 ## Cómo funciona
 
 Cada formato es una **herramienta** visible en la pantalla principal:

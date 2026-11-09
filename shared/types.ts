@@ -35,6 +35,12 @@ export interface Card {
    * hace el estilo si no eliges AI Studio, cuando no es mandándola tú.
    */
   voz?: false | { propia: string }
+  /**
+   * Lo que el agente de Claude de esta card no ve: herramientas (`NotebookEdit`, `mcp__21st__bookmark`) o servidores MCP
+   * enteros (`mcp__openseo`), también los del usuario. Sale de lo que sus hilos nunca usaron: menos herramientas
+   * ofrecidas, menos contexto en cada mensaje.
+   */
+  sinHerramientas?: string[]
 }
 
 /** Un modelo con su esfuerzo. `medido` dice dónde se midió; sin él, es el de por defecto. */
@@ -1295,11 +1301,16 @@ export interface VozStudio {
   nombre: string
   descripcion: string
   grupo: string
+  /** Un MP3 o WAV público con cómo suena, si AI Studio lo da: el menú lo oye sin gastar la cuota. */
+  muestra?: string
+  /** Como la filtra AI Studio (Feminine, Masculine). */
+  genero?: 'mujer' | 'hombre'
 }
 
 /**
  * `GET /api/voz`: la cuenta de Google con que Hermit genera las voces (`null`: sin conectar), si está esperando a que
  * entres en Edge, las voces que ofrece la página y cuántas esperan su turno. `error`: lo último que falló al conectar.
+ * `motores`: los proveedores que van con una llave de API (`server/voz/apis.ts`).
  */
 export interface EstadoVoz {
   cuenta: string | null
@@ -1308,6 +1319,46 @@ export interface EstadoVoz {
   navegador: string
   voces: VozStudio[]
   enFila: number
+  error?: string
+  motores: Record<ProveedorVoz, EstadoProveedorVoz>
+}
+
+/** Los proveedores de voz con llave de API, además de AI Studio. */
+export type ProveedorVoz = 'fish' | 'elevenlabs'
+
+/**
+ * Una voz de Fish Audio o ElevenLabs. `id`: el suyo allí (en Hermit va como `fish:<id>`, `shared/voz.ts`). `propia`: una
+ * que clonaste o creaste tú; las demás son de su biblioteca.
+ */
+export interface VozApi {
+  id: string
+  nombre: string
+  descripcion: string
+  propia: boolean
+  /** Un MP3 público con cómo suena (el `preview_url` de ElevenLabs, la muestra de Fish Audio): se oye sin gastar nada. */
+  muestra?: string
+  /** Cuántas veces la han usado en su biblioteca (Fish Audio), para ordenar las de todos. */
+  usos?: number
+  /** Por qué tu plan no deja generar con ella (su muestra sí se oye): las de la biblioteca de ElevenLabs en el gratis. */
+  bloqueo?: string
+}
+
+/**
+ * El plan de tu cuenta en un proveedor (por ahora ElevenLabs, `/v1/user/subscription`): si es el gratis, si deja clonar
+ * y cuántas letras del mes llevas de cuántas.
+ */
+export interface PlanVoz {
+  gratis: boolean
+  nombre: string
+  clonar: boolean
+  letras?: { usadas: number; limite: number }
+}
+
+/** Un proveedor con llave: los cuatro últimos de la llave (`null`: sin poner) y sus voces. `error`: lo último que falló. */
+export interface EstadoProveedorVoz {
+  llave: string | null
+  voces: VozApi[]
+  plan?: PlanVoz
   error?: string
 }
 
@@ -1351,11 +1402,13 @@ export interface EstadoFlow {
   pendientes: TrabajoFlow[]
   aportar: boolean
   derechos: boolean
+  prioritaria?: string
   error?: string
 }
 
 /**
- * Una cuenta de Google en Flow. `descansa`: hasta cuándo no genera (ms) y por qué (`Motivo` de `shared/flow.ts`).
+ * Una cuenta de Google en Flow. `descansa`: hasta cuándo no genera (ms), por qué (`Motivo` de `shared/flow.ts`) y lo que
+ * dijo Flow en el último intento (`dicho`), para poder enseñar el motivo en vez de afirmarlo a ciegas.
  * `saldo`: lo que le quedaba al leerlo, sin él si aún no se leyó. `hoy`: sus videos de hoy. `queda`: lo que se le cuenta
  * ahora (`saldoVigente`, `server/flow/index.ts`); con `piso`, su número ya venció y ese es el mínimo probado hasta que
  * llegue su relectura. Es lo que suma `EstadoFlow.quedan`.
@@ -1364,7 +1417,7 @@ export interface CuentaEnFlow {
   correo: string
   deLaVoz: boolean
   generando: boolean
-  descansa?: { hasta: number; motivo: 'creditos' | 'frenada' | 'sesion' }
+  descansa?: { hasta: number; motivo: 'creditos' | 'frenada' | 'sesion' | 'navegador'; veces?: number; dicho?: string }
   saldo?: SaldoFlow
   queda?: { creditos: number; piso: boolean }
   hoy: GastoFlow
@@ -1390,12 +1443,21 @@ export interface GastoFlow {
 /**
  * Un pedido a Flow (`POST /api/flow/generar`). `archivo`: lo generado ya en su sitio; `creditos`, lo que gastó. `error`:
  * por qué no salió, dicho para el agente.
+ *
+ * `esperando` no es un fallo: ninguna cuenta puede ahora (sin créditos, frenada o sin sesión) y el pedido se queda en la
+ * fila de Hermit, que vuelve a probarlo solo a las `espera` (ms) sin que el agente tenga que reintentarlo. `aviso` dice
+ * por qué ninguna puede.
+ *
+ * `bloqueado` sí es un fallo terminal: Flow rechazó esa escena por su contenido (derechos, política) dos veces, así que
+ * Hermit no la vuelve a pedir —ni con otro prompt— y el agente la da por perdida y sigue con las demás. `aviso` lo explica.
  */
 export interface TrabajoFlow {
   id: string
-  estado: 'en-fila' | 'generando' | 'lista' | 'error'
+  estado: 'en-fila' | 'generando' | 'lista' | 'error' | 'esperando' | 'bloqueado'
   tipo: 'imagen' | 'video'
   modelo: string
+  /** Solo en Omni: la resolución elegida. Veo va siempre en 720p. */
+  resolucion?: string
   /** La cuenta de Google con que se genera o se generó. */
   cuenta?: string
   archivo?: string
@@ -1403,6 +1465,10 @@ export interface TrabajoFlow {
   /** En un video ya hecho: lo que les queda a las cuentas con su saldo al día (`EstadoFlow.quedan`). */
   quedan?: number
   error?: string
+  /** Con `esperando`: cuándo (ms) Hermit vuelve a probarlo solo. */
+  espera?: number
+  /** Con `esperando` o `bloqueado`: qué pasa, dicho para el agente. */
+  aviso?: string
   /** El hilo que lo pidió: el permiso para gastar se da por hilo. */
   hilo?: string
   /** Un video que aún no se genera porque espera que el usuario autorice el gasto. */

@@ -16,7 +16,7 @@ import { RadarOpciones } from './RadarOpciones' // radar
 import { Segmento } from './Segmento'
 import { ConNavegadorRedes, RedesOpciones } from './Redes' // redes
 import { YoutubeOpciones } from './Youtube'
-import { VozOpciones } from './Voz' // voz de AI Studio
+import { useVoz, VozOpciones } from './Voz' // voz
 import { FlowOpciones } from './Flow' // Google Flow
 import { VENTA } from '../../shared/venta'
 import './Opciones.css'
@@ -39,6 +39,8 @@ export function Opciones({ onDone }: { onDone(): void }) {
 
 function Ajustes({ onDone, iniciando, onIniciando }: { onDone(): void; iniciando: boolean; onIniciando(si: boolean): void }) {
   const req = useRequisitos(true)
+  // Uno para Voz y Google Flow: la cuenta de la voz también genera en Flow, y quitarla en uno la quita en el otro.
+  const voz = useVoz()
   return (
     <div className="opciones">
       <button className="ghost" onClick={onDone}>
@@ -83,14 +85,14 @@ function Ajustes({ onDone, iniciando, onIniciando }: { onDone(): void; iniciando
           <CuentaAgente key={p} p={p} />
         ))}
       </Grupo>
-      <Grupo titulo="Voz" nota="Al pedir un video eliges en «Voz» si la mandas tú o si el agente la genera aquí. La sesión de Google vive en un perfil aparte del navegador de Hermit: ningún agente la usa.">
-        <VozOpciones />
+      <Grupo titulo="Voz" nota="Al pedir un video eliges en «Voz» si la mandas tú o si el agente la genera con una de estas. La sesión de Google vive en un perfil aparte del navegador de Hermit, que ningún agente usa; las llaves, en tu usuario de esta computadora.">
+        <VozOpciones voz={voz} />
       </Grupo>
       <Grupo
         titulo="Google Flow"
         nota="Los agentes generan imágenes y videos con tus cuentas de Google: la de la Voz y las que agregues aquí, hasta 50. Las imágenes son gratis; los videos gastan créditos de Flow, y si una cuenta se queda sin ellos, Hermit sigue con otra. Agrega solo cuentas tuyas: Google puede limitar o bloquear las que usa de más."
       >
-        <FlowOpciones />
+        <FlowOpciones voz={voz} />
       </Grupo>
       {/* Solo sirven a Ideas: sin la de YouTube, las recomendaciones van con el canal conectado. */}
       {!VENTA && (

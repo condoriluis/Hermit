@@ -26,6 +26,9 @@ dist
 # Un repo aparte que comparta esta carpeta, para respaldar lo de arriba.
 /.privado.git/
 
+# El notario Sloth↔Hermit: por ahora solo local, no se sube al repo (decisión del usuario, 2026-11-08).
+/docs/agents/sloth-y-hermit.md
+
 # La página de venta (landing/): su compilado y lo que no debe subir.
 .next/
 .vercel/

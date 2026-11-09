@@ -199,7 +199,7 @@ export default function Pricing() {
         {p.quedan > 0 && (
           <p className="mt-8 text-center text-xs font-mono text-warn">
             <Heart className="w-3.5 h-3.5 inline-block mr-1" />
-            Quedan {p.quedan} lugares de Fundador: las primeras personas que apoyan llevan su insignia.
+            {/* Quedan {p.quedan} lugares de Fundador: las primeras personas que apoyan llevan su insignia. */}
           </p>
         )}
 

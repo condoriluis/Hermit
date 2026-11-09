@@ -123,6 +123,7 @@ const sessions = new Sessions(
 /** Si el hilo tiene estudio (su card declara `etapas`): solo ahí se enseña lo que va escribiendo. */
 const conEtapas = (id: string) => !!cards().find((c) => c.id === sessions.meta(id)?.cardId)?.etapas?.length
 sessions.esVideo = (meta) => esDeVideo(cards().find((c) => c.id === meta.cardId))
+sessions.sinHerramientas = (meta) => cards().find((c) => c.id === meta.cardId)?.sinHerramientas
 // Mientras un video trabaja, Whisper se queda cargado: el primero que empieza lo carga, antes de que sus agentes llenen la memoria.
 setInterval(() => {
   if (sessions.videosTrabajando()) void mantenerVoz(SKILLS)

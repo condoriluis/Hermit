@@ -68,7 +68,8 @@ Este es el mapa:
   (`lote-MMDD-HHMM-NN`, ver `skills/video-base/LOTE.md`). Cambiar la carpeta desde el estudio usa una que ya existe.
   Todo estilo de video hace vertical y horizontal: el compositor manda la línea `Formato:` (`skills/video-base/FORMATO.md`).
 - `modelos` (`web/src/Modelos.tsx`): en «Optimizado», el modelo y el esfuerzo medidos para el hilo y sus subagentes
-  (los de los subagentes van en la línea `Subagentes:`). Una card sin medir
+  (los de los subagentes van en la línea `Subagentes:`). La excepción es el `guionista` del explicativo
+  (`server/claude.ts`), que va en Opus. Una card sin medir
   usa lo último que eligió el usuario a mano. En «Avanzado» se elige cada uno.
 - Las galerías: `Piezas.tsx` pide todas las piezas terminadas (`GET /api/piezas`) y cada una enseña las de su tipo
   (`deTipo`): «Mis videos» (`MisVideos.tsx`), «Mis imágenes» (`MisImagenes.tsx`) y «Mis artículos» (`MisArticulos.tsx`),

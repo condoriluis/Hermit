@@ -90,6 +90,18 @@ function ultimoTexto(events: AgentEvent[]): string {
   return events.map((e) => (e.t === 'text' && e.id === ultimo.id ? e.delta : '')).join('')
 }
 
+/**
+ * Cuándo pidió esperar el agente en su última herramienta, si lo dijo: el MCP de Flow acaba su salida con
+ * `(espera <ms>)`, la hora a la que Hermit vuelve a probar solo. Sin eso, el hilo se despertaría a los `CALMA` y el
+ * agente volvería a preguntar por un clip que aún duerme horas.
+ */
+function esperaDeFlow(events: AgentEvent[]): number | null {
+  const ultimo = events.findLast((e) => e.t === 'tool_update' && e.output)
+  if (ultimo?.t !== 'tool_update' || !ultimo.output) return null
+  const ms = Number(/(?:espera|wait)\s+(\d{10,})/i.exec(ultimo.output)?.[1])
+  return ms && ms > Date.now() ? ms : null
+}
+
 /** Los mensajes del final del hilo que el agente no llegó a leer: después de ellos no hay nada suyo. */
 function sinLeer(events: AgentEvent[]): Mensaje[] {
   const mensajes: Mensaje[] = []
@@ -113,6 +125,8 @@ export class Sessions {
   private compactando = new Set<string>()
   /** Si el hilo hace un video: lo decide su card, que este módulo no conoce. */
   esVideo: (meta: SessionMeta) => boolean = () => false
+  /** Lo que su card no le ofrece al agente (`Card.sinHerramientas`). */
+  sinHerramientas: (meta: SessionMeta) => string[] | undefined = () => undefined
 
   constructor(
     private dir: string,
@@ -558,6 +572,8 @@ export class Sessions {
     // El bloque `<opciones>` va detrás de la pregunta, así que se quita antes de mirar si el turno acaba preguntando algo.
     const cierre = partirOpciones(ultimoTexto(turno)).texto
     if (!suyas.length || suyas.some((e) => e.t === 'tool' && PREGUNTAS.test(e.name)) || /\?[\s*_`)"»]*$/.test(cierre)) return
+    // Si el agente dijo que Flow lo reintenta solo, se le despierta a esa hora y no a los `CALMA`.
+    const espera = esperaDeFlow(turno)
     clearTimeout(this.aMedias.get(id))
     const reloj = setTimeout(() => {
       this.aMedias.delete(id)
@@ -579,7 +595,7 @@ export class Sessions {
         meta,
         `Cerraste tu turno, pero el video aún no está terminado: en su carpeta falta ${falta.join(', ')}. Sigue sin preguntar hasta terminarlo. Si una comprobación falla, arregla lo que dice y vuelve a probar; no cierres el turno con un borrador. Para solo si necesitas algo que únicamente puede darte el usuario, y entonces pídeselo con una pregunta.`
       )
-    }, CALMA)
+    }, espera ? Math.max(CALMA, espera - Date.now()) : CALMA)
     reloj.unref()
     this.aMedias.set(id, reloj)
   }
@@ -632,6 +648,7 @@ export class Sessions {
       lote: !!meta.lote,
       hilo: meta.id,
       conLlave,
+      sinHerramientas: this.sinHerramientas(meta),
       onEvent: (event) => this.emit(meta.id, event),
       onDraft: (draft) => this.pushDraft(meta.id, draft),
       // Un proceso muerto no recibe nada: se olvida, y el siguiente mensaje abre otro que retoma la sesión. Si se cayó,

@@ -173,7 +173,8 @@ def main() -> None:
 
     out_dir = dir_proy / "out"
     out_dir.mkdir(parents=True, exist_ok=True)
-    salida = out_dir / f"reddit-{dir_proy.name}.mp4"
+    salida_nombre = dir_proy.name if dir_proy.name.startswith("reddit-") else f"reddit-{dir_proy.name}"
+    salida = out_dir / f"{salida_nombre}.mp4"
 
     # Preparar filtros de FFmpeg
     # 1. Escalar y recortar fondo a ancho x alto
@@ -182,7 +183,7 @@ def main() -> None:
     ass_escaped = str(ass_path).replace("\\", "/").replace(":", "\\:")
 
     filter_complex = [
-        f"[0:v]scale={ancho}:{alto}:force_original_aspect_ratio=increase,crop={ancho}:{alto},setsar=1[vbg]",
+        f"[0:v]scale={ancho}:{alto}:force_original_aspect_ratio=increase,crop={ancho}:{alto},setsar=1,format=yuv420p[vbg]",
     ]
 
     curr_v = "[vbg]"
@@ -204,26 +205,22 @@ def main() -> None:
         )
         curr_v = "[vov]"
 
-    filter_complex.append(f"{curr_v}subtitles='{ass_escaped}':charenc=UTF-8[vout]")
-
-    cmd = ["ffmpeg", "-nostdin", "-y", "-v", "error", *inputs]
+    filter_complex.append(f"{curr_v}subtitles='{ass_escaped}':charenc=UTF-8,format=yuv420p[vout]")
 
     if musica:
         inputs.extend(["-stream_loop", "-1", "-i", str(musica)])
         musica_idx = input_count
-        cmd.extend([
-            "-filter_complex",
-            ";".join(filter_complex) + f";[1:a]volume=1.0[ava];[{musica_idx}:a]volume=0.12[abg];[ava][abg]amix=inputs=2:duration=first[aout]",
-            "-map", "[vout]",
-            "-map", "[aout]",
-        ])
+        filter_complex.append(f"[1:a]volume=1.0,aformat=channel_layouts=stereo[ava];[{musica_idx}:a]volume=0.08,aformat=channel_layouts=stereo[abg];[ava][abg]amix=inputs=2:duration=first:normalize=0,loudnorm=I=-14:TP=-1.5:LRA=11[aout]")
+        audio_map = "[aout]"
     else:
-        cmd.extend([
-            "-filter_complex",
-            ";".join(filter_complex),
-            "-map", "[vout]",
-            "-map", f"{audio_idx}:a",
-        ])
+        audio_map = f"{audio_idx}:a"
+
+    cmd = [
+        "ffmpeg", "-nostdin", "-y", "-v", "error", *inputs,
+        "-filter_complex", ";".join(filter_complex),
+        "-map", "[vout]",
+        "-map", audio_map,
+    ]
 
     cmd.extend([
         "-t", f"{dur:.2f}",
@@ -233,6 +230,13 @@ def main() -> None:
         "-pix_fmt", "yuv420p",
         "-c:a", "aac",
         "-b:a", "192k",
+        "-ar", "48000",
+        "-ac", "2",
+        "-color_range", "tv",
+        "-colorspace", "bt709",
+        "-color_primaries", "bt709",
+        "-color_trc", "bt709",
+        "-movflags", "+faststart",
         str(salida),
     ])
 
@@ -241,9 +245,7 @@ def main() -> None:
 
     # Si es vertical y existe portada, adherirla de primer fotograma (PORTADA.md de video-base)
     portada_img = next((dir_proy / p for p in ["portada.png", "public/portada.png", "portada/portada.jpg", "portada/portada.png"] if (dir_proy / p).exists()), None)
-    base_portada = dir_proy.parents[2] / "skills" / "video-base" / "scripts" / "portada.mjs"
-    if not base_portada.exists():
-        base_portada = Path(__file__).resolve().parents[2] / "video-base" / "scripts" / "portada.mjs"
+    base_portada = BASE / "portada.mjs"
     if vertical and portada_img and base_portada.exists():
         subprocess.run(["node", str(base_portada), str(salida), str(portada_img)], check=False)
 
@@ -252,4 +254,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

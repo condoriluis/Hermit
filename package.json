@@ -14,6 +14,7 @@
     "comprobar-colores": "node scripts/comprobar-colores.mjs",
     "comprobar-skills": "node scripts/comprobar-skills.mjs",
     "hilo": "node scripts/hilo.mjs",
+    "medir-videos": "node scripts/medir-videos.mjs",
     "redes": "node --import tsx scripts/redes.ts",
     "nube": "node scripts/nube.mjs",
     "licencias": "node scripts/nube.mjs --licencias",

@@ -1,17 +1,17 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { dirname, isAbsolute, join, resolve } from 'node:path'
+import { dirname, basename, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { McpStdioServerConfig } from '@anthropic-ai/claude-agent-sdk'
 import type { Browser } from 'playwright-core'
-import { A_LA_VEZ, DESCANSO, elegirCuenta, FORMATOS_IMAGEN, FORMATOS_VIDEO, type Motivo, MODELOS_IMAGEN, MODELOS_VIDEO, motivoDeAviso, PERMISO_CREDITOS, PERMISO_MS, puede, type Saldo, saldoVigente as vigente, tipoDeArchivo, TOPE_CREDITOS, VIDEO_MAS_BARATO } from '../../shared/flow.ts'
+import { A_LA_VEZ, AVISO_FRENADA, CALMA, type Descanso, descansoNuevo, elegirCuenta, esFalloDeNavegador, esOmni, esRechazoDeContenido, espacioEntrePedidos, FORMATOS_IMAGEN, FORMATOS_VIDEO, type Motivo, MODELOS_IMAGEN, MODELOS_VIDEO, motivoDeDescanso, PAUSA_CUENTA, PERMISO_CREDITOS, PERMISO_MS, puede, RECHAZOS_PARA_BLOQUEAR, RECUERDA_RECHAZO, RESOLUCIONES_OMNI, type Saldo, saldoVigente as vigente, tipoDeArchivo, TOPE_CREDITOS, VIDEO_MAS_BARATO } from '../../shared/flow.ts'
 import type { EstadoFlow, GastoFlow, SaldoFlow, TrabajoFlow } from '../../shared/types.ts'
 import { VENTA } from '../../shared/venta.ts'
 import { guardar } from '../disco.ts'
 import { cuerpo, json } from '../http.ts'
 import { type CuentaFlow, cuentasFlow, nombreNavegador } from './cuentas.ts'
-import { generarEnFlow, leerSaldo, paginaFlow, ponerAportar, saldoEnFlow, SinEmpezar, URL_FLOW } from './pagina.ts'
+import { FalloNavegador, generarEnFlow, leerSaldo, paginaFlow, ponerAportar, Rechazado, saldoEnFlow, SinEmpezar, URL_FLOW } from './pagina.ts'
 
 /**
  * Las imágenes (Nano Banana) y los videos (Veo) de Google Flow, en las cuentas de Google del usuario, como los generaría
@@ -20,9 +20,16 @@ import { generarEnFlow, leerSaldo, paginaFlow, ponerAportar, saldoEnFlow, SinEmp
  * Genera con la cuenta de la voz (`server/voz/`, en su Edge y en su turno) y con las que se agreguen en Opciones
  * (`cuentas.ts`, cada una en su Edge), hasta `A_LA_VEZ` a la vez. Cada pedido va a la cuenta libre que lleva más sin
  * generar (`elegirCuenta`), para gastar parejo. Si Flow no lo empieza (sin créditos, frenada, sin sesión) no gastó: la
- * cuenta descansa (`descansos`) y el pedido pasa a otra que no lo haya probado. Si ninguna puede, falla diciendo cuándo
- * vuelven. La sesión de Google no la tiene ningún agente. Lo generado queda en un proyecto de Flow para Hermit
+ * cuenta descansa (`descansos`) y el pedido pasa a otra que no lo haya probado. Si ninguna puede, el pedido no falla:
+ * queda esperando (`esperando`) y Hermit lo reintenta solo (`despertar`) cuando la primera se libere, porque un agente no
+ * tiene con qué esperar tres horas y reintentarlo a cada rato solo lo deja dando vueltas. La sesión de Google no la tiene
+ * ningún agente. Lo generado queda en un proyecto de Flow para Hermit
  * (`proyectos`, uno por cuenta), y lo que dura cada pedido está en `pagina.ts`.
+ *
+ * Si Flow rechaza el pedido por su contenido (derechos, política de Google) no gasta y no es cosa de la cuenta: se apunta
+ * por escena (su `salida`) y, a la segunda vez, la escena queda bloqueada (`bloqueado`) y no se vuelve a pedir ni con otro
+ * prompt. Eso es lo que corta el bucle: un agente puede reformular un prompt de derechos cien veces y ninguna va a
+ * funcionar, así que quién para lo decide Hermit, no el modelo.
  *
  * Gasta los créditos del usuario, y por eso: cada pedido lee el costo antes de generar y no pasa de `tope`; si no cambió
  * nada desde el último archivo de esa ruta (`.huella`), no pide nada, y uno igual que ya está en fila no se repite.
@@ -48,10 +55,12 @@ type Trabajo = TrabajoFlow & {
   huella: string
   tope: number
   formato: string
+  resolucion?: string
   referencias: string[]
   cuadros: string[]
   /** Las cuentas donde Flow no lo empezó, y lo último que dijo. */
   probadas: string[]
+  cuentaPreferida?: string
   ultimo?: string
   /** Cuándo se pidió: un permiso que nadie contesta vence. */
   creado: number
@@ -60,10 +69,13 @@ interface Ajustes {
   aportar?: boolean
   derechos?: string
   proyectos?: Record<string, string>
-  descansos?: Record<string, { hasta: number; motivo: Motivo }>
+  descansos?: Record<string, Descanso>
   saldos?: Record<string, SaldoFlow>
   /** Por día (AAAA-MM-DD, del equipo) y por cuenta, los videos hechos y sus créditos. */
   uso?: Record<string, Record<string, GastoFlow>>
+  /** Por escena (su `salida`, ruta absoluta), los rechazos de Flow por su contenido: cuándo fue el último y cuántos. */
+  rechazos?: Record<string, { veces: number; ultimo: number }>
+  prioritaria?: string
 }
 /** Lo que Flow toma de la voz (`voz()`): su cuenta de Google y su Edge. */
 export interface Google {
@@ -77,7 +89,7 @@ const VENCE_PERMISO = 15 * 60_000
 const SIN_CUENTA = 'No hay cuenta de Google conectada: que el usuario conecte una en Opciones → Voz o agregue una en Opciones → Google Flow.'
 const SIN_DERECHOS = 'Para mandar imágenes a Flow (referencias o fotogramas), el usuario debe confirmar que tiene sus derechos, en Opciones → Google Flow. No se generó nada.'
 const IMAGEN = /\.(png|jpe?g|webp)$/i
-const POR_QUE: Record<Motivo, string> = { creditos: 'sin créditos de video', frenada: 'Flow la frenó por pedir mucho', sesion: 'perdió la sesión' }
+const POR_QUE: Record<Motivo, string> = { creditos: 'sin créditos de video', frenada: 'Flow la frenó por pedir mucho', sesion: 'perdió la sesión', navegador: 'fallo del navegador (reintentando)' }
 const hora = (ms: number) => new Date(ms).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
 const dia = (ms: number) => new Date(ms).toLocaleDateString('sv')
 /** Los días de `uso` que se guardan. */
@@ -112,21 +124,31 @@ export function flow(app: string, google: Google) {
   /** Las cuentas que están generando, y cuándo empezó cada una su último pedido. */
   const ocupadas = new Set<string>()
   const usada = new Map<string, number>()
+  /** Cuándo acabó cada cuenta su último pedido: durante su pausa cuenta como ocupada. */
+  const acabo = new Map<string, number>()
   /** Las cuentas donde ya se puso `aportar` desde que arrancó el servidor, con su valor. */
   const aplicado = new Map<string, boolean>()
+  /** Cuándo puede empezar el siguiente pedido, y hasta cuándo se va con calma tras una frenada. */
+  let siguiente = 0
+  let calmaHasta = 0
 
   const usos = (ahora: number) =>
     cuentas().map((c) => {
       const d = ajustes.descansos?.[c.correo]
-      return { correo: c.correo, ocupada: ocupadas.has(c.correo), usada: usada.get(c.correo) ?? 0, descansa: d && d.hasta > ahora ? d : undefined }
+      const saldo = saldoVigente(c.correo, ahora)
+      const sinCreditosVideo = saldo && !saldo.piso && saldo.creditos < VIDEO_MAS_BARATO
+      const ocupada = ocupadas.has(c.correo) || (acabo.get(c.correo) ?? 0) + PAUSA_CUENTA > ahora
+      const descansaEfectivo = d && d.hasta > ahora ? d : sinCreditosVideo ? { hasta: ajustes.saldos?.[c.correo]?.renueva ?? ahora + 3600_000, motivo: 'creditos' as Motivo } : undefined
+      return { correo: c.correo, ocupada, usada: usada.get(c.correo) ?? 0, descansa: descansaEfectivo }
     })
 
-  /** Sin créditos, descansa hasta que se renueven, si se sabe cuándo. */
-  function descansar(correo: string, motivo: Motivo) {
+  /** Sin créditos, descansa hasta que se renueven, si se sabe cuándo. Una frenada (de Google) calma a todas: Google las ve juntas. */
+  function descansar(correo: string, motivo: Motivo, dicho?: string) {
     const ahora = Date.now()
-    const renueva = ajustes.saldos?.[correo]?.renueva
-    const hasta = motivo === 'creditos' && renueva && renueva > ahora ? renueva : ahora + DESCANSO[motivo]
-    ajustes.descansos = { ...ajustes.descansos, [correo]: { hasta, motivo } }
+    ajustes.descansos = { ...ajustes.descansos, [correo]: descansoNuevo(motivo, ahora, ajustes.descansos?.[correo], ajustes.saldos?.[correo]?.renueva, dicho) }
+    // Solo las frenadas reales de Google activan la calma global (frenar todas 60 min).
+    // Los fallos de navegador ('navegador') son internos de Playwright: no es que Google esté viendo "actividad inusual".
+    if (motivo === 'frenada') calmaHasta = ahora + CALMA
     guardarAjustes()
   }
 
@@ -143,18 +165,33 @@ export function flow(app: string, google: Google) {
     guardarAjustes()
   }
 
-  function apuntarUso(correo: string, creditos: number) {
+  /** `videos`: 0 si Flow lo rechazó y aun así cobró. */
+  function apuntarUso(correo: string, creditos: number, videos = 1) {
     const hoy = dia(Date.now())
     const desde = dia(Date.now() - DIAS_DE_USO * 86_400_000)
     const uso = Object.fromEntries(Object.entries(ajustes.uso ?? {}).filter(([d]) => d >= desde))
-    uso[hoy] = { ...uso[hoy], [correo]: sumar(uso[hoy]?.[correo] ?? NADA, { videos: 1, creditos }) }
+    uso[hoy] = { ...uso[hoy], [correo]: sumar(uso[hoy]?.[correo] ?? NADA, { videos, creditos }) }
     ajustes.uso = uso
     guardarAjustes()
   }
 
+  /** Las veces que Flow rechazó por contenido esta escena (su `salida`), de los rechazos que aún se recuerdan. */
+  const rechazosDe = (salida: string, ahora: number) => {
+    const r = ajustes.rechazos?.[salida]
+    return r && ahora - r.ultimo < RECUERDA_RECHAZO ? r.veces : 0
+  }
+
+  /** Apunta un rechazo por contenido de esa escena y dice cuántos van. Los viejos se olvidan: esto no crece sin fin. */
+  function apuntarRechazo(salida: string, ahora: number): number {
+    const deAntes = Object.fromEntries(Object.entries(ajustes.rechazos ?? {}).filter(([, r]) => ahora - r.ultimo < RECUERDA_RECHAZO))
+    const veces = (deAntes[salida]?.veces ?? 0) + 1
+    ajustes.rechazos = { ...deAntes, [salida]: { veces, ultimo: ahora } }
+    guardarAjustes()
+    return veces
+  }
+
   /** Lo que la cuenta tiene ahora, de lo último que se leyó (`saldoVigente`, en `shared/flow.ts`). */
   const saldoVigente = (correo: string, ahora: number) => vigente(ajustes.saldos?.[correo], ahora)
-
   /** Lo que queda entre las cuentas, con lo que se sabe de cada una: las reiniciadas cuentan su piso. */
   const quedan = (ahora: number) => cuentas().reduce((n, c) => n + (saldoVigente(c.correo, ahora)?.creditos ?? 0), 0)
 
@@ -189,19 +226,28 @@ export function flow(app: string, google: Google) {
     if (p.gastado >= p.creditos) permisos.delete(t.hilo)
   }
 
+  /** Las cuentas que no pueden con `t` ahora por estar descansando. */
+  const descansando = (t: Trabajo, ahora: number) => usos(ahora).filter((c) => !puede(c, t.tipo, ahora) && c.descansa)
+
+  /** Cuándo vuelve a poder alguna de las que descansan, o `null` si no hay ninguna descansando. */
+  function cuandoVuelven(t: Trabajo, ahora: number): number | null {
+    const d = descansando(t, ahora)
+    return d.length ? Math.min(...d.map((c) => c.descansa!.hasta)) : null
+  }
+
   /** Por qué ninguna cuenta puede con `t` ahora, dicho para el agente. */
   function porQueNinguna(t: Trabajo): string {
     const ahora = Date.now()
-    const descansan = usos(ahora).filter((c) => !puede(c, t.tipo, ahora) && c.descansa)
-    const vuelve = Math.min(...descansan.map((c) => c.descansa!.hasta))
-    const cuales = descansan.map((c) => `${c.correo} (${POR_QUE[c.descansa!.motivo]})`).join(', ')
+    const cuales = descansando(t, ahora).map((c) => `${c.correo} (${POR_QUE[c.descansa!.motivo]})`).join(', ')
     const antes = t.ultimo ? `${t.ultimo} ` : ''
-    return `${antes}Ninguna cuenta de Google puede generarlo ahora${cuales ? `: ${cuales}` : ''}.${descansan.length ? ` Vuelven a probar desde las ${hora(vuelve)}.` : ''} No se gastó nada. Para tener más, el usuario puede agregar cuentas en Opciones → Google Flow.`
+    return `${antes}Ninguna cuenta de Google puede generarlo ahora${cuales ? `: ${cuales}` : ''}. No se gastó nada.`
   }
 
   async function generar(t: Trabajo, c: CuentaFlow) {
     t.estado = 'generando'
     t.cuenta = c.correo
+    delete t.espera
+    delete t.aviso
     const bajada = join(descargas, t.id)
     try {
       await c.enEdge(async (b) => {
@@ -210,25 +256,31 @@ export function flow(app: string, google: Google) {
           if ((t.referencias.length || t.cuadros.length) && !ajustes.derechos) throw new Error(SIN_DERECHOS)
           // Los videos gastan: con el saldo viejo o sin leer no se sabe si le alcanza, y se lee antes de gastar (leer no
           // gasta). Si no le queda ni para el video más barato, el pedido pasa a otra cuenta sin perder el intento.
+          let saldoAntes: Saldo | null = null
           if (t.tipo === 'video') {
             const visto = saldoVigente(c.correo, Date.now())
-            if (!visto || visto.piso) {
-              const s = await saldoEnFlow(page)
-              apuntarSaldo(c.correo, s)
-              if (s && s.creditos < VIDEO_MAS_BARATO) throw new SinEmpezar(`${c.correo} ya no tiene créditos para video (le quedan ${s.creditos}).`, 'sin créditos')
+            if (visto && !visto.piso && visto.creditos < VIDEO_MAS_BARATO) {
+              descansar(c.correo, 'creditos')
+              throw new SinEmpezar(`${c.correo} ya no tiene créditos para video (le quedan ${visto.creditos}).`)
             }
+            // Se lee en el inicio de Flow, antes de preparar: así su menú no queda abierto encima del compositor y el
+            // saldo es fresco para medir lo que gaste un rechazo.
+            saldoAntes = await saldoEnFlow(page)
+            apuntarSaldo(c.correo, saldoAntes)
+            if (!saldoAntes) throw new FalloNavegador(`${c.correo}: no se pudo leer su saldo y no se gasta a ciegas.`)
+            if (saldoAntes.creditos < VIDEO_MAS_BARATO) throw new SinEmpezar(`${c.correo} ya no tiene créditos para video (le quedan ${saldoAntes.creditos}).`)
           }
           const aportar = ajustes.aportar === true
           if (aplicado.get(c.correo) !== aportar) {
             await ponerAportar(page, aportar)
             aplicado.set(c.correo, aportar)
           }
-          const pedido = { tipo: t.tipo, prompt: t.prompt, formato: t.formato, modelo: t.modelo, tope: t.tope, referencias: t.referencias, cuadros: t.cuadros }
+          const pedido = { tipo: t.tipo, prompt: t.prompt, formato: t.formato, modelo: t.modelo, resolucion: t.resolucion, tope: t.tope, referencias: t.referencias, cuadros: t.cuadros }
           const hecho = await generarEnFlow(b, page, ajustes.proyectos?.[c.correo], pedido, bajada, (proyecto) => {
             if (ajustes.proyectos?.[c.correo] === proyecto) return
             ajustes.proyectos = { ...ajustes.proyectos, [c.correo]: proyecto }
             guardarAjustes()
-          })
+          }, saldoAntes)
           if (tipoDeArchivo(readFileSync(hecho.archivo)) !== t.tipo) throw new Error('Lo que bajó de Flow no es lo pedido (¿se fue la sesión?).')
           mkdirSync(dirname(t.salida), { recursive: true })
           copyFileSync(hecho.archivo, t.salida)
@@ -251,21 +303,53 @@ export function flow(app: string, google: Google) {
         }
       })
     } catch (e) {
-      if (e instanceof SinEmpezar) {
+      const frenada = (e instanceof Rechazado && AVISO_FRENADA.test(e.aviso)) || (e instanceof SinEmpezar && AVISO_FRENADA.test(e.message))
+      if (e instanceof Rechazado) {
+        if (e.saldo) apuntarSaldo(c.correo, e.saldo)
+        if (e.gasto) apuntarUso(c.correo, e.gasto, 0)
+        if (frenada) descansar(c.correo, 'frenada', e.aviso || mensaje(e))
+      }
+      // Un fallo de la página (Playwright: clic tapado, timeout, pestaña cerrada) sin créditos gastados no es una frenada
+      // de Google: descansa solo esta cuenta unos minutos ('navegador'), sin calma global, y el pedido sigue con otra.
+      const falloNavegador = !t.creditos && !frenada && (e instanceof FalloNavegador || (!(e instanceof Rechazado) && esFalloDeNavegador(mensaje(e))))
+      if (falloNavegador) {
+        descansar(c.correo, 'navegador', mensaje(e))
+      } else if (e instanceof SinEmpezar) {
         // No gastó: la cuenta descansa y el pedido vuelve al frente de la fila, para otra.
-        descansar(c.correo, e.sesion ? 'sesion' : motivoDeAviso(e.aviso, t.tipo))
+        const motivo = frenada ? 'frenada' : motivoDeDescanso(t.tipo, !!e.sesion, saldoVigente(c.correo, Date.now()))
+        descansar(c.correo, motivo, mensaje(e))
+      }
+      // Si no empezó, si falló el navegador antes de generar, o si fue frenada sin gasto confirmado de créditos: se
+      // reencola limpiamente para que continúe con la siguiente cuenta.
+      const sinGastoConfirmado = e instanceof SinEmpezar || falloNavegador || (frenada && e instanceof Rechazado && (e.gasto === 0 || e.gasto === null))
+      if (sinGastoConfirmado) {
         t.probadas.push(c.correo)
-        t.ultimo = `${c.correo}: ${e.message}`
+        t.ultimo = `${c.correo}: ${mensaje(e)}`
         t.estado = 'en-fila'
         t.cuenta = undefined
         fila.unshift(t)
+      } else if (e instanceof Rechazado && esRechazoDeContenido(frenada, e.gasto) && apuntarRechazo(t.salida, Date.now()) >= RECHAZOS_PARA_BLOQUEAR) {
+        // Flow le dijo que no dos veces a esta escena por su contenido: es cosa de lo que se le pide, no de la cuenta.
+        // Hermit la deja, y el agente sigue con las demás: reintentarla solo daría vueltas (es lo que pasaba con una
+        // premisa con derechos de autor, que se reformulaba sin fin).
+        t.estado = 'bloqueado'
+        t.aviso = `Flow rechazó dos veces esta escena por su contenido (derechos o política de Google): ${mensaje(e)} Hermit no la vuelve a pedir; cambia la escena u omítela y sigue con las demás.`
       } else {
         t.estado = 'error'
-        t.error = mensaje(e)
+        t.error = e instanceof Rechazado ? `${mensaje(e)} ${cuantoGasto(e, frenada)}` : mensaje(e)
       }
     } finally {
+      acabo.set(c.correo, Date.now())
       rmSync(bajada, { recursive: true, force: true })
     }
+  }
+
+  /** Lo que se le dice al agente de un pedido rechazado: si gastó y si puede pedirlo otra vez. */
+  function cuantoGasto(e: Rechazado, frenada: boolean): string {
+    const descanso = frenada ? ' Flow frenó esa cuenta: descansa un rato y los pedidos siguientes van más despacio.' : ''
+    if (e.gasto === 0) return `Flow no aceptó lo que se le pidió (derechos, política de contenido) y no gastó créditos: cámbialo de verdad y pídelo una última vez; si vuelve a caer, Hermit deja esa escena y sigue con las demás.${descanso}`
+    if (e.gasto) return `Flow cobró ${e.gasto} créditos aunque no lo hizo. No lo pidas otra vez sin decírselo al usuario.${descanso}`
+    return `No se pudo comprobar si gastó créditos. No lo pidas otra vez sin decírselo al usuario.${descanso}`
   }
 
   let leyendo = false
@@ -292,7 +376,7 @@ export function flow(app: string, google: Google) {
         })
         apuntarSaldo(c.correo, s)
       } catch (e) {
-        if (e instanceof SinEmpezar && e.sesion) descansar(c.correo, 'sesion')
+        if (e instanceof SinEmpezar && e.sesion) descansar(c.correo, 'sesion', mensaje(e))
       }
     }
     try {
@@ -306,43 +390,107 @@ export function flow(app: string, google: Google) {
     }
   }
 
-  /** Reparte lo que hay en fila entre las cuentas libres, en orden. Lo que ninguna puede hacer, falla. */
+  /** El momento en que Hermit vuelve a repartir por su cuenta, para no armar más de un reloj a la vez. */
+  let despiertaEn: number | null = null
+  let reloj: ReturnType<typeof setTimeout> | null = null
+
+  /**
+   * Que Hermit vuelva a repartir cuando la primera cuenta que descansa se libere. Los pedidos que esperan por eso no
+   * fallan: un agente no tiene con qué esperar tres horas, así que esperar es cosa de aquí. Se arma un solo reloj, el más
+   * próximo, y no sostiene el proceso (`unref`).
+   */
+  function despertar(hasta: number) {
+    if (despiertaEn !== null && despiertaEn <= hasta) return
+    if (reloj) clearTimeout(reloj)
+    despiertaEn = hasta
+    reloj = setTimeout(() => {
+      reloj = null
+      despiertaEn = null
+      for (const t of fila) {
+        if (t.estado !== 'esperando') continue
+        // Se olvida que ya se les probó: vuelven a contar todas, y se reparte de nuevo.
+        t.estado = 'en-fila'
+        t.probadas = []
+        delete t.espera
+        delete t.aviso
+      }
+      repartir()
+    }, Math.max(0, hasta - Date.now()))
+    reloj.unref()
+  }
+
+  /** Vuelve a repartir en `ms`, si hay algo en fila (una pausa o el espacio entre pedidos lo detuvo). */
+  let relojPaso: ReturnType<typeof setTimeout> | null = null
+  function repartirEn(ms: number) {
+    if (relojPaso) clearTimeout(relojPaso)
+    relojPaso = fila.some((t) => t.estado !== 'esperando') ? setTimeout(() => ((relojPaso = null), repartir()), Math.max(1000, ms)) : null
+    relojPaso?.unref()
+  }
+
+  /**
+   * Reparte lo que hay en fila entre las cuentas libres, en orden y de uno en uno, con su espacio entre pedidos. Lo que
+   * ninguna puede, espera: lo reintenta `despertar`.
+   */
   function repartir() {
+    const ahora = Date.now()
+    const calma = calmaHasta > ahora
     for (const t of [...fila]) {
-      if (ocupadas.size >= A_LA_VEZ) return
-      const ahora = Date.now()
-      const elegida = elegirCuenta(usos(ahora), t.tipo, ahora, t.probadas)
+      if (ocupadas.size >= (calma ? 1 : A_LA_VEZ)) return
+      const preferida = t.cuentaPreferida ?? ajustes.prioritaria
+      const elegida = elegirCuenta(usos(ahora), t.tipo, ahora, t.probadas, preferida)
       if (elegida === 'esperar') continue
-      fila.splice(fila.indexOf(t), 1)
       if (elegida === 'ninguna') {
-        t.estado = 'error'
-        t.error = porQueNinguna(t)
+        const vuelven = cuandoVuelven(t, ahora)
+        // Sin cuentas descansando no hay a quién esperar: eso sí es un fallo (p. ej. ninguna agregada).
+        if (vuelven === null) {
+          fila.splice(fila.indexOf(t), 1)
+          t.estado = 'error'
+          t.error = `${porQueNinguna(t)} Para tener más, el usuario puede agregar cuentas en Opciones → Google Flow.`
+          continue
+        }
+        // Ninguna puede ahora: el pedido se queda en fila esperando y Hermit lo reintenta solo cuando vuelvan.
+        t.estado = 'esperando'
+        t.espera = vuelven
+        t.aviso = porQueNinguna(t)
+        despertar(vuelven)
         continue
       }
+      // Hay cuenta, pero toca esperar el espacio entre pedidos: no se empieza todavía.
+      if (ahora < siguiente) return repartirEn(siguiente - ahora)
+      fila.splice(fila.indexOf(t), 1)
       const c = cuentas().find((x) => x.correo === elegida)!
       ocupadas.add(c.correo)
       usada.set(c.correo, ahora)
+      siguiente = ahora + espacioEntrePedidos(calma, Math.random())
       void generar(t, c).finally(() => {
         ocupadas.delete(c.correo)
         repartir()
       })
+      return repartirEn(siguiente - ahora)
     }
+    // Lo que queda espera a que acabe la pausa de alguna cuenta.
+    repartirEn(5000)
   }
 
-  function pedir(d: Pick<Trabajo, 'tipo' | 'prompt' | 'formato' | 'modelo' | 'salida' | 'tope' | 'referencias' | 'cuadros' | 'hilo'>, esperaPermiso = false): Trabajo {
-    const suma = createHash('sha1').update(`${d.tipo}\n${d.modelo}\n${d.formato}\n${d.prompt}`)
+  function pedir(d: Pick<Trabajo, 'tipo' | 'prompt' | 'formato' | 'modelo' | 'resolucion' | 'salida' | 'tope' | 'referencias' | 'cuadros' | 'hilo' | 'cuentaPreferida'>, esperaPermiso = false): Trabajo {
+    // Sin resolución (Veo), la huella de siempre: lo ya hecho no se repite.
+    const suma = createHash('sha1').update(`${d.tipo}\n${d.modelo}${d.resolucion ? ` ${d.resolucion}` : ''}\n${d.formato}\n${d.prompt}`)
     // Lo que importa de una imagen es lo que tiene, no dónde está. Los fotogramas, aparte: no son referencias.
     for (const r of d.referencias) suma.update(readFileSync(r))
     if (d.cuadros.length) suma.update('\nfotogramas\n')
     for (const r of d.cuadros) suma.update(readFileSync(r))
     const huella = suma.digest('hex')
-    const igual = [...trabajos.values()].find((o) => o.salida === d.salida && o.huella === huella && (o.estado === 'en-fila' || o.estado === 'generando'))
+    const igual = [...trabajos.values()].find((o) => o.salida === d.salida && o.huella === huella && (o.estado === 'en-fila' || o.estado === 'generando' || o.estado === 'esperando'))
     if (igual) return igual
-    const t: Trabajo = { ...d, id: randomBytes(6).toString('hex'), estado: 'en-fila', huella, probadas: [], creado: Date.now() }
+    const t: Trabajo = { ...d, id: randomBytes(6).toString('hex'), estado: 'en-fila', huella, probadas: [], cuentaPreferida: d.cuentaPreferida, creado: Date.now() }
     trabajos.set(t.id, t)
     // Los de hace rato ya los recogió su agente.
     for (const id of [...trabajos.keys()].slice(0, -100)) trabajos.delete(id)
     if (existsSync(d.salida) && existsSync(`${d.salida}.huella`) && readFileSync(`${d.salida}.huella`, 'utf8') === huella) return Object.assign(t, { estado: 'lista', archivo: d.salida, creditos: 0 })
+    // Una escena que Flow ya rechazó por su contenido dos veces no se vuelve a pedir, aunque el agente mande otro prompt:
+    // así un rechazo de derechos no se convierte en horas de reintentos. Se contesta al momento y sin tocar Flow.
+    if (rechazosDe(d.salida, Date.now()) >= RECHAZOS_PARA_BLOQUEAR)
+      return Object.assign(t, { estado: 'bloqueado' as const, aviso: `Flow ya rechazó dos veces lo que se pide para ${basename(d.salida)}: no lo pidas otra vez. Cambia de escena o déjala fuera y sigue con las demás.` })
     if (esperaPermiso) {
       t.permiso = 'pendiente'
       return t
@@ -352,7 +500,7 @@ export function flow(app: string, google: Google) {
     return t
   }
 
-  const publico = ({ prompt: _p, salida: _s, huella: _h, tope: _t, formato: _f, referencias: _r, cuadros: _c, probadas: _pr, ultimo: _u, creado: _cr, ...t }: Trabajo): TrabajoFlow => t
+  const publico = ({ prompt: _p, salida: _s, huella: _h, tope: _t, formato: _f, referencias: _r, cuadros: _c, probadas: _pr, ultimo: _u, creado: _cr, cuentaPreferida: _cp, ...t }: Trabajo): TrabajoFlow => t
   const estado = (): EstadoFlow => {
     const ahora = Date.now()
     vencerPendientes(ahora)
@@ -380,10 +528,11 @@ export function flow(app: string, google: Google) {
       leyendo,
       agregando: otras.agregando(),
       navegador: nombreNavegador(),
-      enFila: fila.length + ocupadas.size,
+      enFila: fila.filter((t) => t.estado !== 'esperando').length + ocupadas.size,
       pendientes: [...trabajos.values()].filter((t) => t.permiso === 'pendiente').map(publico),
       aportar: ajustes.aportar === true,
       derechos: !!ajustes.derechos,
+      prioritaria: ajustes.prioritaria,
       error: otras.error()
     }
   }
@@ -396,9 +545,31 @@ export function flow(app: string, google: Google) {
     const metodo = req.method ?? 'GET'
     if (path === '/api/flow' && metodo === 'GET') return json(res, 200, estado())
     if (path === '/api/flow/ajustes' && metodo === 'POST') {
-      const d = await cuerpo<{ aportar?: boolean; derechos?: boolean }>(req)
+      const d = await cuerpo<{ aportar?: boolean; derechos?: boolean; prioritaria?: string; despertar?: string | boolean }>(req)
       if (d.aportar !== undefined) ajustes.aportar = d.aportar
       if (d.derechos !== undefined) ajustes.derechos = d.derechos ? new Date().toISOString() : undefined
+      if (d.prioritaria !== undefined) ajustes.prioritaria = d.prioritaria?.trim() || undefined
+      if (d.despertar) {
+        if (typeof d.despertar === 'string') {
+          const { [d.despertar]: _, ...resto } = ajustes.descansos ?? {}
+          ajustes.descansos = resto
+          // Limpiar también la calma global en memoria: si esa cuenta fue la que la activó,
+          // quitar su pausa implica que el usuario quiere reanudar ya.
+          calmaHasta = 0
+        } else {
+          ajustes.descansos = {}
+          calmaHasta = 0
+        }
+        // Reactivar los pedidos que estaban esperando
+        for (const t of fila) {
+          if (t.estado !== 'esperando') continue
+          t.estado = 'en-fila'
+          t.probadas = []
+          delete t.espera
+          delete t.aviso
+        }
+        repartir()
+      }
       guardarAjustes()
       return json(res, 200, estado())
     }
@@ -436,7 +607,7 @@ export function flow(app: string, google: Google) {
       return json(res, 200, estado())
     }
     if (path === '/api/flow/generar' && metodo === 'POST') {
-      const d = await cuerpo<{ tipo?: string; prompt?: string; formato?: string; modelo?: string; salida?: string; tope?: number; referencias?: string[]; primerCuadro?: string; ultimoCuadro?: string; hilo?: string }>(req)
+      const d = await cuerpo<{ tipo?: string; prompt?: string; formato?: string; modelo?: string; resolucion?: string; salida?: string; tope?: number; referencias?: string[]; primerCuadro?: string; ultimoCuadro?: string; hilo?: string; cuenta?: string }>(req)
       if (d.tipo !== 'imagen' && d.tipo !== 'video') return json(res, 400, { error: 'El tipo es imagen o video.' })
       const video = d.tipo === 'video'
       const modelos = video ? MODELOS_VIDEO : MODELOS_IMAGEN
@@ -444,6 +615,8 @@ export function flow(app: string, google: Google) {
       const modelo = d.modelo?.trim() || modelos[0]
       const formato = d.formato?.trim() || '9:16'
       if (!modelos.includes(modelo)) return json(res, 400, { error: `Flow no tiene ese modelo. Hay: ${modelos.join(', ')}.` })
+      const resolucion = esOmni(modelo) ? d.resolucion?.trim() || RESOLUCIONES_OMNI[0] : undefined
+      if (resolucion && !RESOLUCIONES_OMNI.includes(resolucion)) return json(res, 400, { error: `${modelo} solo va en ${RESOLUCIONES_OMNI.join(' o ')}.` })
       if (!formatos[formato]) return json(res, 400, { error: `Esa proporción no está. Hay: ${Object.keys(formatos).join(', ')}.` })
       if (!d.prompt?.trim() || !d.salida || !isAbsolute(d.salida) || !(video ? /\.mp4$/i : /\.jpe?g$/i).test(d.salida))
         return json(res, 400, { error: `Pide el prompt y la ruta absoluta del ${video ? '.mp4' : '.jpg'} donde va.` })
@@ -458,8 +631,9 @@ export function flow(app: string, google: Google) {
       if (mala) return json(res, 400, { error: `No encuentro la imagen ${mala}: pasa la ruta absoluta de un .png, .jpg o .webp.` })
       if ((referencias.length || cuadros.length) && !ajustes.derechos) return json(res, 409, { error: SIN_DERECHOS })
       const hilo = typeof d.hilo === 'string' && d.hilo.trim() ? d.hilo.trim() : undefined
+      const cuentaPreferida = typeof d.cuenta === 'string' && d.cuenta.trim() ? d.cuenta.trim() : undefined
       // Los videos gastan: sin un permiso vigente del hilo, el pedido se queda esperando al usuario.
-      return json(res, 200, publico(pedir({ tipo: d.tipo, prompt: d.prompt.trim(), formato, modelo, salida: resolve(d.salida), tope: d.tope ?? TOPE_CREDITOS, referencias, cuadros, hilo }, video && !permisoDe(hilo))))
+      return json(res, 200, publico(pedir({ tipo: d.tipo, prompt: d.prompt.trim(), formato, modelo, resolucion, salida: resolve(d.salida), tope: d.tope ?? TOPE_CREDITOS, referencias, cuadros, hilo, cuentaPreferida }, video && !permisoDe(hilo))))
     }
     const p = /^\/api\/flow\/permisos\/(\w+)$/.exec(path)
     if (p && metodo === 'POST') {

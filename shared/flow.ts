@@ -1,11 +1,12 @@
 /**
  * Lo que comparten el servidor de Flow (`server/flow/`), el compositor y sus pruebas: los modelos que ofrece, lo más que
- * gasta un pedido sin permiso, cómo se leen el costo y lo que baja, la línea `Imágenes:` del primer mensaje y el reparto
- * de los pedidos entre las cuentas de Google.
+ * gasta un pedido sin permiso, cómo se leen el costo y lo que baja, las líneas `Imágenes:` y `Clips:` del primer mensaje
+ * y el reparto de los pedidos entre las cuentas de Google.
  */
 
 export const MODELOS_IMAGEN = ['Nano Banana 2.1', 'Nano Banana Pro', 'Nano Banana 2 Lite']
-export const MODELOS_VIDEO = ['Veo 3.1 - Lite', 'Veo 3.1 - Fast', 'Veo 3.1 - Quality', 'Omni 1.1 Flash']
+/** Flow avisa que Fast, Quality y Omni 1.1 dejan de estar el 5 de diciembre de 2026 (visto el 6 de noviembre). */
+export const MODELOS_VIDEO = ['Veo 3.1 - Lite', 'Veo 3.1 - Fast', 'Veo 3.1 - Quality', 'Omni 1.2 Flash', 'Omni 1.1 Flash']
 
 /** Las proporciones de cada tipo, con el icono de su botón en Flow (el texto cambia con el idioma; el icono, no). */
 export const FORMATOS_VIDEO: Record<string, string> = { '9:16': 'crop_9_16', '16:9': 'crop_16_9' }
@@ -30,11 +31,43 @@ export function lineaImagenes(imagen: string): string {
   return `Imágenes: genéralas en Google Flow con ${imagen}, no con ChatGPT (cómo, en video-base/FLOW.md).`
 }
 
+/** Los modelos de video en que Flow deja elegir la resolución: Veo sale siempre en 720p. */
+export const MODELOS_OMNI = ['Omni 1.2 Flash', 'Omni 1.1 Flash']
+export const esOmni = (modelo: string) => MODELOS_OMNI.includes(modelo)
+/** Las de Omni, la primera por defecto. Flow pone 360p si no se elige, y se ve borroso al lado de Veo. */
+export const RESOLUCIONES_OMNI = ['720p', '360p']
+
+/**
+ * Lo que se elige en el menú «Clips» (los estilos con clips) y lo que cuesta un clip de 8 s, del panel de Flow
+ * (comprobado el 6 de noviembre de 2026, en una cuenta gratis).
+ */
+export const OPCIONES_CLIPS: Record<string, { modelo: string; resolucion?: string; creditos: number }> = {
+  'Veo 3.1 - Lite': { modelo: 'Veo 3.1 - Lite', creditos: 10 },
+  'Veo 3.1 - Fast': { modelo: 'Veo 3.1 - Fast', creditos: 20 },
+  'Veo 3.1 - Quality': { modelo: 'Veo 3.1 - Quality', creditos: 100 },
+  'Omni 1.2 Flash · 720p': { modelo: 'Omni 1.2 Flash', resolucion: '720p', creditos: 24 },
+  'Omni 1.2 Flash · 360p': { modelo: 'Omni 1.2 Flash', resolucion: '360p', creditos: 8 },
+  'Omni 1.1 Flash · 720p': { modelo: 'Omni 1.1 Flash', resolucion: '720p', creditos: 12 },
+  'Omni 1.1 Flash · 360p': { modelo: 'Omni 1.1 Flash', resolucion: '360p', creditos: 6 }
+}
+
+/**
+ * La línea del primer mensaje con lo elegido en el menú «Clips». Lo eligió el usuario, así que el tope es lo que cuesta.
+ * Sin elección, la skill usa el suyo.
+ */
+export function lineaClips(opcion: string): string {
+  const o = OPCIONES_CLIPS[opcion]
+  if (!o) return ''
+  const res = o.resolucion ? ` en ${o.resolucion}` : ''
+  const params = `modelo "${o.modelo}"${o.resolucion ? `, resolucion "${o.resolucion}"` : ''} y tope ${o.creditos}`
+  return `Clips: genéralos en Google Flow con ${o.modelo}${res}, ${o.creditos} créditos cada uno (en generar_video, ${params}; video-base/FLOW.md).`
+}
+
 /** Lo más que gasta un pedido si no se dice otro tope: alcanza para Lite y Fast, no para Quality (100). */
 export const TOPE_CREDITOS = 20
 
-/** Lo que cuesta un video de cada modelo, para avisarlo antes de que el usuario autorice el gasto. */
-export const COSTO_VIDEO: Record<string, number> = { 'Omni 1.1 Flash': 6, 'Veo 3.1 - Lite': 10, 'Veo 3.1 - Fast': 20, 'Veo 3.1 - Quality': 100 }
+/** Lo que cuesta un video de cada modelo, para avisarlo antes de que el usuario autorice el gasto (Omni, en 720p). */
+export const COSTO_VIDEO: Record<string, number> = { 'Omni 1.1 Flash': 12, 'Omni 1.2 Flash': 24, 'Veo 3.1 - Lite': 10, 'Veo 3.1 - Fast': 20, 'Veo 3.1 - Quality': 100 }
 
 /** Lo que dura el permiso para todos los clips de un hilo, y lo que puede gastar en total. */
 export const PERMISO_CREDITOS = 200
@@ -88,7 +121,7 @@ export function saldoDe(texto: string, ahora: number): Saldo | null {
   return falta < HOLGURA || falta > 24 * 60 * 60_000 - HOLGURA ? { creditos } : { creditos, renueva: d.getTime() }
 }
 
-/** Lo menos que cuesta un video (Omni Flash): con menos, la cuenta no hace ninguno hasta que se renueve. */
+/** Lo menos que cuesta un video (Omni 1.1 Flash en 360p): con menos, la cuenta no hace ninguno hasta que se renueve. */
 export const VIDEO_MAS_BARATO = 6
 
 /**
@@ -102,46 +135,149 @@ export function saldoVigente(s: { creditos: number; renueva?: number; maximo?: n
   return { creditos: Math.max(s.maximo ?? 0, s.creditos), piso: true }
 }
 
-/** Cuántas cuentas de Google puede tener Flow en Hermit, y cuántas generan a la vez (cada una abre su Edge). */
-export const MAX_CUENTAS = 50
-export const A_LA_VEZ = 3
+/**
+ * Lo que gastó un video que Flow rechazó, comparando el saldo de antes de pedirlo con el de después. `null` si no se pudo
+ * leer alguno o si subió (se renovó en medio): entonces no se sabe.
+ */
+export function gastoDeRechazo(antes: Saldo | null, despues: Saldo | null): number | null {
+  if (!antes || !despues || despues.creditos > antes.creditos) return null
+  return antes.creditos - despues.creditos
+}
 
 /**
- * Por qué descansa una cuenta: Flow no empezó su pedido porque no le quedan créditos (las imágenes siguen, no gastan),
- * porque la frenó por pedir mucho, o porque perdió la sesión.
+ * Cuántas cuentas de Google puede tener Flow en Hermit, y cuántas generan a la vez (cada una abre su Edge). Eran tres, y el
+ * 4 de noviembre de 2026 Flow rechazó tres clips de un lote por «actividad inusual»: todas salen de la misma conexión.
  */
-export type Motivo = 'creditos' | 'frenada' | 'sesion'
+export const MAX_CUENTAS = 50
+export const A_LA_VEZ = 2
+
+/**
+ * El ritmo, para no pedir como una máquina: entre dos pedidos que empiezan, de `ENTRE_PEDIDOS` a su doble (al azar), y una
+ * cuenta que acaba descansa `PAUSA_CUENTA` antes del siguiente. Tras una frenada, durante `CALMA` va uno a la vez y con
+ * cuatro veces más espacio entre pedidos.
+ */
+export const ENTRE_PEDIDOS = 15_000
+export const PAUSA_CUENTA = 30_000
+export const CALMA = 60 * 60_000
+
+/** Lo que espera el siguiente pedido para empezar, en ms. `azar` va de 0 a 1. */
+export const espacioEntrePedidos = (calma: boolean, azar: number) => (calma ? 4 : 1) * ENTRE_PEDIDOS * (1 + azar)
+
+/**
+ * Por qué descansa una cuenta:
+ * - `creditos`: sin créditos para el tipo pedido.
+ * - `frenada`: Flow no empezó el pedido (lo bloqueó por actividad inusual, etc.).
+ * - `sesion`: Flow ya no tiene la sesión de Google.
+ * - `navegador`: fallo de Playwright (timeout, Protocol error) **antes** de que Flow gastara créditos.
+ *   Descansa solo la cuenta afectada unos minutos, sin afectar al resto ni activar la calma global.
+ */
+export type Motivo = 'creditos' | 'frenada' | 'sesion' | 'navegador'
 
 /** Lo que descansa cada motivo. Volver a probar no gasta (Flow no empezó), solo tarda: por eso no se espera más. */
-export const DESCANSO: Record<Motivo, number> = { creditos: 3 * 60 * 60_000, frenada: 30 * 60_000, sesion: 10 * 60_000 }
+export const DESCANSO: Record<Motivo, number> = { creditos: 3 * 60 * 60_000, frenada: 30 * 60_000, sesion: 10 * 60_000, navegador: 5 * 60_000 }
+
+/** Lo más que descansa una cuenta frenada otra vez, y cuánto después de su descanso cuenta como «otra vez». */
+const FRENADA_MAXIMA = 8 * 60 * 60_000
+const RECUERDA_FRENADA = 6 * 60 * 60_000
 
 /**
- * El motivo, de lo que dijo Flow al no empezar (su aviso, en el idioma de la cuenta). Sin aviso que se entienda, un video
- * es casi siempre que no quedan créditos; una imagen, que no gasta, que la frenó.
+ * Un descanso: hasta cuándo (ms), por qué y, si la frenaron, cuántas veces seguidas. `dicho` es lo que dijo Flow en ese
+ * intento (o el error medido): no decide el motivo —eso sale de lo medido, no de sus palabras— pero se guarda para que la
+ * interfaz pueda enseñarlo en vez de afirmar «Flow la frenó» sin nada detrás.
  */
-export function motivoDeAviso(aviso: string, tipo: 'imagen' | 'video'): Motivo {
-  if (/demasiad|too many|m[aá]s tarde|try again later|inusual|unusual|throttl/i.test(aviso)) return 'frenada'
-  if (PALABRA_CREDITOS.test(aviso) || /cuota|quota|l[ií]mite|limit|agot|insuficient|insufficient|upgrade|mejora tu plan/i.test(aviso)) return 'creditos'
-  return tipo === 'video' ? 'creditos' : 'frenada'
+export interface Descanso {
+  hasta: number
+  motivo: Motivo
+  veces?: number
+  dicho?: string
 }
+
+/**
+ * El descanso que toca. Sin créditos, hasta que se renueven si se sabe cuándo. Frenada otra vez al poco de su descanso,
+ * descansa el doble cada vez, hasta 8 h: si Google la sigue viendo rara, probar seguido lo empeora.
+ * Fallos de navegador (`'navegador'`) siempre descansan el tiempo fijo sin escalado: son internos de Playwright.
+ */
+export function descansoNuevo(motivo: Motivo, ahora: number, previo?: Descanso, renueva?: number, dicho?: string): Descanso {
+  const otraVez = motivo === 'frenada' && previo?.motivo === 'frenada' && ahora - previo.hasta < RECUERDA_FRENADA
+  const veces = motivo === 'frenada' ? (otraVez ? (previo.veces ?? 1) + 1 : 1) : undefined
+  const largo = motivo === 'frenada' ? Math.min(FRENADA_MAXIMA, DESCANSO.frenada * 2 ** (veces! - 1)) : DESCANSO[motivo]
+  const hasta = motivo === 'creditos' && renueva && renueva > ahora ? renueva : ahora + largo
+  return { hasta, motivo, ...(veces ? { veces } : {}), ...(dicho ? { dicho: dicho.slice(0, 300) } : {}) }
+}
+
+/** Lo que dice Flow cuando frena una cuenta: que pide mucho o que vio «actividad inusual» / «uso inusual» (en el idioma de la cuenta). */
+export const AVISO_FRENADA = /demasiad|too many|m[aá]s tarde|try again later|inusual|unusual|throttl|quickly|rate\s*limit|frecuencia/i
+
+/**
+ * Lo que dice Playwright cuando la página de Flow no respondió: un clic que otro panel tapa, un timeout, una pestaña que se
+ * cerró o una navegación que falló. Eso no es una frenada de Google: se descansa solo esa cuenta unos minutos
+ * (`navegador`) y el pedido pasa a otra, sin activar la calma global.
+ */
+export const FALLO_NAVEGADOR = /locator[.(]|Timeout\b|TimeoutError|Timed out|Target page|Protocol error|net::ERR_|has been closed|Navigation failed|Execution context was destroyed|waiting for locator/i
+
+/** Si el error es de la página (Playwright), no una respuesta de Flow. */
+export const esFalloDeNavegador = (mensaje: string) => FALLO_NAVEGADOR.test(mensaje)
+
+/**
+ * Por qué descansa una cuenta a la que Flow no le empezó el pedido, de lo que Hermit ya midió y nunca de las palabras del
+ * aviso (cambian con el idioma y con cada prueba de Google; adivinar por ellas mandó cuentas con créditos a esperar su
+ * recarga del día):
+ * - `sesion` si la página acabó en la de entrar con Google, que se ve en su dirección;
+ * - `creditos` si su saldo ya se leyó y no le llega para el video más barato;
+ * - y `frenada` en todo lo demás, que descansa 30 min: volver a probar cuesta unos 45 s y no gasta nada, y al reintentar
+ *   se vuelve a leer su saldo, así que si de verdad no le queda entra sola por `creditos`.
+ * Un `piso` es una estimación («al menos esto»), no una lectura: no alcanza para decir que no le quedan.
+ */
+export function motivoDeDescanso(tipo: 'imagen' | 'video', sesion: boolean, saldo: { creditos: number; piso: boolean } | null): Motivo {
+  if (sesion) return 'sesion'
+  if (tipo === 'video' && saldo && !saldo.piso && saldo.creditos < VIDEO_MAS_BARATO) return 'creditos'
+  return 'frenada'
+}
+
+/**
+ * Si Flow rechazó un pedido por lo que se le pidió (derechos, política de contenido) y no por una frenada de Google: no
+ * gastó créditos. Eso no es cosa de la cuenta —cae igual en todas— así que no se pasa a otra: se cambia el pedido una vez
+ * y, si vuelve a caer, se deja esa escena (ver `RECHAZOS_PARA_BLOQUEAR`). Es lo que evita el bucle de reintentos con lo
+ * que Flow no va a aceptar nunca, como los personajes de una película.
+ */
+export const esRechazoDeContenido = (frenada: boolean, gasto: number | null) => !frenada && gasto === 0
+
+/** Cuántas veces Flow puede rechazar por contenido la misma escena (su `salida`) antes de que Hermit la deje por perdida. */
+export const RECHAZOS_PARA_BLOQUEAR = 2
+
+/** Lo que se recuerda un rechazo por contenido: pasado eso, la escena se puede volver a pedir (quizá ya cambió el pedido). */
+export const RECUERDA_RECHAZO = 6 * 60 * 60_000
 
 /** Una cuenta para el reparto: si está generando, cuándo generó por última vez y si descansa (hasta cuándo, en ms). */
 export interface UsoCuenta {
   correo: string
   ocupada: boolean
   usada: number
-  descansa?: { hasta: number; motivo: Motivo }
+  descansa?: Descanso
 }
 
 /** Si la cuenta puede hacer ese tipo ahora: sin créditos, las imágenes sí, que no gastan. */
 export const puede = (c: UsoCuenta, tipo: 'imagen' | 'video', ahora: number) => !c.descansa || c.descansa.hasta <= ahora || (c.descansa.motivo === 'creditos' && tipo === 'imagen')
 
 /**
- * A qué cuenta va un pedido: entre las libres que pueden y que aún no lo probaron, la que lleva más sin generar, para que
+ * A qué cuenta va un pedido: si hay una preferida (o prioritaria) disponible y libre que no haya fallado, va a ella.
+ * Si no, entre las libres que pueden y que aún no lo probaron, la que lleva más sin generar, para que
  * los créditos se gasten parejo. `esperar` si solo están ocupadas las que podrían; `ninguna` si ninguna puede.
  */
-export function elegirCuenta(cuentas: UsoCuenta[], tipo: 'imagen' | 'video', ahora: number, probadas: string[] = []): string | 'esperar' | 'ninguna' {
+export function elegirCuenta(
+  cuentas: UsoCuenta[],
+  tipo: 'imagen' | 'video',
+  ahora: number,
+  probadas: string[] = [],
+  preferida?: string
+): string | 'esperar' | 'ninguna' {
   const sirven = cuentas.filter((c) => puede(c, tipo, ahora) && !probadas.includes(c.correo))
+  if (preferida && !probadas.includes(preferida)) {
+    const pref = cuentas.find((c) => c.correo === preferida)
+    if (pref && puede(pref, tipo, ahora)) {
+      return pref.ocupada ? 'esperar' : pref.correo
+    }
+  }
   const libre = sirven.filter((c) => !c.ocupada).sort((a, b) => a.usada - b.usada)[0]
   return libre ? libre.correo : sirven.length ? 'esperar' : 'ninguna'
 }

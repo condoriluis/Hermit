@@ -2,7 +2,8 @@ import { randomBytes } from 'node:crypto'
 import { mkdirSync, readFileSync } from 'node:fs'
 import { extname, join } from 'node:path'
 import type { Browser, Locator, Page } from 'playwright-core'
-import { creditosDe, FORMATOS_IMAGEN, FORMATOS_VIDEO, PALABRA_CREDITOS, type Saldo, saldoDe } from '../../shared/flow.ts'
+import { paginaNueva } from '../chromium.ts'
+import { AVISO_FRENADA, creditosDe, esFalloDeNavegador, FORMATOS_IMAGEN, FORMATOS_VIDEO, gastoDeRechazo, PALABRA_CREDITOS, type Saldo, saldoDe } from '../../shared/flow.ts'
 
 /**
  * Lo que se hace en la página de Google Flow. Se usan los iconos (el nombre de cada `mat-icon`), no los textos: Flow sale
@@ -18,12 +19,32 @@ import { creditosDe, FORMATOS_IMAGEN, FORMATOS_VIDEO, PALABRA_CREDITOS, type Sal
  * vacían al recargar el proyecto, y cada pedido lo recarga.
  */
 
-/** Flow no empezó a generar, así que no gastó: el pedido puede ir a otra cuenta. `aviso` es lo que dijo, si dijo algo. */
+/** Flow no empezó a generar, así que no gastó: el pedido puede ir a otra cuenta. `sesion` es si acabó en la de entrar. */
 export class SinEmpezar extends Error {
   constructor(
     mensaje: string,
-    readonly aviso: string,
     readonly sesion = false
+  ) {
+    super(mensaje)
+  }
+}
+
+/**
+ * La página de Flow no respondió (un clic tapado por otro panel, un timeout de Playwright, una pestaña que se cerró). No es
+ * una frenada de Google: no se gastó nada, y el pedido puede ir a otra cuenta tras un descanso corto.
+ */
+export class FalloNavegador extends SinEmpezar {}
+
+/**
+ * Flow empezó el pedido y lo rechazó en su tarjeta (por ejemplo, «Notamos actividad inusual»). `aviso` es lo que dice la
+ * tarjeta; `gasto`, lo que bajó el saldo de la cuenta (0 si nada), o `null` si no se supo; `saldo`, el de después.
+ */
+export class Rechazado extends Error {
+  constructor(
+    mensaje: string,
+    readonly aviso: string,
+    readonly gasto: number | null = null,
+    readonly saldo: Saldo | null = null
   ) {
     super(mensaje)
   }
@@ -43,6 +64,8 @@ export interface PedidoFlow {
   prompt: string
   formato: string
   modelo: string
+  /** Solo en Omni (`RESOLUCIONES_OMNI`): Veo no deja elegirla. */
+  resolucion?: string
   /** Lo más que puede costar: si cuesta más, no se genera. */
   tope: number
   /** Las imágenes de referencia, en rutas absolutas. Quien las pide ya confirmó sus derechos (ver `subir`). */
@@ -51,16 +74,12 @@ export interface PedidoFlow {
   cuadros?: string[]
 }
 
-export const paginaFlow = async (b: Browser): Promise<Page> => {
-  const page = await b.contexts()[0].newPage()
-  await page.setViewportSize({ width: ANCHO, height: ALTO })
-  return page
-}
+export const paginaFlow = async (b: Browser): Promise<Page> => paginaNueva(b, { ancho: ANCHO, alto: ALTO })
 
 async function ir(page: Page, url: string) {
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 })
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {})
-  if (page.url().startsWith('https://accounts.google.com/')) throw new SinEmpezar('Flow ya no tiene la sesión de esta cuenta de Google: vuelve a conectarla (la de la voz en Opciones → Voz; las demás, agregándola otra vez en Opciones → Google Flow).', '', true)
+  if (page.url().startsWith('https://accounts.google.com/')) throw new SinEmpezar('Flow ya no tiene la sesión de esta cuenta de Google: vuelve a conectarla (la de la voz en Opciones → Voz; las demás, agregándola otra vez en Opciones → Google Flow).', true)
 }
 
 const icono = (page: Page | Locator, nombre: string) => page.locator(`button:has(mat-icon:text-is("${nombre}"))`)
@@ -69,6 +88,41 @@ const icono = (page: Page | Locator, nombre: string) => page.locator(`button:has
 async function avisos(page: Page): Promise<string> {
   const texto = await page.evaluate(() => [...document.querySelectorAll('[role=alert], [role=status], mat-snack-bar-container')].map((d) => (d as HTMLElement).innerText.trim()).filter(Boolean).join(' · ')).catch(() => '')
   return texto ? `: ${texto}` : ''
+}
+
+/** Los paneles que pueden tapar la página: el de la cuenta, un modal, un menú (todos viven en la capa de overlays). */
+const paneles = (page: Page) => page.locator('.cdk-overlay-backdrop, .cdk-overlay-container .mat-mdc-menu-panel, .cdk-overlay-container .mat-menu-panel, .cdk-overlay-container [role=menu], mat-dialog-container, [role=dialog], [role=alertdialog]')
+const panelAbierto = (page: Page) => paneles(page).first().isVisible().catch(() => false)
+
+/** Cierra avisos, modales, tours o diálogos que bloqueen los clics en la página de Flow. */
+async function despejar(page: Page) {
+  await page.keyboard.press('Escape').catch(() => {})
+  const dialogos = page.locator('[role=dialog], [role=alertdialog], mat-dialog-container, .cdk-overlay-backdrop')
+  if (await dialogos.count().catch(() => 0)) {
+    const boton = page.locator('button:has(mat-icon:text-is("close")), button[aria-label*="errar"], button[aria-label*="lose"], button:has-text("Entendido"), button:has-text("Got it"), button:has-text("Aceptar"), button:has-text("Dismiss"), button:has-text("Continuar")').first()
+    if (await boton.isVisible().catch(() => false)) {
+      await boton.click({ timeout: 2000 }).catch(() => {})
+    }
+  }
+}
+
+/**
+ * Cierra el panel de la cuenta (y cualquier modal) y comprueba que de verdad se cerró: si queda abierto, tapa el
+ * compositor y el clic de después muere a los 10 s, que es lo que pasaba.
+ */
+async function cerrarDialogoUsuario(page: Page) {
+  // Escape cierra el menú de la cuenta y los modales de Flow; se insiste por si el foco estaba en otro lado.
+  for (let i = 0; i < 4; i++) {
+    if (!(await panelAbierto(page))) return
+    await page.keyboard.press('Escape').catch(() => {})
+    await page.waitForTimeout(150)
+  }
+  // Si sigue abierto el menú de la cuenta, su mismo botón lo cierra.
+  const menu = page.locator('.cdk-overlay-container .mat-mdc-menu-panel, .cdk-overlay-container .mat-menu-panel, .cdk-overlay-container [role=menu]').first()
+  if (await menu.isVisible().catch(() => false)) {
+    await page.locator('.header-user-button').first().click({ timeout: 2000 }).catch(() => {})
+    await page.waitForTimeout(200)
+  }
 }
 
 /**
@@ -100,16 +154,24 @@ export async function ponerAportar(page: Page, quiere: boolean) {
  * esté (el inicio o un proyecto). Su renglón lleva el icono `movie_filter_auto`. `null` si no lo dice.
  */
 export async function leerSaldo(page: Page): Promise<Saldo | null> {
-  await page.locator('.header-user-button').first().click({ timeout: 15_000 })
-  const suyo = page.locator('mat-icon:text-is("movie_filter_auto")').first()
-  if (!(await suyo.waitFor({ timeout: 10_000 }).then(() => true, () => false))) return null
-  const texto = await suyo.evaluate((d) => {
-    let e = d as HTMLElement
-    for (let i = 0; i < 4 && e.parentElement && !/\d.*\n.*\d/.test(e.innerText); i++) e = e.parentElement
-    return e.innerText
-  })
-  await page.keyboard.press('Escape').catch(() => {})
-  return saldoDe(texto, Date.now())
+  try {
+    await page.locator('.header-user-button').first().click({ timeout: 15_000 })
+    const suyo = page.locator('mat-icon:text-is("movie_filter_auto")').first()
+    if (!(await suyo.waitFor({ timeout: 10_000 }).then(() => true, () => false))) {
+      await cerrarDialogoUsuario(page)
+      return null
+    }
+    const texto = await suyo.evaluate((d) => {
+      let e = d as HTMLElement
+      for (let i = 0; i < 4 && e.parentElement && !/\d.*\n.*\d/.test(e.innerText); i++) e = e.parentElement
+      return e.innerText
+    })
+    await cerrarDialogoUsuario(page)
+    return saldoDe(texto, Date.now())
+  } catch {
+    await cerrarDialogoUsuario(page).catch(() => {})
+    return null
+  }
 }
 
 /** El saldo sin generar nada: en el inicio de Flow. */
@@ -123,22 +185,52 @@ async function entrar(page: Page, proyecto: string | undefined): Promise<string>
   const caja = page.locator('.base-prompt-box [role=textbox]').first()
   if (proyecto) {
     await ir(page, proyecto)
+    await despejar(page)
     if (await caja.waitFor({ timeout: 15_000 }).then(() => true, () => false)) return proyecto
   }
   await ir(page, URL_FLOW)
+  await despejar(page)
   await icono(page, 'add').last().click({ timeout: 20_000 }).catch(() => {
     throw new Error('Flow no dejó crear un proyecto. Si es la primera vez, ábrelo una vez con esta cuenta (Opciones → Google Flow → Abrir Flow) y acepta su aviso.')
   })
   await page.waitForURL(/\/project\//, { timeout: 30_000 })
   await caja.waitFor({ timeout: 30_000 })
   // El recorrido de bienvenida del primer proyecto.
-  await page.keyboard.press('Escape').catch(() => {})
+  await despejar(page)
   return page.url().split('?')[0]
+}
+
+/**
+ * Mueve la barra de la duración con las flechas hasta que diga `segundos`. Se lee lo que enseña («8 s»), no su valor: la
+ * barra va de 0 a 7 y no dice qué duración es cada paso.
+ */
+async function ponerSegundos(page: Page, segundos: number) {
+  const barra = page.getByRole('slider').first()
+  const dice = () =>
+    barra.evaluate((d) => {
+      let e = d as HTMLElement
+      while (e.parentElement && !/\d+\s*s\b/.test(e.innerText)) e = e.parentElement
+      return Number(e.innerText.match(/(\d+)\s*s\b/)?.[1] ?? NaN)
+    })
+  await barra.focus({ timeout: 5000 })
+  for (let i = 0; i < 12; i++) {
+    const ahora = await dice()
+    if (ahora === segundos) return
+    if (Number.isNaN(ahora)) break
+    await page.keyboard.press(ahora < segundos ? 'ArrowRight' : 'ArrowLeft')
+    await page.waitForTimeout(150)
+  }
+  throw new Error(`No pude poner el video en ${segundos} s en Flow. No se generó nada.`)
 }
 
 /** Elige en el panel del compositor lo pedido y devuelve lo que cuesta. Cierra el panel. */
 async function elegir(page: Page, p: PedidoFlow): Promise<number> {
-  await page.locator('.base-prompt-box button:has(mat-icon:text-matches("^crop_"))').first().click({ timeout: 15_000 })
+  await despejar(page)
+  const botonCrop = page.locator('.base-prompt-box button:has(mat-icon:text-matches("^crop_"))').first()
+  const yaAbierto = await page.locator('[role=radio]').first().isVisible().catch(() => false)
+  if (!yaAbierto) {
+    await botonCrop.click({ timeout: 15_000 })
+  }
   const radio = (icon: string) => page.locator(`[role=radio]:has(mat-icon:text-is("${icon}"))`)
   await radio(p.tipo === 'video' ? 'videocam' : 'image').click({ timeout: 10_000 })
   // Fotogramas o Ingredientes: sin elegirlo, queda el de la última vez.
@@ -147,6 +239,14 @@ async function elegir(page: Page, p: PedidoFlow): Promise<number> {
   await page.getByRole('radio', { name: 'x1', exact: true }).click({ timeout: 10_000 })
   await page.locator('button:has(mat-icon:text-is("arrow_drop_down"))').first().click({ timeout: 10_000 })
   await page.getByRole('menuitem').filter({ hasText: p.modelo }).first().click({ timeout: 10_000 })
+  // Omni enseña además la resolución (sin elegirla, 360p) y la duración: se eligen siempre, y 8 s como Veo. En 1.1 la
+  // duración son botones (4 a 10 s); en 1.2, una barra (3 a 10 s).
+  if (p.resolucion) {
+    await page.getByRole('radio', { name: p.resolucion, exact: true }).click({ timeout: 10_000 })
+    const boton = page.getByRole('radio', { name: /^8\s*s$/ })
+    if (await boton.count()) await boton.click({ timeout: 5000 })
+    else await ponerSegundos(page, 8)
+  }
   // El costo se rehace tras elegir: se lee cuando dos lecturas seguidas coinciden.
   const panel = () =>
     page.locator('[role=radio]').first().evaluate((d, palabra) => {
@@ -220,9 +320,12 @@ async function esperar(page: Page, tarjeta: Locator, tipo: PedidoFlow['tipo'], a
   const firma = () => tarjeta.evaluate((d) => `${(d as HTMLElement).innerText} ${d.querySelector('img')?.src ?? ''}`).catch(() => '')
   const salio = Date.now() + APARECE
   while ((await firma()) === antes) {
+    const aviso = await avisos(page)
+    if (aviso && AVISO_FRENADA.test(aviso)) {
+      throw new Rechazado(`Flow rechazó el pedido${aviso}`, aviso, 0)
+    }
     if (Date.now() > salio) {
-      const aviso = await avisos(page)
-      throw new SinEmpezar(`Flow no empezó a generar${aviso || ' (¿sin créditos?)'}.`, aviso)
+      throw new SinEmpezar(`Flow no empezó a generar${aviso}.`)
     }
     await page.waitForTimeout(1000)
   }
@@ -236,11 +339,17 @@ async function esperar(page: Page, tarjeta: Locator, tipo: PedidoFlow['tipo'], a
     }, tipo === 'video')
     if (e.lista) return
     if (e.avanza) sinAvance = Date.now()
-    else if (Date.now() - sinAvance > 60_000) {
-      // Sin % y sin resultado: Flow lo rechazó y deja la tarjeta con su motivo (y «You have not been charged»). No
-      // gastó, así que es el mismo caso que no empezar: la cuenta descansa y el pedido puede ir a otra.
-      const dicho = e.texto.replace(/\s+/g, ' ').slice(0, 200)
-      throw new SinEmpezar(`Flow no lo generó: ${dicho}`, dicho)
+    else {
+      if (AVISO_FRENADA.test(e.texto)) {
+        const dicho = e.texto.replace(/\s+/g, ' ').slice(0, 200)
+        throw new Rechazado(`Flow no lo generó: ${dicho}`, dicho, 0)
+      }
+      if (Date.now() - sinAvance > 60_000) {
+        // Sin % y sin resultado: Flow lo rechazó y deja la tarjeta con su motivo. Casi siempre dice que no cobró, pero se
+        // compara el saldo para saberlo: si cobró, no se puede reintentar en otra cuenta sin avisar.
+        const dicho = e.texto.replace(/\s+/g, ' ').slice(0, 200)
+        throw new Rechazado(`Flow no lo generó: ${dicho}`, dicho)
+      }
     }
     await page.waitForTimeout(2000)
   }
@@ -282,17 +391,55 @@ export async function prepararEnFlow(page: Page, proyecto: string | undefined, p
 /**
  * Genera lo pedido en el proyecto de Hermit y lo baja a `carpeta`. Si cuesta más que `tope`, no genera. Los pedidos van de
  * uno en uno: la tarjeta nueva es la primera del proyecto. `alEntrar` recibe el proyecto en cuanto se sabe, para no crear
- * otro si lo demás falla.
+ * otro si lo demás falla. `saldoAntes` es el saldo leído antes de preparar (en el inicio de Flow), para medir lo que gastó
+ * un rechazo: no se vuelve a abrir el menú de la cuenta justo antes de enviar, porque su panel tapa el compositor.
  */
-export async function generarEnFlow(b: Browser, page: Page, proyecto: string | undefined, p: PedidoFlow, carpeta: string, alEntrar: (proyecto: string) => void) {
-  const creditos = await prepararEnFlow(page, proyecto, p, alEntrar)
+export async function generarEnFlow(b: Browser, page: Page, proyecto: string | undefined, p: PedidoFlow, carpeta: string, alEntrar: (proyecto: string) => void, saldoAntes: Saldo | null = null) {
+  let creditos: number
+  try {
+    creditos = await prepararEnFlow(page, proyecto, p, alEntrar)
+  } catch (e) {
+    const aviso = await avisos(page).catch(() => '')
+    const msg = e instanceof Error ? e.message : String(e)
+    if (AVISO_FRENADA.test(aviso) || AVISO_FRENADA.test(msg)) {
+      throw new Rechazado(`Flow frenó la cuenta al preparar: ${msg}${aviso}`, aviso || msg, 0)
+    }
+    if (esFalloDeNavegador(msg)) throw new FalloNavegador(`Flow no preparó el pedido (${msg})${aviso}.`)
+    if (e instanceof SinEmpezar) throw e
+    throw new SinEmpezar(`Flow no preparó el pedido (${msg})${aviso}.`)
+  }
   // Después de preparar: cada imagen subida también es una tarjeta del proyecto.
   const tarjeta = page.locator('flow-tile-container').first()
   const antes = (await tarjeta.count()) ? await tarjeta.evaluate((d) => `${(d as HTMLElement).innerText} ${d.querySelector('img')?.src ?? ''}`) : ''
-  await page.locator('.base-prompt-box [role=textbox]').first().click({ timeout: 10_000 })
-  await page.keyboard.insertText(p.prompt.split(/\s+/).join(' '))
-  await page.waitForTimeout(500)
-  await icono(page, 'arrow_forward').last().click({ timeout: 10_000 })
-  await esperar(page, tarjeta, p.tipo, antes)
+  await despejar(page)
+  try {
+    const caja = page.locator('.base-prompt-box [role=textbox]').first()
+    await caja.waitFor({ timeout: 15_000 })
+    // Si un panel quedó abierto (el de la cuenta tras leer el saldo, un modal), tapa la caja: no se clickea a ciegas.
+    if (await panelAbierto(page)) {
+      await cerrarDialogoUsuario(page)
+      if (await panelAbierto(page)) throw new FalloNavegador('Flow dejó un panel abierto encima del compositor.')
+    }
+    await caja.click({ timeout: 10_000 })
+    await page.keyboard.insertText(p.prompt.split(/\s+/).join(' '))
+    await page.waitForTimeout(500)
+    await icono(page, 'arrow_forward').last().click({ timeout: 10_000 })
+  } catch (e) {
+    const aviso = await avisos(page).catch(() => '')
+    const msg = e instanceof Error ? e.message : String(e)
+    if (AVISO_FRENADA.test(aviso) || AVISO_FRENADA.test(msg)) {
+      throw new Rechazado(`Flow frenó la cuenta al enviar el prompt: ${msg}${aviso}`, aviso || msg, 0)
+    }
+    if (esFalloDeNavegador(msg)) throw new FalloNavegador(`Flow no envió el prompt (${msg})${aviso}.`)
+    if (e instanceof SinEmpezar) throw e
+    throw new SinEmpezar(`Flow no envió el prompt (${msg})${aviso}.`)
+  }
+  try {
+    await esperar(page, tarjeta, p.tipo, antes)
+  } catch (e) {
+    if (!(e instanceof Rechazado)) throw e
+    const saldo = await leerSaldo(page).catch(() => null)
+    throw new Rechazado(e.message, e.aviso, gastoDeRechazo(saldoAntes, saldo), saldo)
+  }
   return { creditos, archivo: await bajar(page, b, tarjeta, carpeta) }
 }

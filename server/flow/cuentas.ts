@@ -1,11 +1,12 @@
 import { randomBytes } from 'node:crypto'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { request } from 'node:http'
 import { type AddressInfo, createServer } from 'node:net'
 import { join } from 'node:path'
 import type { Browser } from 'playwright-core'
 import { WebSocket } from 'ws'
 import { MAX_CUENTAS } from '../../shared/flow.ts'
-import { chromiumDelSistema, lanzarChromium, nombreDe, SIN_CHROMIUM } from '../chromium.ts'
+import { chromiumDelSistema, lanzarChromium, nombreDe, paginaNueva, SIN_CHROMIUM, SIN_VENTANA } from '../chromium.ts'
 import { guardar } from '../disco.ts'
 import { conectarCDP } from '../playwright.ts'
 import { URL_FLOW } from './pagina.ts'
@@ -61,15 +62,36 @@ function edgeDe(perfil: string) {
     }
   }
   const direccion = () => `http://127.0.0.1:${puerto()}`
-  const responde = () => (puerto() ? fetch(`${direccion()}/json/version`).then((r) => r.ok, () => false) : Promise.resolve(false))
-  const paginas = () =>
-    fetch(`${direccion()}/json/list`)
-      .then((r) => r.json() as Promise<{ type: string; url: string }[]>)
-      .then((l) => l.filter((t) => t.type === 'page'), () => [])
+  /**
+   * Una petición al CDP con `node:http`, no con `fetch`: Node rechaza puertos como 6679 («bad port») aunque Edge los use
+   * sin problema, y entonces Hermit creía muerto un Edge vivo y le pisaba el puerto.
+   */
+  const pedir = (ruta: string, p = puerto()) =>
+    new Promise<string>((ok, mal) => {
+      const req = request(`http://127.0.0.1:${p}${ruta}`, { timeout: 1000 }, (res) => {
+        let texto = ''
+        res.setEncoding('utf8')
+        res.on('data', (d) => (texto += d))
+        res.on('end', () => (res.statusCode === 200 ? ok(texto) : mal(new Error(`El CDP respondió ${res.statusCode}.`))))
+      })
+      req.once('timeout', () => req.destroy(new Error('El CDP no respondió.')))
+      req.once('error', mal)
+      req.end()
+    })
+  const responde = (p = puerto()) => (p ? pedir('/json/version', p).then(() => true, () => false) : Promise.resolve(false))
+  const paginas = async () => {
+    if (!puerto()) return []
+    try {
+      const lista = JSON.parse(await pedir('/json/list')) as { type: string; url: string }[]
+      return lista.filter((t) => t.type === 'page')
+    } catch {
+      return []
+    }
+  }
 
   /** Un comando a Edge por CDP, sin Playwright ni tocar sus pestañas. */
   async function alNavegador<T>(metodo: string): Promise<T> {
-    const { webSocketDebuggerUrl } = (await (await fetch(`${direccion()}/json/version`)).json()) as { webSocketDebuggerUrl: string }
+    const { webSocketDebuggerUrl } = JSON.parse(await pedir('/json/version')) as { webSocketDebuggerUrl: string }
     const ws = new WebSocket(webSocketDebuggerUrl)
     try {
       return await new Promise<T>((ok, mal) => {
@@ -100,15 +122,22 @@ function edgeDe(perfil: string) {
     const exe = navegador()
     if (!exe) throw new Error(SIN_CHROMIUM)
     mkdirSync(perfil, { recursive: true })
-    const extra = ventana ? [url] : ['--headless=new', '--mute-audio', 'about:blank']
+    const extra = ventana ? [url] : [...SIN_VENTANA, 'about:blank']
     // Un puerto libre ya elegido, nunca `0`: con `0`, Edge dice a las páginas que lo maneja un programa
     // (`navigator.webdriver`) y Google no deja entrar («Es posible que el navegador no sea seguro»).
+    const viejo = puerto()
     const nuevo = await puertoLibre()
+    // Se escribe antes de abrir para que, si Hermit se reinicia, encuentre su Edge. Si no abre, se devuelve el anterior
+    // (nunca se deja el archivo apuntando a un puerto muerto) o se borra.
     writeFileSync(archivoPuerto, String(nuevo))
     // `--disable-sync` evita el diálogo «Se están sincronizando los datos» de Edge, que bloquea la ventana visible.
     lanzarChromium(exe, [`--remote-debugging-port=${nuevo}`, `--user-data-dir=${perfil}`, '--no-first-run', '--no-default-browser-check', '--disable-sync', ...extra], ventana)
-    for (let i = 0; i < 40 && !(await responde()); i++) await espera(500)
-    if (!(await responde())) throw new Error(`${nombreNavegador()} no abrió.`)
+    for (let i = 0; i < 40 && !(await responde(nuevo)); i++) await espera(500)
+    if (!(await responde(nuevo))) {
+      if (viejo && viejo !== nuevo && (await responde(viejo))) writeFileSync(archivoPuerto, String(viejo))
+      else rmSync(archivoPuerto, { force: true })
+      throw new Error(`${nombreNavegador()} no abrió.`)
+    }
   }
 
   let turno: Promise<unknown> = Promise.resolve()
@@ -122,8 +151,19 @@ function edgeDe(perfil: string) {
     lanzar,
     cerrar,
     paginas,
-    /** Si ya tiene la sesión de Google. */
-    conSesion: () => alNavegador<{ cookies: { name: string; domain: string }[] }>('Storage.getCookies').then((r) => r.cookies.some((c) => c.name === 'SAPISID' && /(^|\.)google\.com$/.test(c.domain.replace(/^\./, ''))), () => false),
+    /**
+     * Si ya tiene la sesión de Google y la de Flow. La de Flow (`OSID` en su dominio) la pone Google un momento después de
+     * llegar: sin ella, el Edge sin ventana tenía que pedirla otra vez y Google no se la daba, así que Flow abría sin
+     * cuenta («Entraste, pero Flow no dijo con qué cuenta»), a quien cerraba la ventana en cuanto veía Flow.
+     */
+    sesiones: () =>
+      alNavegador<{ cookies: { name: string; domain: string }[] }>('Storage.getCookies').then(
+        ({ cookies }) => {
+          const de = (dominio: RegExp, nombre: RegExp) => cookies.some((c) => nombre.test(c.name) && dominio.test(c.domain.replace(/^\./, '')))
+          return { google: de(/(^|\.)google\.com$/, /^SAPISID$/), flow: de(new RegExp(`^${new URL(URL_FLOW).hostname.replaceAll('.', '\\.')}$`), /^(__Secure-)?OSID$/) }
+        },
+        () => ({ google: false, flow: false })
+      ),
     enEdge: <T>(fn: (b: Browser) => Promise<T>) =>
       enTurno(async () => {
         await lanzar(false)
@@ -139,9 +179,12 @@ function edgeDe(perfil: string) {
   }
 }
 
-/** El correo de la cuenta con que está Flow, de su botón de cuenta («Cuenta de Google: Nombre (correo)»). */
-async function correoEnFlow(b: Browser): Promise<string | null> {
-  const page = await b.contexts()[0].newPage()
+/**
+ * El correo de la cuenta con que está Flow, de su botón de cuenta («Cuenta de Google: Nombre (correo)»). Si no lo
+ * enseña, deja en `captura` lo que enseñó, para saber por qué.
+ */
+async function correoEnFlow(b: Browser, captura: string): Promise<string | null> {
+  const page = await paginaNueva(b)
   try {
     await page.goto(URL_FLOW, { waitUntil: 'domcontentloaded', timeout: 60_000 })
     await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {})
@@ -150,7 +193,9 @@ async function correoEnFlow(b: Browser): Promise<string | null> {
       .first()
       .getAttribute('aria-label', { timeout: 15_000 })
       .catch(() => null)
-    return etiqueta?.match(/\(([^()\s]+@[^()\s]+)\)/)?.[1] ?? null
+    const correo = etiqueta?.match(/\(([^()\s]+@[^()\s]+)\)/)?.[1] ?? null
+    if (!correo) await page.screenshot({ path: captura }).catch(() => {})
+    return correo
   } finally {
     await page.close().catch(() => {})
   }
@@ -194,17 +239,23 @@ export function cuentasFlow(carpeta: string) {
     const e = edge(id)
     try {
       await e.lanzar(true, ENTRAR)
-      let sesion = false
+      let google = false
+      let flow = false
       // Sin pestañas dos veces seguidas es que cerraste la ventana: recién abierto, Edge puede tardar en enseñar la suya.
       for (let fin = Date.now() + PLAZO_ENTRAR, vacias = 0; Date.now() < fin && vacias < 2; ) {
         await espera(1500)
         const abiertas = await e.paginas()
         vacias = abiertas.length ? 0 : vacias + 1
-        if (!sesion && abiertas.some((p) => p.url.startsWith(URL_FLOW))) sesion = await e.conSesion()
+        if (!flow && abiertas.some((p) => p.url.startsWith(URL_FLOW))) {
+          const s = await e.sesiones()
+          google ||= s.google
+          flow = s.google && s.flow
+        }
       }
       await e.cerrar()
-      if (!sesion) throw new Error(`No entraste con Google en ${nombreNavegador()}, o cerraste la ventana antes de llegar a Flow. Vuelve a intentarlo.`)
-      const correo = await e.enEdge(correoEnFlow)
+      if (!google) throw new Error(`No entraste con Google en ${nombreNavegador()}, o cerraste la ventana antes de llegar a Flow. Vuelve a intentarlo.`)
+      if (!flow) throw new Error('Cerraste la ventana antes de que Flow abriera con tu cuenta. Vuelve a intentarlo y ciérrala cuando veas tu foto arriba a la derecha de Flow.')
+      const correo = await e.enEdge((b) => correoEnFlow(b, join(carpeta, 'error.png')))
       if (!correo) throw new Error('Entraste, pero Flow no dijo con qué cuenta. Vuelve a intentarlo.')
       if (correo === deLaVoz) throw new Error(`${correo} es la cuenta de la voz: ya genera en Flow.`)
       const vieja = lista.find((c) => c.correo === correo)

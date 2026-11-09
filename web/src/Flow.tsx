@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { COSTO_VIDEO, IMAGEN_CHATGPT, MODELOS_IMAGEN, PERMISO_CREDITOS } from '../../shared/flow'
+import { COSTO_VIDEO, IMAGEN_CHATGPT, MODELOS_IMAGEN, OPCIONES_CLIPS, PERMISO_CREDITOS } from '../../shared/flow'
 import type { CuentaClaude, CuentaEnFlow, EstadoFlow, GastoFlow } from '../../shared/types'
 import { api } from './api'
+import { encendido, notificar, sonar } from './avisos'
 import { Picker } from './Composer'
 import { Confirm } from './Confirm'
 import { Logo } from './Logos'
@@ -45,6 +46,10 @@ export function AvisoFlow() {
   const p = estado?.pendientes?.[0]
   useEffect(() => {
     setTodos(false)
+    // Con la ventana al frente ya ves el diálogo; mirando otra cosa, avisa como un hilo que te espera (avisos.ts).
+    if (!p || document.hasFocus()) return
+    if (encendido('sonido')) sonar()
+    void notificar({ titulo: 'Google Flow pide permiso', cuerpo: `Un video quiere generar un clip de 8 s con ${p.modelo}. Espera tu autorización.`, ids: [] })
   }, [p?.id])
   if (!p) return null
   const costo = COSTO_VIDEO[p.modelo]
@@ -101,7 +106,7 @@ export function useFlow() {
 
 export type UsoFlow = ReturnType<typeof useFlow>
 
-const POR_QUE: Record<NonNullable<CuentaEnFlow['descansa']>['motivo'], string> = { creditos: 'Sin créditos de video', frenada: 'Flow la frenó', sesion: 'Sin sesión' }
+const POR_QUE: Record<NonNullable<CuentaEnFlow['descansa']>['motivo'], string> = { creditos: 'Sin créditos de video', frenada: 'Flow la frenó', sesion: 'Sin sesión', navegador: 'Fallo del navegador' }
 const hora = (ms: number) => new Date(ms).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
 
 const videos = (g: GastoFlow) => `${g.videos} ${g.videos === 1 ? 'video' : 'videos'} (${g.creditos} créditos)`
@@ -189,18 +194,46 @@ export function SelectorImagenes({ valor, hayChatGPT, voz, flow, onCambio }: { v
 }
 
 /**
+ * El menú «Clips» del compositor de un video: con qué modelo de Flow se generan sus clips, y en qué resolución si es Omni.
+ * Sin elegir, manda el estilo (`skills/video-base/FLOW.md`). El costo es el de un clip de 8 s.
+ */
+export function SelectorClips({ valor, onCambio }: { valor: string; onCambio(clips: string): void }) {
+  const opcion = OPCIONES_CLIPS[valor]
+  return (
+    <Picker
+      label={opcion ? `Clips: ${opcion.modelo}${opcion.resolucion ? ` · ${opcion.resolucion}` : ''}` : 'Clips: los del estilo'}
+      value={opcion ? valor : ''}
+      menuWidth={320}
+      groups={[
+        { label: 'Lo que diga el estilo', options: [{ value: '', label: 'Los del estilo' }] },
+        {
+          label: 'Google Flow · por clip de 8 s',
+          options: Object.entries(OPCIONES_CLIPS).map(([clave, o]) => ({ value: clave, label: `${o.modelo}${o.resolucion ? ` · ${o.resolucion}` : ''} · ${o.creditos} créditos` }))
+        }
+      ]}
+      onChange={(v) => onCambio(v)}
+    />
+  )
+}
+
+/**
  * Opciones → Google Flow: las cuentas de Google con que genera (la de la voz y las que agregues, para tener más créditos),
  * cada una con cómo está, lo que le queda y su menú; lo gastado en videos hoy y este mes, y los dos ajustes. Al abrirse
  * lee lo que les queda a las que nunca se leyeron; a todas, con «Actualizar créditos» (abre su Flow sin ventana).
  */
 const TOPE_INICIAL = 10
 
-export function FlowOpciones() {
+export function FlowOpciones({ voz }: { voz: UsoVoz }) {
   const { estado: e, error, recibir, poner } = useFlow()
   const [pidiendo, setPidiendo] = useState(false)
   const [quitando, setQuitando] = useState<string>()
   const [expandido, setExpandido] = useState(false)
   const n = e?.cuentas.length ?? 0
+  // La de la voz se conecta y se quita en Voz: al cambiar, la lista de Flow se vuelve a leer.
+  const deLaVoz = voz.estado?.cuenta
+  useEffect(() => {
+    if (e) void recibir(api('/api/flow'))
+  }, [deLaVoz]) // eslint-disable-line react-hooks/exhaustive-deps
   const agregar = () => void recibir(api('/api/flow/cuentas/agregar', {}))
   const leer = (faltan: boolean) => void recibir(api('/api/flow/saldos', { faltan }))
 
@@ -269,31 +302,63 @@ export function FlowOpciones() {
             <span className="muted small una-linea">
               Hoy: {videos(e.uso.hoy)} · este mes: {videos(e.uso.mes)}
             </span>
-            {e.leyendo ? (
-              <span className="estado moviendo small">Leyendo créditos…</span>
-            ) : (
-              <button className="link small" title="Abre el Flow de cada cuenta, sin ventana, y lee cuánto le queda. No gasta." onClick={() => leer(false)}>
-                Actualizar créditos
-              </button>
-            )}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {e.cuentas.some((c) => c.descansa) && (
+                <button
+                  className="link small"
+                  title="Quita la pausa a todas las cuentas para que puedan generar de inmediato si tienen créditos."
+                  onClick={() => void recibir(api('/api/flow/ajustes', { despertar: true }))}
+                >
+                  Quitar pausas
+                </button>
+              )}
+              {e.leyendo ? (
+                <span className="estado moviendo small">Leyendo créditos…</span>
+              ) : (
+                <button className="link small" title="Abre el Flow de cada cuenta, sin ventana, y lee cuánto le queda. No gasta." onClick={() => leer(false)}>
+                  Actualizar créditos
+                </button>
+              )}
+            </div>
           </div>
           {(expandido || n <= TOPE_INICIAL ? e.cuentas : e.cuentas.slice(0, TOPE_INICIAL)).map((c) => {
             const [texto, clase] = comoEsta(c)
+            const esPrioritaria = e.prioritaria === c.correo
             return (
               <div className="opcion-fila" key={c.correo}>
                 <Picker
                   className="acciones"
-                  label={<span className={`estado ${clase}`}>{c.correo}</span>}
+                  label={<span className={`estado ${clase}`}>{c.correo}{esPrioritaria ? ' ★ Prioritaria' : ''}</span>}
                   value=""
                   groups={[
                     {
                       label: 'Cuenta',
-                      options: [{ value: 'abrir', label: 'Abrir Flow' }, ...(c.deLaVoz ? [] : [{ value: 'conectar', label: 'Volver a conectar' }, { value: 'quitar', label: 'Quitar de Hermit' }])]
+                      options: [
+                        { value: 'abrir', label: 'Abrir Flow' },
+                        ...(c.descansa ? [{ value: 'despertar', label: 'Quitar pausa (Reanudar)' }] : []),
+                        { value: esPrioritaria ? 'quitarPrioridad' : 'prioritaria', label: esPrioritaria ? 'Quitar prioridad' : 'Usar primero (Prioritaria)' },
+                        ...(c.deLaVoz ? [] : [{ value: 'conectar', label: 'Volver a conectar' }, { value: 'quitar', label: 'Quitar de Hermit' }])
+                      ]
                     }
                   ]}
-                  onChange={(q) => (q === 'quitar' ? setQuitando(c.correo) : q === 'conectar' ? agregar() : void recibir(api('/api/flow/abrir', { correo: c.correo })))}
+                  onChange={(q) => (
+                    q === 'quitar'
+                      ? setQuitando(c.correo)
+                      : q === 'conectar'
+                        ? agregar()
+                        : q === 'despertar'
+                          ? void recibir(api('/api/flow/ajustes', { despertar: c.correo }))
+                          : q === 'prioritaria'
+                            ? void recibir(api('/api/flow/ajustes', { prioritaria: c.correo }))
+                            : q === 'quitarPrioridad'
+                              ? void recibir(api('/api/flow/ajustes', { prioritaria: '' }))
+                              : void recibir(api('/api/flow/abrir', { correo: c.correo }))
+                  )}
                 />
-                <span className="muted small una-linea" title={c.saldo ? `${texto}. Leído a las ${hora(c.saldo.leido)}.` : texto}>
+                <span
+                  className="muted small una-linea"
+                  title={[texto, c.descansa?.dicho, c.saldo && `Leído a las ${hora(c.saldo.leido)}.`].filter(Boolean).join(' ')}
+                >
                   {texto}
                 </span>
               </div>

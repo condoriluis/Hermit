@@ -21,6 +21,8 @@ test('el MCP de Flow pide el video, dice lo gastado y explica por qué no gener�
     }
     if (req.url === '/api/flow/generar' && cuerpo.includes('imagen')) return res.end(JSON.stringify({ id: 'i', estado: 'lista', tipo: 'imagen', modelo: 'Nano Banana 2.1', archivo: 'C:\\v\\pose.jpg', creditos: 0 }))
     if (req.url === '/api/flow/generar' && cuerpo.includes('permiso')) return res.end(JSON.stringify({ id: 'p', estado: 'en-fila', tipo: 'video', modelo: 'Veo 3.1 - Lite', permiso: 'pendiente' }))
+    if (req.url === '/api/flow/generar' && cuerpo.includes('bloqueada'))
+      return res.end(JSON.stringify({ id: 'x', estado: 'bloqueado', tipo: 'video', modelo: 'Veo 3.1 - Lite', aviso: 'Flow rechazó dos veces esta escena por su contenido (derechos o política de Google): No podemos generar esto por derechos. Hermit no la vuelve a pedir.' }))
     if (req.url === '/api/flow/generar') return res.end(JSON.stringify({ id: 'a', estado: 'en-fila', tipo: 'video', modelo: 'Veo 3.1 - Lite' }))
     if (req.url?.startsWith('/api/flow/trabajos/p')) return res.end(JSON.stringify({ id: 'p', estado: 'en-fila', tipo: 'video', modelo: 'Veo 3.1 - Lite', permiso: 'pendiente' }))
     if (req.url?.startsWith('/api/flow/trabajos/a')) return res.end(JSON.stringify({ id: 'a', estado: 'lista', tipo: 'video', modelo: 'Veo 3.1 - Lite', archivo: 'C:\\v\\clip.mp4', creditos: 10, cuenta: 'otra@gmail.com', quedan: 40 }))
@@ -62,6 +64,10 @@ test('el MCP de Flow pide el video, dice lo gastado y explica por qué no gener�
   const caro = (await llamar('tools/call', { name: 'generar_video', arguments: { prompt: 'caro', salida: 'C:\\v\\clip.mp4' } })).result
   assert.equal(caro.isError, true)
   assert.match(caro.content[0].text, /Cuesta 100 créditos/)
+  // Una escena que Flow rechazó dos veces por su contenido: el agente no debe reintentarla, sigue con las demás.
+  const bloqueada = (await llamar('tools/call', { name: 'generar_video', arguments: { prompt: 'bloqueada', salida: 'C:\\v\\x.mp4' } })).result
+  assert.equal(bloqueada.isError, true)
+  assert.match(bloqueada.content[0].text, /^No salió y no se reintenta: Flow rechazó dos veces/)
   const espera = (await llamar('tools/call', { name: 'generar_video', arguments: { prompt: 'permiso', salida: 'C:\\v\\permiso.mp4' } })).result
   assert.equal(espera.isError, undefined)
   assert.match(espera.content[0].text, /Flow espera tu permiso en Hermit/)

@@ -84,7 +84,7 @@ const CUENTAS_A_LA_VISTA = 5
 const DIARIO_GRATIS = 50
 const LITE = 10
 const horaFlow = (ms: number) => new Date(ms).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
-const MOTIVO: Record<NonNullable<CuentaEnFlow['descansa']>['motivo'], string> = { creditos: 'Sin créditos', frenada: 'Flow la frenó', sesion: 'Sin sesión' }
+const MOTIVO: Record<NonNullable<CuentaEnFlow['descansa']>['motivo'], string> = { creditos: 'Sin créditos', frenada: 'Flow la frenó', sesion: 'Sin sesión', navegador: 'Fallo del navegador' }
 
 function CuentaFlow({ c }: { c: CuentaEnFlow }) {
   const s = c.saldo

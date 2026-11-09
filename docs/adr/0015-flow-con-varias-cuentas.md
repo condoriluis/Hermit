@@ -30,8 +30,9 @@ Ese mismo día, en la página de Flow:
 - **El reparto (`elegirCuenta`):** el pedido va a la cuenta libre que lleva más tiempo sin generar, así los créditos
   se gastan parejo. Si Flow no lo empieza, no se gastó nada. Entonces la cuenta descansa según el motivo: sin créditos
   3 h (y mientras tanto sigue haciendo imágenes), frenada 30 min, sin sesión 10 min. El pedido pasa a otra cuenta que no lo
-  haya probado. Si ninguna puede, falla diciendo cuándo vuelven. Volver a probar cuesta solo unos 45 s, por eso los
-  descansos son cortos.
+  haya probado. Si ninguna puede, el pedido no falla: queda esperando (`esperando`) y Hermit lo reintenta solo
+  (`despertar`) cuando la primera se libere, para que el agente pare y avise al usuario. Volver a probar cuesta solo unos
+  45 s, por eso los descansos son cortos.
 - **Lo que le queda a cada cuenta** se lee del menú de su cuenta en Flow («20 créditos de Google Flow · se actualizan
   todos los días a las 12:02 p.m.»): tras cada video, en la misma página, y de todas con «Actualizar créditos» en
   Opciones, que abre su Edge sin ventana y no gasta. Si se sabe la hora de renovación, una cuenta sin créditos descansa
@@ -52,6 +53,13 @@ Ese mismo día, en la página de Flow:
 - Usar varias cuentas para tener más cupo puede hacer que Google limite o bloquee alguna. Opciones lo dice, y pide
   agregar solo cuentas propias.
 - Cada Edge abierto pesa. Por eso son tres a la vez, aunque haya 50 cuentas.
-- Todavía no se ha visto qué dice Flow al quedarse sin créditos. El motivo se lee de su aviso (`motivoDeAviso`). Si no dice
-  nada, en un video se toma como falta de créditos y en una imagen como frenada.
+- El motivo del descanso de una cuenta a la que Flow no le empezó el pedido sale de lo que Hermit ya midió
+  (`motivoDeDescanso`), nunca de las palabras del aviso: sin sesión, si su página acabó en la de entrar con Google; sin
+  créditos, si su saldo ya se leyó y no le llega para el video más barato; y frenada en todo lo demás (30 min), que volver
+  a probar cuesta unos 45 s y no gasta nada, y al reintentar se relee su saldo. El 9 de noviembre de 2026 se quitó el
+  motivo adivinado por el texto del aviso: sin coincidencia mandaba a esperar su recarga del día a cuentas que iban por la
+  mitad de sus créditos.
+- Al principio, si ninguna cuenta podía, el pedido fallaba al instante con «Vuelven a probar desde las HH:MM». Los agentes
+  lo leían como un fallo que arreglar y reintentaban en cada turno sin avanzar (nadie duerme hasta esa hora), así que el
+  9 de noviembre de 2026 se cambió a esperar dentro de Hermit: el pedido queda `esperando` y Hermit lo reintenta solo.
 - Este ADR cierra lo de animar una imagen del issue #6. Extender un clip sigue pendiente.

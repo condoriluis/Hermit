@@ -26,6 +26,7 @@ const HERRAMIENTAS = [
         formato: { type: 'string', enum: ['9:16', '16:9', '1:1', '4:3', '3:4'], description: 'La proporción; sin ella, 9:16' },
         modelo: { type: 'string', enum: ['Nano Banana 2.1', 'Nano Banana Pro', 'Nano Banana 2 Lite'], description: 'Sin él, Nano Banana 2.1' },
         referencias: { type: 'array', items: { type: 'string' }, description: 'Las rutas absolutas de las imágenes de referencia (.png, .jpg o .webp). El usuario confirma en Opciones que tiene sus derechos' },
+        cuenta: { type: 'string', description: 'Opcional: el correo de la cuenta de Google a usar (por ejemplo cuenta@gmail.com). Si no se pasa, reparte automáticamente o usa la prioritaria.' },
         salida: { type: 'string', description: 'La ruta absoluta del .jpg que deja' }
       },
       required: ['prompt', 'salida']
@@ -34,16 +35,18 @@ const HERRAMIENTAS = [
   {
     name: 'generar_video',
     description:
-      'Genera UN video de 8 s con audio (y las voces que diga el prompt) en Google Flow, con las cuentas de Google del usuario, y deja el MP4 en `salida` (720p; Omni, 360p). GASTA los créditos del usuario: Omni Flash 6, Lite 10, Fast 20, Quality 100. Lee el costo antes de generar y, si pasa de `tope`, no genera. El primer clip de un hilo, o el que pasa un permiso vencido, se queda esperando a que el usuario autorice el gasto en Hermit: pídeselo y sigue con estado_flow. Con `primerCuadro`, el video empieza en esa imagen (y acaba en `ultimoCuadro`, si lo pasas): así salen iguales los personajes y el lugar. Con `referencias`, sigue a esos personajes sin partir de una imagen. Las dos cosas a la vez, no. Tarda cerca de un minuto; si no acaba en 40 s, devuelve un id para esperarlo con estado_flow. Si una cuenta se quedó sin créditos, pasa sola a otra. Si nada cambió desde el último archivo de esa ruta, sale al momento y sin gastar.',
+      'Genera UN video de 8 s con audio (y las voces que diga el prompt) en Google Flow, con las cuentas de Google del usuario, y deja el MP4 en `salida` (Veo, 720p; Omni, la `resolucion` elegida). GASTA los créditos del usuario: Omni 1.2 Flash 24 en 720p (8 en 360p), Omni 1.1 Flash 12 en 720p (6 en 360p), Lite 10, Fast 20, Quality 100. Lee el costo antes de generar y, si pasa de `tope`, no genera. El primer clip de un hilo, o el que pasa un permiso vencido, se queda esperando a que el usuario autorice el gasto en Hermit: pídeselo y sigue con estado_flow. Con `primerCuadro`, el video empieza en esa imagen (y acaba en `ultimoCuadro`, si lo pasas): así salen iguales los personajes y el lugar. Con `referencias`, sigue a esos personajes sin partir de una imagen. Las dos cosas a la vez, no. Con `cuenta`, puedes dirigir el clip a una cuenta específica con créditos (por ejemplo cuenta@gmail.com). Tarda cerca de un minuto; si no acaba en 40 s, devuelve un id para esperarlo con estado_flow. Si una cuenta se quedó sin créditos, pasa sola a otra, y si ninguna puede ahora, el pedido queda esperando y Hermit lo reintenta solo. Si Flow rechaza el mismo clip dos veces por su contenido (derechos, política de Google), Hermit lo deja y no lo vuelve a pedir: cambia de escena u omítela y sigue con las demás. Si nada cambió desde el último archivo de esa ruta, sale al momento y sin gastar.',
     inputSchema: {
       type: 'object',
       properties: {
         prompt: PROMPT,
         formato: { type: 'string', enum: ['9:16', '16:9'], description: 'La proporción; sin ella, 9:16. La del primer cuadro tiene que ser la misma' },
-        modelo: { type: 'string', enum: ['Veo 3.1 - Lite', 'Veo 3.1 - Fast', 'Veo 3.1 - Quality', 'Omni 1.1 Flash'], description: 'Sin él, Veo 3.1 - Lite' },
+        modelo: { type: 'string', enum: ['Veo 3.1 - Lite', 'Veo 3.1 - Fast', 'Veo 3.1 - Quality', 'Omni 1.2 Flash', 'Omni 1.1 Flash'], description: 'Sin él, Veo 3.1 - Lite' },
+        resolucion: { type: 'string', enum: ['720p', '360p'], description: 'Solo en Omni; sin ella, 720p. En Veo no se usa' },
         primerCuadro: { type: 'string', description: 'La ruta absoluta de la imagen (.png, .jpg o .webp) donde empieza el video' },
         ultimoCuadro: { type: 'string', description: 'La ruta absoluta de la imagen donde acaba; solo con primerCuadro' },
         referencias: { type: 'array', items: { type: 'string' }, description: 'Las rutas absolutas de hasta 3 imágenes de los personajes u objetos que salen; sin primerCuadro' },
+        cuenta: { type: 'string', description: 'Opcional: el correo de la cuenta de Google a usar (por ejemplo cuenta@gmail.com). Si no se pasa, reparte automáticamente o usa la prioritaria.' },
         salida: { type: 'string', description: 'La ruta absoluta del .mp4 que deja' },
         tope: { type: 'number', description: 'Lo más que puede costar, en créditos; sin él, 20. Súbelo solo si el usuario lo pidió.' }
       },
@@ -68,10 +71,16 @@ async function pedir(ruta, datos) {
 /** El chat de Hermit lee de vuelta lo de «Lista» (`hechoDeFlow` en shared/flow.ts): si cambia, cambia allá también. */
 function contar(t) {
   if (t.estado === 'lista') return `Lista: ${t.archivo} (${t.modelo}, ${t.creditos} créditos gastados${t.cuenta ? `, con ${t.cuenta}` : ''}, pedido ${t.id}).${t.quedan === undefined ? '' : ` Les quedan ${t.quedan} créditos a las cuentas.`}`
+  // Flow rechazó esta escena por su contenido dos veces: es de lo que se le pide, no de la cuenta, y Hermit no la vuelve
+  // a pedir ni con otro prompt. El agente tampoco: sigue con las demás escenas.
+  if (t.estado === 'bloqueado') throw new Error(`No salió y no se reintenta: ${t.aviso}`)
   if (t.estado === 'error') throw new Error(`No salió: ${t.error}`)
+  // Ninguna cuenta puede ahora y Hermit vuelve a probarlo solo: no es un fallo, y el agente no debe reintentarlo.
+  if (t.estado === 'esperando')
+    return `${t.aviso} Hermit lo reintentará solo a las ${hora(t.espera)}: no lo pidas otra vez. Dile al usuario cuántos clips faltan y que puede esperar o agregar cuentas en Opciones → Google Flow. (espera ${t.espera})`
   if (t.permiso === 'pendiente')
-    return `Flow espera tu permiso en Hermit para gastar créditos (${t.modelo}). Pídeselo al usuario; cuando lo autorice, llama a estado_flow con id "${t.id}" para esperar el clip.`
-  return `Sigue ${t.estado === 'en-fila' ? 'esperando su turno' : 'generándose'} (${t.modelo}). Llama a estado_flow con id "${t.id}" para esperarlo; mientras, sigue con lo que no lo necesita.`
+    return `Flow espera tu permiso en Hermit para gastar créditos (${t.modelo}). Pídeselo al usuario; cuando lo autorice, llama a estado_flow con id "${t.id}" para esperar el clip. (espera ${Date.now() + 15_000})`
+  return `Sigue ${t.estado === 'en-fila' ? 'esperando su turno' : 'generándose'} (${t.modelo}). Llama a estado_flow con id "${t.id}" para esperarlo; mientras, sigue con lo que no lo necesita. (espera ${Date.now() + 15_000})`
 }
 
 const hora = (ms) => new Date(ms).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
@@ -91,7 +100,9 @@ function saldos(e) {
 
 async function generar(tipo, datos) {
   const t = await pedir('/api/flow/generar', { ...datos, tipo, ...(HILO ? { hilo: HILO } : {}) })
-  return contar(t.estado === 'lista' || t.estado === 'error' ? t : await pedir(`/api/flow/trabajos/${t.id}?esperar=${ESPERA}`))
+  // `bloqueado` ya es definitivo (no hay nada en fila que esperar): no se pregunta más por él.
+  const hecho = t.estado === 'lista' || t.estado === 'error' || t.estado === 'bloqueado'
+  return contar(hecho ? t : await pedir(`/api/flow/trabajos/${t.id}?esperar=${ESPERA}`))
 }
 
 const LLAMADAS = {

@@ -46,5 +46,9 @@ paga por segundo con llave. Se probó el 1 de noviembre de 2026, con una cuenta 
 - Mientras Flow genera, la voz espera, y al revés: un lote con muchos clips va en fila.
 - Usar la página de forma automática no está dicho en los términos de Google: es una zona gris, con la cuenta de cada
   quien y a su ritmo (un pedido a la vez).
-- Sin comprobar: qué enseña Flow al rechazar un prompt o al quedarse sin créditos. Se trata como tarjeta que no avanza o
-  que no sale, y el mensaje lleva lo que diga la página.
+- **Un rechazo de Flow por el contenido del pedido** (derechos, política: los personajes de una película, una marca) no
+  gasta y no es cosa de la cuenta, así que no se pasa a otra: se apunta por escena (su `salida`) y, a la segunda vez,
+  Hermit la deja (`bloqueado`) y no la vuelve a pedir ni con otro prompt. Lo decide el código, no el agente: uno reformuló
+  el mismo pedido con derechos sin fin (visto el 10 de noviembre de 2026, cuatro horas sobre el mismo video).
+- Sin comprobar: qué enseña Flow al quedarse sin créditos. Se trata como tarjeta que no avanza o que no sale, y el mensaje
+  lleva lo que diga la página.

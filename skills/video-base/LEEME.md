@@ -4,9 +4,9 @@ Lo que comparten los estilos de vídeo: el lote, los errores ya vistos y los scr
 `SKILL.md` ni card): la leen y la usan las skills de cada estilo, que se quedan solo con lo suyo.
 
 - **La usan:** `reel-collage` y `video-explicativo` (sus scripts, `LOTE.md` y este archivo; `video-explicativo`, también
-  las huellas), `video-documental` (`hermit.py`, `chrome.mjs`, la hoja, masterizar y comprobar), `frutinovela` y
-  `devnovela` (`FLOW.md`, `hermit.py`, la hoja, masterizar, comprobar y la portada), los estilos que hace
-  cada quien con `crear-estilo` y los procesos de Python de Hermit (`hermit.py`).
+  las huellas), `video-documental` (`hermit.py`, `chrome.mjs`, la hoja, masterizar y comprobar), las novelas de clips de
+  Veo —`frutinovela`, `animalnovela`, `devnovela` y `minidrama`— (`FLOW.md`, `hermit.py`, `sonido.py`, la hoja, masterizar,
+  comprobar y la portada), los estilos que hace cada quien con `crear-estilo` y los procesos de Python de Hermit (`hermit.py`).
 - **`video-el-diff`** es un estilo propio que el usuario afina a mano: ni lo toques desde aquí ni le muevas nada. Solo
   toma prestados `chrome.mjs`, `recorte.py` y la portada (`PORTADA.md`, `portada.mjs`), así que un cambio en ellos
   también le llega.
@@ -83,8 +83,7 @@ en el script.
 ## Un estilo nuevo
 
 Su skill dice lo suyo y usa de aquí lo que ya existe: si te ves copiando un párrafo o un script de otro estilo, va
-aquí. Nace con su card en `cards.json` de Hermit, con `produce: "video"` (lo que la hace un estilo de video: su
-estudio, su galería, sus redes) y sus `etapas`, cada una con su `fase` (`idea`, `guion`, `sonido`,
+aquí. Nace con su card en `cards.json` de Hermit, con sus `etapas`, cada una con su `fase` (`idea`, `guion`, `sonido`,
 `video` o `entrega`: Idea · Guion · Sonido y voz · Video · Entrega, ver `FASES` en `shared/types.ts` de Hermit). `listo`
 es el glob que la da por hecha y, si no dice otra cosa en `muestra`, lo que el panel enseña de ella. El video terminado
 es el de la etapa «Video». Hace los dos formatos, vertical y horizontal ([FORMATO.md](FORMATO.md)): su plantilla
@@ -106,12 +105,13 @@ Todos dicen cómo se usan si los corres sin argumentos. Node sin dependencias y 
 | `portada_sin_ia.mjs video.mp4 portada.png --titulo "…" [--horizontal]` | La portada sin cuenta de ChatGPT: un cuadro del vídeo y el título encima, en la zona que se ve; con `--horizontal`, la miniatura de YouTube (1280x720) |
 | `chrome.mjs` (librería) | Busca Chrome o Edge (o el de `CHROME`) y lo abre sin ventana: `abrirChrome({ ancho, alto })` |
 | `hermit.py`, `fuente.py` | El Python de Hermit (el transcriptor, yt-dlp) y bajar y transcribir un vídeo. `proceso()` dice antes cuánto tardará la voz en este equipo y luego cuánto falta, cada 10 %. WhisperX va de uno en uno en toda la máquina (`turno_gpu`) y, con una NVIDIA, ya cargado (`voz_viva.py`, que se va tras 10 min sin uso): 6 min de voz salen en ~40 s en vez de cargar Whisper cada vez (de 36 s a 10 min con la máquina ocupada), y las descargas de YouTube también (`turno_youtube`): los vídeos de un lote esperan ahí su turno. `vectorizar` usa el modelo de vectores ya cargado (`vectores_vivo.py`, que se va tras 10 min sin uso): un texto nuevo tarda menos de un segundo en vez de ~18. Un video de YouTube que otro vídeo ya bajó se enlaza de su carpeta en vez de bajarlo |
-| `huellas.py buscar\|revisar\|parecidos\|cerrar <skill>` | Que ningún vídeo de un estilo salga igual a otro ya hecho: la huella de cada uno (lo que cuenta y cómo se ve, y su hoja de ocho cuadros) en `<skill>/huellas/`, comparada contra todas por el script, que solo dice lo que choca. Python del sistema con numpy y Pillow; los textos, con los vectores de Hermit |
+| `huellas.py buscar\|revisar\|cerrar <skill>` | Que ningún vídeo de un estilo salga igual a otro ya hecho: la huella de cada uno (lo que cuenta y cómo se ve, y su hoja de ocho cuadros) en `<skill>/huellas/`, comparada contra todas por el script, que solo dice lo que choca. Python del sistema con numpy y Pillow; los textos, con los vectores de Hermit |
 | `banco.py ver\|tomar\|guardar <skill> <serie>` | El banco de historias de una serie, en `<skill>/series/banco/`: las candidatas ya leídas y comprobadas que no se usaron ([SERIES.md](SERIES.md)) |
 | `espacio.py` (librería) | El disco: `enlazar_modulos` (un solo `node_modules` por plantilla, en %LOCALAPPDATA%/hermit-modulos, enlazado desde cada video: antes cada uno copiaba ~1 GB), `limpiar_temporales` (las `remotion-*` de %TEMP% que dejan los renders cortados) y `comprobar_disco` (para antes de renderizar sin espacio). Hermit hace lo mismo en Opciones → Espacio en disco |
 | `equipo.cjs` (librería) | El render según este equipo: `tarjeta3D()` (avisa si Chrome dibuja el 3D por software), `estimado(cuadros)` y `falta(parte, desde)` para decir cuánto tardará, y `anotarRender()` del final, que Hermit enseña en Opciones → Tu equipo |
 | `remotion.cjs` (librería) | `empaquetar(raiz)`: el `bundle()` de Remotion en una carpeta de %TEMP% que se borra al terminar (la de Remotion se quedaba, con una copia de `public/`). Todo script que empaquete usa este |
 | `recorte.py foto.jpg salida.png [--borde]` | Quita el fondo con rembg (o respeta el alfa que traiga) y corta al contenido; con `--borde`, un borde blanco de tijera. También una carpeta entera |
+| `sonido.py` (librería) | La limpieza del audio de los clips de Veo (`LIMPIAR`): quita el retumbe, baja el murmullo de fondo y cierra los huecos con una compuerta, sin tocar la voz. La usan los `unir.py` de frutinovela, animalnovela, devnovela y minidrama |
 
 ## Cambiar la base
 

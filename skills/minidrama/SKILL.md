@@ -37,14 +37,14 @@ El mensaje trae `Formato: vertical` o `Formato: horizontal`; sin la línea, vert
 
 Los personajes viven en `personajes/` para reutilizarse en los siguientes episodios:
 - `personajes/<nombre>.jpg`: retrato cinematográfico del personaje con vestimenta definida, generado con Nano Banana (`generar_imagen`).
-- `personajes/ELENCO.md`: nombre, rol (CEO, heredera, rival), estilo visual, personalidad y tono de voz para mantener la coherencia.
+- `personajes/ELENCO.md`: nombre, rol (CEO, heredera, rival), estilo visual, personalidad y su voz (la ficha literal en inglés de [`FLOW.md`](../video-base/FLOW.md), «La voz de cada personaje») para mantener la coherencia.
 
 ## Pasos
 
 1. **Elenco y Biblia de la Serie.** Define a los protagonistas en `personajes/ELENCO.md` y genera sus retratos en `personajes/<nombre>.jpg` usando `generar_imagen` en estilo cinematográfico realista de K-drama. *Si es la continuación de un capítulo anterior, reutiliza los mismos personajes.*
 2. **Guion del Capítulo.** En `guion.md`: tabla con escena, plano de cámara, personajes a cuadro, emoción/acción y el diálogo exacto en español entre comillas.
 3. **Cuadros.** Primer fotograma de cada escena (`cuadros/esc-<NN>.jpg`) combinando los personajes y el escenario con `generar_imagen`, pasando las referencias de los personajes.
-4. **Clips.** Generación en Google Flow con `generar_video` (Veo 3.1 - Lite), pasando el cuadro inicial (`primerCuadro`) y el prompt con la acción y el diálogo entre comillas en español.
+4. **Clips.** Generación en Google Flow con `generar_video` (Veo 3.1 - Lite), pasando el cuadro inicial (`primerCuadro`) y el prompt con la acción y el diálogo entre comillas en español; delante de cada línea, la ficha de voz de ese personaje copiada igual que en `ELENCO.md` (ver [`FLOW.md`](../video-base/FLOW.md), «La voz de cada personaje»). Si Flow rechaza un clip por su contenido (derechos, política de Google), cámbialo de verdad una vez; si vuelve a caer, déjalo fuera y sigue: el video sale con los demás.
 5. **Montaje.** Corre `python <skill>/scripts/unir.py <nombre> --formato <formato>`: corta silencios muertos con Whisper, une las tomas a 30 fps, masteriza el audio a -14 LUFS, genera subtítulos dinámicos palabra por palabra y exporta `out/minidrama-<nombre>.mp4`.
 6. **Portada.** Generada según [`PORTADA.md`](../video-base/PORTADA.md) con el momento de mayor tensión o mirada dramática entre los protagonistas y título de impacto. En vertical va de primer fotograma con `portada.mjs`.
 

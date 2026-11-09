@@ -1,12 +1,14 @@
 """
 Une los clips de una devnovela en el video final. Se corre desde la raíz del proyecto:
 
-    python <skill>/scripts/unir.py <nombre> [--formato vertical|horizontal] [--sin-subtitulos] [--sin-recortar]
+    python <skill>/scripts/unir.py <nombre> [--formato vertical|horizontal] [--duracion 30|45|1:30|2 min]
+        [--sin-subtitulos] [--sin-recortar]
 
 Toma `clips/esc-*.mp4` en orden y transcribe cada uno con el Whisper de Hermit. Corta el final muerto de cada clip, el
-segundo o dos en que nadie habla ni se mueve, a 0,35 s de su última palabra, salvo `--sin-recortar`. Los lleva al
-tamaño del formato (Veo da 720p) a 30 fps, une su audio y lo masteriza (`masterizar.mjs` de video-base, −14 LUFS y
-−1 dBTP). Deja lo que dicen en `revision/transcripcion.txt`, para compararlo con el guion, y salvo `--sin-subtitulos`
+segundo o dos en que nadie habla ni se mueve, a 0,35 s de su última palabra, salvo `--sin-recortar`. Con `--duracion`,
+recorta por el final hasta esa duración, sin dejar un clip de menos de 2 s; si los clips no llegan, avisa y no estira. Los lleva al
+tamaño del formato (Veo da 720p) a 30 fps, limpia el fondo de cada clip (`sonido.py`, de video-base), une su audio y
+lo masteriza (`masterizar.mjs` de video-base, −14 LUFS y −1 dBTP). Deja lo que dicen en `revision/transcripcion.txt`, para compararlo con el guion, y salvo `--sin-subtitulos`
 lo pone encima en bloques de hasta tres palabras, con la más larga en amarillo. Deja `out/devnovela-<nombre>.mp4`.
 """
 
@@ -20,6 +22,8 @@ sys.stdout.reconfigure(encoding="utf-8")
 SKILL = Path(__file__).resolve().parent.parent
 BASE = SKILL.parent / "video-base" / "scripts"
 sys.path.insert(0, str(BASE))
+from sonido import LIMPIAR  # la limpieza del audio de los clips de Veo, de video-base
+
 PROYECTO = Path.cwd()
 FORMATOS = {"vertical": (1080, 1920), "horizontal": (1920, 1080)}
 FPS = 30
@@ -44,6 +48,16 @@ def duracion(clip: Path) -> float:
     return float(r.stdout.strip())
 
 
+def segundos(texto: str) -> float:
+    """Los segundos de `--duracion`: «30», «30 s», «1:30», «2 min»."""
+    t = texto.strip().lower().replace(",", ".")
+    m = re.fullmatch(r"(?:(\d+):)?(\d+(?:\.\d+)?)\s*(s|seg|segundos?|m|min|minutos?)?", t)
+    if not m:
+        sys.exit(f'--duracion no se entiende: "{texto}". Usa segundos o minutos, por ejemplo 30 s o 2 min.')
+    n = float(m.group(2)) * (60 if m.group(3) and m.group(3).startswith("m") else 1)
+    return n + (int(m.group(1)) * 60 if m.group(1) else 0)
+
+
 def corte(clip: Path, segmentos: list[dict]) -> float:
     """
     Dónde acaba el clip: poco después de su última palabra. Veo deja de 1 a 2 s al final en que nadie habla ni se mueve,
@@ -64,8 +78,9 @@ def unir(clips: list[Path], cortes: list[float], ancho: int, alto: int, salida: 
     for i, (c, fin) in enumerate(zip(clips, cortes)):
         filtros.append(f"[{i}:v]trim=end={fin:.3f},setpts=PTS-STARTPTS,scale={ancho}:{alto}:force_original_aspect_ratio=increase,crop={ancho}:{alto},setsar=1,fps={FPS},format=yuv420p[v{i}]")
         if con_audio(c):
-            # Un desvanecido de 60 ms en el corte: sin él, chasquea.
-            filtros.append(f"[{i}:a]atrim=end={fin:.3f},asetpts=PTS-STARTPTS,afade=t=out:st={max(fin - 0.06, 0):.3f}:d=0.06,aresample=48000,aformat=channel_layouts=stereo[a{i}]")
+            # La voz va limpia (LIMPIAR, de video-base): Veo deja un colchón de ambiente por debajo y el máster lo
+            # subiría con la voz. El desvanecido de 60 ms evita el chasquido en el corte.
+            filtros.append(f"[{i}:a]atrim=end={fin:.3f},asetpts=PTS-STARTPTS,{LIMPIAR},afade=t=out:st={max(fin - 0.06, 0):.3f}:d=0.06,aresample=48000,aformat=channel_layouts=stereo[a{i}]")
         else:
             # El silencio entra después de los clips: es la entrada que sigue.
             filtros.append(f"[{entradas.count('-i')}:a]anull[a{i}]")
@@ -135,11 +150,27 @@ def main() -> None:
 
     # Clip por clip: de todo junto, Whisper puede dar un solo segmento largo y los subtítulos caerían donde no se habla.
     # Con lo que oye en cada uno se corta su final muerto (`corte`), salvo `--sin-recortar`.
-    segmentos, renglones, cortes, inicio = [], [], [], 0.0
-    for c in clips:
-        propios = transcribir(c).get("segmentos", []) if con_audio(c) else []
-        fin = duracion(c) if "--sin-recortar" in sys.argv else corte(c, propios)
-        cortes.append(fin)
+    voz = [transcribir(c).get("segmentos", []) if con_audio(c) else [] for c in clips]
+    cortes = [duracion(c) if "--sin-recortar" in sys.argv else corte(c, p) for c, p in zip(clips, voz)]
+    total = sum(cortes)
+    if "--duracion" in sys.argv:
+        i = sys.argv.index("--duracion") + 1
+        if i >= len(sys.argv):
+            sys.exit("--duracion necesita segundos o minutos, por ejemplo 30 s o 2 min.")
+        objetivo = segundos(sys.argv[i])
+        while cortes and total > objetivo:
+            sobra = total - objetivo
+            if cortes[-1] - sobra >= MINIMO:
+                cortes[-1] -= sobra
+                total = objetivo
+            else:
+                total -= cortes.pop()
+                clips.pop()
+                voz.pop()
+        if total < objetivo - 0.5:
+            print(f"Aviso: los clips duran {total:.1f} s y pediste {objetivo:.1f} s; no se estira: faltan {objetivo - total:.1f} s.")
+    segmentos, renglones, inicio = [], [], 0.0
+    for c, fin, propios in zip(clips, cortes, voz):
         segmentos += [{**s, "start": s["start"] + inicio, "end": min(s["end"], fin) + inicio} for s in propios if s["start"] < fin]
         renglones.append(f"{c.stem} ({inicio:.1f}-{inicio + fin:.1f} s, de {duracion(c):.1f}): {' '.join(s['text'].strip() for s in propios) or '(sin voz)'}")
         inicio += fin

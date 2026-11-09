@@ -63,8 +63,9 @@ Todo cuadro va en el formato del video: un cuadro vertical animado en horizontal
 Los personajes viven en `personajes/`, en la carpeta donde arrancas (la de todas las devnovelas). Así se usan otra vez
 en la parte 2 sin rehacerlos. Cada uno lleva su hoja `personajes/<nombre>.jpg` y su renglón en
 `personajes/ELENCO.md`: nombre, qué lenguaje o herramienta representa, **cuál es el logo o símbolo exacto de su cabeza**,
-su silueta y colores, cómo son sus rasgos, qué ropa lleva, su voz (edad, tono, acento) y en qué capítulos sale. Antes de
-inventar a uno, mira si ya está y conserva su diseño.
+su silueta y colores, cómo son sus rasgos, qué ropa lleva, su voz (la ficha literal en inglés de
+[`FLOW.md`](../video-base/FLOW.md), «La voz de cada personaje») y en qué capítulos sale. Antes de inventar a uno, mira si
+ya está y conserva su diseño.
 
 Un elenco de cuatro a seis funciona mejor que uno de doce. Cada uno necesita una silueta distinta y una personalidad que
 se entienda en un solo plano. No hay una lista cerrada de lenguajes compatibles: representa los que pida el usuario,
@@ -110,11 +111,14 @@ pide una referencia antes de generar.
    gastan y si alcanzan (paso «Lo que no se negocia»), y pídelos todos seguidos, sin esperar uno para pedir el siguiente.
    Se reparten entre sus cuentas, tres a la vez. Usa `generar_video` con `primerCuadro` `cuadros/esc-<NN>.jpg`, el
    formato del video, Veo 3.1 - Lite (salvo que el usuario pida otro) y `salida` `clips/esc-<NN>.mp4`. El prompt, en
-   inglés, describe la acción. El diálogo va en español, entre comillas y con quién lo dice y cómo suena su voz (la de
-   `ELENCO.md`). Conserva las cabezas-logo de la imagen de referencia; al final, `static camera, no music, no subtitles,
+   inglés, describe la acción. El diálogo va en español, entre comillas y con quién lo dice; delante de cada línea, la
+   ficha de voz de ese personaje copiada igual que en `ELENCO.md` (ver [`FLOW.md`](../video-base/FLOW.md), «La voz de
+   cada personaje»). Conserva las cabezas-logo de la imagen de referencia; al final, `static camera, no music, no subtitles,
    no added text on screen, no extra logos, no realistic animals`. Espera los
    pendientes con `estado_flow`. Listo cuando están todos los clips. Si una cuenta se quedó sin créditos, la herramienta ya pasó a
-   otra. Si ninguna puede, dile al usuario cuántos faltan y cuándo vuelven sus cuentas, y para ahí.
+   otra. Si ninguna puede, dile al usuario cuántos faltan y cuándo vuelven sus cuentas, y para ahí. Si Flow rechaza un clip
+   por su contenido (derechos, política de Google), cámbialo de verdad una vez; si vuelve a caer, déjalo fuera y sigue: el
+   video sale con los demás, y al final se lo dices al usuario.
 7. **Montaje.** `python <skill>/scripts/unir.py <nombre> --formato <formato>` se corre desde la carpeta del proyecto.
    Transcribe cada clip y le corta el final muerto: Veo deja de 1 a 2 s en que nadie habla ni se mueve, y se corta a
    0,35 s de su última palabra. Luego une los clips en orden, masteriza el audio y pone los subtítulos

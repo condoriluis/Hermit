@@ -1,5 +1,59 @@
 [
   {
+    "id": "video-explicativo",
+    "title": "Video explicativo",
+    "description": "Un video que explica cualquier tema en el tiempo que necesite: un solo mundo 3D que la cámara recorre sin cortes, el texto palabra por palabra y tu personaje (el perro salchicha, uno tuyo o ninguno). Tú grabas la voz y el cierre lleva a donde quieras.",
+    "skill": "video-explicativo",
+    "produce": "video",
+    "icon": "pizarra",
+    "modelos": {
+      "principal": {
+        "model": "claude-sonnet-5-5",
+        "effort": "medium",
+        "medido": "5 nov 2026, tamal, agua y estafas con el director: medium 2.9–4.3 min y $0.27–0.38; high 2.9–7.0 min y $0.39–1.08, con guiones igual de buenos. Sin esto iba en Opus high."
+      }
+    },
+    "etapas": [
+      {
+        "nombre": "Investigación",
+        "listo": "fuentes/investigacion.md",
+        "fase": "idea"
+      },
+      {
+        "nombre": "Guion",
+        "listo": "guion.md",
+        "copiar": true,
+        "fase": "guion"
+      },
+      {
+        "nombre": "Tu voz",
+        "listo": "fuentes/voz/original.wav",
+        "espera": "Graba el guion (con el celular basta) y súbelo aquí o mándalo por el chat.",
+        "fase": "sonido"
+      },
+      {
+        "nombre": "Voz lista",
+        "listo": "fuentes/voz/rapida.wav",
+        "fase": "sonido"
+      },
+      {
+        "nombre": "Revisión",
+        "listo": "revision/hoja.png",
+        "fase": "video"
+      },
+      {
+        "nombre": "Video",
+        "listo": "out/!(render*|borrador*|_*).mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Portada",
+        "listo": "{portada.png,portada/*.png}",
+        "fase": "entrega"
+      }
+    ]
+  },
+  {
     "id": "video-el-diff",
     "title": "El Diff",
     "description": "Tu noticiero para TikTok o YouTube, con tu nombre, tu sello y tu despedida: le das un enlace o un tema, te escribe el guion, grabas tu voz y arma el episodio, o un short.",
@@ -186,60 +240,6 @@
     ]
   },
   {
-    "id": "video-explicativo",
-    "title": "Video explicativo",
-    "description": "Un video que explica cualquier tema en el tiempo que necesite: un solo mundo 3D que la cámara recorre sin cortes, el texto palabra por palabra y tu personaje (el perro salchicha, uno tuyo o ninguno). Tú grabas la voz y el cierre lleva a donde quieras.",
-    "skill": "video-explicativo",
-    "produce": "video",
-    "icon": "pizarra",
-    "modelos": {
-      "principal": {
-        "model": "claude-sonnet-5-5",
-        "effort": "medium",
-        "medido": "5 nov 2026, tamal, agua y estafas con el director: medium 2.9–4.3 min y $0.27–0.38; high 2.9–7.0 min y $0.39–1.08, con guiones igual de buenos. Sin esto iba en Opus high."
-      }
-    },
-    "etapas": [
-      {
-        "nombre": "Investigación",
-        "listo": "fuentes/investigacion.md",
-        "fase": "idea"
-      },
-      {
-        "nombre": "Guion",
-        "listo": "guion.md",
-        "copiar": true,
-        "fase": "guion"
-      },
-      {
-        "nombre": "Tu voz",
-        "listo": "fuentes/voz/original.wav",
-        "espera": "Graba el guion (con el celular basta) y súbelo aquí o mándalo por el chat.",
-        "fase": "sonido"
-      },
-      {
-        "nombre": "Voz lista",
-        "listo": "fuentes/voz/rapida.wav",
-        "fase": "sonido"
-      },
-      {
-        "nombre": "Revisión",
-        "listo": "revision/hoja.png",
-        "fase": "video"
-      },
-      {
-        "nombre": "Video",
-        "listo": "out/!(render*|borrador*|_*).mp4",
-        "fase": "video"
-      },
-      {
-        "nombre": "Portada",
-        "listo": "{portada.png,portada/*.png}",
-        "fase": "entrega"
-      }
-    ]
-  },
-  {
     "id": "reel-collage",
     "title": "Reel de comedia",
     "description": "Un sketch de comedia sobre cualquier tema o tu propio guion: un experto muy serio enseña a resolver una situación con pasos físicos absurdos, con tus poses recortadas sobre fotos reales y la voz que elijas.",
@@ -338,104 +338,47 @@
     ]
   },
   {
-    "id": "frutinovela",
-    "title": "Frutinovela",
-    "description": "Una telenovela de frutas en 3D que hablan con sus propias voces: los mismos personajes en cada escena, drama de traición o familia y un final que pide la siguiente parte. Se hace en Google Flow con tus cuentas de Google.",
-    "skill": "frutinovela",
+    "id": "video-top",
+    "title": "Top curiosidades",
+    "description": "Un top de curiosidades, lugares o datos asombrosos: cuenta regresiva, cortes dinámicos con fotos y clips reales, música rítmica y tarjetas numeradas.",
+    "skill": "video-top",
     "produce": "video",
-    "icon": "fruta",
-    "voz": false,
+    "icon": "trofeo",
+    "voz": {
+      "propia": "Voz generada automáticamente"
+    },
+    "lote": {
+      "prefijo": "top-"
+    },
     "etapas": [
+      {
+        "nombre": "Investigación",
+        "listo": "fuentes/investigacion.md",
+        "fase": "idea"
+      },
       {
         "nombre": "Guion",
         "listo": "guion.md",
         "fase": "guion"
       },
       {
-        "nombre": "Cuadros",
-        "listo": "cuadros/esc-*.jpg",
-        "fase": "video"
+        "nombre": "Voz",
+        "listo": "public/voz.wav",
+        "fase": "sonido"
       },
       {
-        "nombre": "Clips",
-        "listo": "clips/esc-*.mp4",
-        "fase": "video"
+        "nombre": "Material",
+        "listo": "fuentes/material/*",
+        "fase": "idea"
       },
       {
-        "nombre": "Video",
-        "listo": "out/frutinovela-*.mp4",
-        "fase": "video"
-      },
-      {
-        "nombre": "Portada",
-        "listo": "{portada.png,portada/*.png}",
-        "fase": "entrega"
-      }
-    ]
-  },
-  {
-    "id": "animalnovela",
-    "title": "Animalnovela",
-    "description": "Una telenovela cómica donde conviven personas y animales 3D con cabeza de su especie y cuerpo humano (gatos, leones, gallinas): hablan ellos mismos en cada escena con Google Flow, drama familiar absurdo y cliffhanger para la siguiente parte.",
-    "skill": "animalnovela",
-    "produce": "video",
-    "icon": "huella",
-    "voz": false,
-    "etapas": [
-      {
-        "nombre": "Guion",
-        "listo": "guion.md",
-        "fase": "guion"
-      },
-      {
-        "nombre": "Cuadros",
-        "listo": "cuadros/esc-*.jpg",
-        "fase": "video"
-      },
-      {
-        "nombre": "Clips",
-        "listo": "clips/esc-*.mp4",
+        "nombre": "Revisión",
+        "listo": "revision/hoja.png",
         "fase": "video"
       },
       {
         "nombre": "Video",
-        "listo": "out/animalnovela-*.mp4",
-        "fase": "video"
-      },
-      {
-        "nombre": "Portada",
-        "listo": "{portada.png,portada/*.png}",
-        "fase": "entrega"
-      }
-    ]
-  },
-  {
-    "id": "devnovela",
-    "title": "Devnovela",
-    "description": "Una telenovela cómica de lenguajes y herramientas de programación convertidos en personajes 3D con cabeza de objeto o símbolo original, cara expresiva y cuerpo humano: dramas de oficina, deploys, código legacy y merges imposibles.",
-    "skill": "devnovela",
-    "produce": "video",
-    "icon": "codigo",
-    "voz": false,
-    "etapas": [
-      {
-        "nombre": "Guion",
-        "listo": "guion.md",
-        "fase": "guion"
-      },
-      {
-        "nombre": "Cuadros",
-        "listo": "cuadros/esc-*.jpg",
-        "fase": "video"
-      },
-      {
-        "nombre": "Clips",
-        "listo": "clips/esc-*.mp4",
-        "fase": "video"
-      },
-      {
-        "nombre": "Video",
-        "listo": "out/devnovela-*.mp4",
+        "listo": "out/top-*.mp4",
         "fase": "video"
       },
       {
@@ -482,57 +425,6 @@
       {
         "nombre": "Video",
         "listo": "out/reddit-*.mp4",
-        "fase": "video"
-      },
-      {
-        "nombre": "Portada",
-        "listo": "{portada.png,portada/*.png}",
-        "fase": "entrega"
-      }
-    ]
-  },
-  {
-    "id": "video-top",
-    "title": "Top curiosidades",
-    "description": "Un top de curiosidades, lugares o datos asombrosos: cuenta regresiva, cortes dinámicos con fotos y clips reales, música rítmica y tarjetas numeradas.",
-    "skill": "video-top",
-    "produce": "video",
-    "icon": "trofeo",
-    "voz": {
-      "propia": "Voz generada automáticamente"
-    },
-    "lote": {
-      "prefijo": "top-"
-    },
-    "etapas": [
-      {
-        "nombre": "Investigación",
-        "listo": "fuentes/investigacion.md",
-        "fase": "idea"
-      },
-      {
-        "nombre": "Guion",
-        "listo": "guion.md",
-        "fase": "guion"
-      },
-      {
-        "nombre": "Voz",
-        "listo": "public/voz.wav",
-        "fase": "sonido"
-      },
-      {
-        "nombre": "Material",
-        "listo": "fuentes/material/*",
-        "fase": "idea"
-      },
-      {
-        "nombre": "Revisión",
-        "listo": "revision/hoja.png",
-        "fase": "video"
-      },
-      {
-        "nombre": "Video",
-        "listo": "out/top-*.mp4",
         "fase": "video"
       },
       {
@@ -645,42 +537,6 @@
     ]
   },
   {
-    "id": "minidrama",
-    "title": "Minidrama",
-    "description": "Una serie o dorama vertical por episodios estilo K-drama: personajes consistentes en cada escena, tensión dramática, sincronización labial nativa en Google Flow y cliffhanger para la siguiente parte.",
-    "skill": "minidrama",
-    "produce": "video",
-    "icon": "teatro",
-    "voz": false,
-    "etapas": [
-      {
-        "nombre": "Guion",
-        "listo": "guion.md",
-        "fase": "guion"
-      },
-      {
-        "nombre": "Cuadros",
-        "listo": "cuadros/esc-*.jpg",
-        "fase": "video"
-      },
-      {
-        "nombre": "Clips",
-        "listo": "clips/esc-*.mp4",
-        "fase": "video"
-      },
-      {
-        "nombre": "Video",
-        "listo": "out/minidrama-*.mp4",
-        "fase": "video"
-      },
-      {
-        "nombre": "Portada",
-        "listo": "{portada.png,portada/*.png}",
-        "fase": "entrega"
-      }
-    ]
-  },
-  {
     "id": "video-politica",
     "title": "Política sin filtro",
     "description": "Análisis político y económico sin concesiones: qué decidieron, cuánto costó y a quién perjudicó. Respaldado con datos duros, documentos oficiales, subtítulos de impacto y remate de debate para TikTok, Shorts y YouTube.",
@@ -722,6 +578,150 @@
       {
         "nombre": "Video",
         "listo": "out/politica-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Portada",
+        "listo": "{portada.png,portada/*.png}",
+        "fase": "entrega"
+      }
+    ]
+  },
+  {
+    "id": "frutinovela",
+    "title": "Frutinovela",
+    "description": "Una telenovela de frutas en 3D que hablan con sus propias voces: los mismos personajes en cada escena, drama de traición o familia y un final que pide la siguiente parte. Se hace en Google Flow con tus cuentas de Google.",
+    "skill": "frutinovela",
+    "produce": "video",
+    "icon": "fruta",
+    "voz": false,
+    "etapas": [
+      {
+        "nombre": "Guion",
+        "listo": "guion.md",
+        "fase": "guion"
+      },
+      {
+        "nombre": "Cuadros",
+        "listo": "cuadros/esc-*.jpg",
+        "fase": "video"
+      },
+      {
+        "nombre": "Clips",
+        "listo": "clips/esc-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Video",
+        "listo": "out/frutinovela-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Portada",
+        "listo": "{portada.png,portada/*.png}",
+        "fase": "entrega"
+      }
+    ]
+  },
+  {
+    "id": "animalnovela",
+    "title": "Animalnovela",
+    "description": "Una telenovela cómica donde conviven personas y animales 3D con cabeza de su especie y cuerpo humano (gatos, leones, gallinas): hablan ellos mismos en cada escena con Google Flow, drama familiar absurdo y cliffhanger para la siguiente parte.",
+    "skill": "animalnovela",
+    "produce": "video",
+    "icon": "huella",
+    "voz": false,
+    "etapas": [
+      {
+        "nombre": "Guion",
+        "listo": "guion.md",
+        "fase": "guion"
+      },
+      {
+        "nombre": "Cuadros",
+        "listo": "cuadros/esc-*.jpg",
+        "fase": "video"
+      },
+      {
+        "nombre": "Clips",
+        "listo": "clips/esc-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Video",
+        "listo": "out/animalnovela-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Portada",
+        "listo": "{portada.png,portada/*.png}",
+        "fase": "entrega"
+      }
+    ]
+  },
+  {
+    "id": "devnovela",
+    "title": "Devnovela",
+    "description": "Una telenovela cómica de lenguajes y herramientas de programación convertidos en personajes 3D con cabeza de objeto o símbolo original, cara expresiva y cuerpo humano: dramas de oficina, deploys, código legacy y merges imposibles.",
+    "skill": "devnovela",
+    "produce": "video",
+    "icon": "codigo",
+    "voz": false,
+    "etapas": [
+      {
+        "nombre": "Guion",
+        "listo": "guion.md",
+        "fase": "guion"
+      },
+      {
+        "nombre": "Cuadros",
+        "listo": "cuadros/esc-*.jpg",
+        "fase": "video"
+      },
+      {
+        "nombre": "Clips",
+        "listo": "clips/esc-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Video",
+        "listo": "out/devnovela-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Portada",
+        "listo": "{portada.png,portada/*.png}",
+        "fase": "entrega"
+      }
+    ]
+  },
+  {
+    "id": "minidrama",
+    "title": "Minidrama",
+    "description": "Una serie o dorama vertical por episodios estilo K-drama: personajes consistentes en cada escena, tensión dramática, sincronización labial nativa en Google Flow y cliffhanger para la siguiente parte.",
+    "skill": "minidrama",
+    "produce": "video",
+    "icon": "teatro",
+    "voz": false,
+    "etapas": [
+      {
+        "nombre": "Guion",
+        "listo": "guion.md",
+        "fase": "guion"
+      },
+      {
+        "nombre": "Cuadros",
+        "listo": "cuadros/esc-*.jpg",
+        "fase": "video"
+      },
+      {
+        "nombre": "Clips",
+        "listo": "clips/esc-*.mp4",
+        "fase": "video"
+      },
+      {
+        "nombre": "Video",
+        "listo": "out/minidrama-*.mp4",
         "fase": "video"
       },
       {

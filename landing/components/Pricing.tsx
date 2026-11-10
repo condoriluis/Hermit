@@ -206,7 +206,7 @@ export default function Pricing() {
           </span>
           <span>·</span>
           <span className="flex items-center gap-1 font-mono text-text-2">
-            <CreditCard className="w-3.5 h-3.5" /> PayPal (Internacional)
+            <CreditCard className="w-3.5 h-3.5" /> PayPal (fuera de Bolivia)
           </span>
         </div>
         <p className="mt-2 text-center text-[11px] font-mono text-muted">

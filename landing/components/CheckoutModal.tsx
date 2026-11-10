@@ -249,7 +249,7 @@ export default function CheckoutModal({ isOpen, onClose, plan, precioUSD, cambio
                 <CreditCard className="w-5 h-5 text-accent flex-none" />
                 <div>
                   <div className="text-xs font-extrabold text-text">PayPal (Internacional)</div>
-                  <div className="text-[10px] text-muted">Tarjetas y saldo PayPal</div>
+                  <div className="text-[10px] text-muted">Tarjetas y saldo PayPal · fuera de Bolivia</div>
                 </div>
               </button>
             </div>

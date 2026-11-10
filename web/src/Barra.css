@@ -51,6 +51,8 @@ button.barra-seccion:hover { color: var(--text); }
 .session-row.archived { opacity: 0.6; }
 .session-row.selected { background: var(--accent-soft); color: var(--text); }
 .session-icon { width: 18px; height: 18px; flex: none; display: grid; place-items: center; }
+/* La lista de hilos va sin iconos: el título y su estado bastan (el del encabezado del hilo sí lo lleva). */
+.sessions .session-row .session-icon { display: none; }
 .session-icon svg, .session-icon .icon-trazo { width: 15px; height: 15px; stroke-width: 1.8; color: var(--muted); }
 .session-row:hover .session-icon svg, .session-row.active .session-icon svg,
 .session-row:hover .session-icon .icon-trazo, .session-row.active .session-icon .icon-trazo { color: var(--text); }

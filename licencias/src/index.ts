@@ -249,7 +249,7 @@ export function esFundador(t: string) {
 /** Se avisa del cobro cuando faltan esto o menos días: el cron corre cada mañana, así que el aviso llega con 6 o 7. */
 const AVISO = 7 * DIA
 /** Lo que la página de Hermit llama desde el navegador. */
-const PUBLICAS = new Set(['/precio', '/version', '/suscribir', '/creditos'])
+const PUBLICAS = new Set(['/precio', '/version', '/suscribir', '/suscripcion', '/paypal', '/creditos'])
 /** Quién vende, al pie de cada correo (Ley N.º 453, de Bolivia): su nombre, domicilio y contacto están en los términos de la página, no aquí. */
 const PROVEEDOR = 'Hermit, de luchodev · Quién vende, su domicilio y su contacto: https://myhermit.vercel.app/terminos'
 

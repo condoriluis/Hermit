@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ActualizacionHermit, AgentesAlDia } from '../../shared/types'
 import { api } from './api'
 import { Confirm } from './Confirm'
+import { Icono } from './Iconos'
 
 /**
  * Mientras baja, cada cuánto se pregunta cómo va; si no, cada cuánto se mira si la ventana ya sabe de una versión nueva
@@ -59,9 +60,9 @@ export function ActualizarHermit() {
 const juntar = (xs: string[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} y ${xs.at(-1)}` : xs[0])
 
 /**
- * Arriba a la derecha del hilo nuevo: si Claude Code, Codex u OpenCode sacaron una versión más nueva que la que tienes
- * (`server/agentes.ts`), el botón que la baja, con sus modelos nuevos. Los hilos abiertos siguen con la de antes; los
- * nuevos van con la nueva. Mientras baja, en cuál va.
+ * En el header: si Claude Code, Codex u OpenCode sacaron una versión más nueva que la que tienes (`server/agentes.ts`),
+ * el botón que la baja, con sus modelos nuevos — un icono con punto ámbar y las versiones en el tooltip. Los hilos
+ * abiertos siguen con la de antes; los nuevos van con la nueva. Mientras baja, un punto que gira.
  */
 export function AvisoAgentes() {
   const [a, setA] = useState<AgentesAlDia>()
@@ -75,14 +76,26 @@ export function AvisoAgentes() {
     return () => clearInterval(id)
   }, [actualizando])
 
-  if (a?.actualizando) return <span className="aviso-version quieto">{a.actualizando}</span>
-  if (!a?.nuevos.length) return a?.error ? <span className="bad small">{a.error}</span> : null
+  if (a?.actualizando)
+    return (
+      <button className="topbar-btn" disabled title={a.actualizando} aria-label={a.actualizando}>
+        <Icono de="reabrir" />
+      </button>
+    )
+  if (!a?.nuevos.length)
+    return a?.error ? (
+      <button className="topbar-btn mal" title={a.error} aria-label={a.error}>
+        <Icono de="reabrir" />
+      </button>
+    ) : null
   const nombres = a.nuevos.map((n) => n.nombre)
   const titulo = nombres.length === 1 ? `Actualizar ${nombres[0]}` : 'Actualizar los agentes'
+  const versiones = a.nuevos.map((n) => `${n.nombre}: ${n.de} → ${n.a}`).join('\n')
   return (
     <>
-      <button className="aviso-version" title={a.nuevos.map((n) => `${n.nombre}: ${n.de} → ${n.a}`).join('\n')} onClick={() => setPreguntar(true)}>
-        ↑ {titulo}
+      <button className="topbar-btn aviso" title={`${titulo}\n${versiones}`} aria-label={titulo} onClick={() => setPreguntar(true)}>
+        <Icono de="reabrir" />
+        <span className="punto-aviso" />
       </button>
       {preguntar && (
         <Confirm title={`¿${titulo}?`} action="Actualizar" onConfirm={() => api<AgentesAlDia>('/api/agentes/actualizar', {}).then(setA)} onClose={() => setPreguntar(false)}>

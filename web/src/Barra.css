@@ -1,32 +1,35 @@
 /*
- * La barra lateral: Nuevo chat, Buscar, los hilos por fechas (los lotes plegados en una fila) y Archivados al final;
- * abajo, Opciones y Reiniciar backend. Los títulos de sección se ven como los grupos de Opciones.
+ * La barra lateral: «Nuevo chat» (el único botón con fondo), la navegación agrupada, los hilos por fechas (los lotes
+ * plegados en una fila) y Archivados al final. Los avisos de redes van encima del historial. Buscar, Opciones, los
+ * créditos y el estado están en el marco (Marco.css): cabecera y barra de estado.
  */
 
 .sidebar { display: flex; flex-direction: column; background: var(--panel); border-right: 1px solid var(--line); min-height: 0; }
-.brand { display: flex; align-items: center; gap: 10px; padding: 16px 16px 12px; font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
-.brand img { width: 26px; height: 26px; }
 
-/* Las dos de arriba son filas como las de los hilos, con su icono en la misma columna. */
-.new-chat, .buscar { display: flex; align-items: center; gap: 9px; height: 34px; margin: 0 8px 2px; padding: 0 8px; border-radius: 8px; text-align: left; transition: background 0.15s, color 0.15s; }
-.new-chat { color: var(--text); font-weight: 600; }
+/* Las filas de navegación son como las de los hilos, con su icono en la misma columna. */
+.new-chat { display: flex; align-items: center; gap: 9px; height: 34px; margin: 0 8px 2px; padding: 0 8px; border-radius: 8px; text-align: left; color: var(--text); font-weight: 600; transition: background 0.15s, color 0.15s; }
 .new-chat:hover, .new-chat.active { background: var(--panel-2); }
+/* El único CTA de la barra: «Nuevo chat» va con fondo de acento; el resto, filas discretas. */
+.new-chat.primario { margin-top: 8px; background: var(--accent); color: var(--on-solid); }
+.new-chat.primario:hover, .new-chat.primario.active { background: var(--accent-hover); }
+.new-chat.primario .new-chat-icon { color: var(--on-solid); opacity: 0.85; }
+/* Los grupos de la navegación («Crear», «Social»), como los títulos de sección de los hilos. */
+.nav-grupo { padding: 14px 14px 5px; color: var(--muted); font-size: 11px; font-weight: 650; letter-spacing: 0.07em; text-transform: uppercase; }
+.new-chat:first-of-type + .nav-grupo { padding-top: 4px; }
 /* El icono de cada fila, sin caja: solo el trazo, apagado, y en azul cuando la fila es la vista o pasa el ratón. */
 .new-chat-icon { width: 18px; height: 18px; flex: none; display: grid; place-items: center; color: var(--muted); transition: color 0.15s; }
 .new-chat:hover .new-chat-icon, .new-chat.active .new-chat-icon { color: var(--accent); }
+.new-chat.primario:hover .new-chat-icon, .new-chat.primario.active .new-chat-icon { color: var(--on-solid); }
 .new-chat-icon .ico, .new-chat-icon svg { width: 15px; height: 15px; stroke-width: 1.8; }
 /* comunidad: los avisos sin leer, a la derecha de «Comunidad»; plegada, un punto sobre su icono. */
-.nav-cuenta { min-width: 18px; height: 18px; margin-left: auto; padding: 0 5px; display: grid; place-items: center; border-radius: 999px; background: var(--accent); color: var(--on-solid); font-size: 10.5px; font-weight: 750; font-variant-numeric: tabular-nums; }
-.buscar { margin-bottom: 4px; color: var(--muted); cursor: text; }
-.buscar:hover { background: var(--panel-2); }
-.buscar:focus-within { background: var(--panel-2); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); }
-.buscar svg { width: 18px; height: 15px; flex: none; }
-.buscar input { flex: 1; min-width: 0; padding: 0; background: none; border: 0; outline: none; font-size: 13px; }
-.buscar input::placeholder { color: var(--muted); }
-.buscar kbd { flex: none; padding: 0 5px; border: 1px solid var(--line); border-radius: 5px; font: 10.5px/16px var(--mono); color: var(--muted); }
-.buscar:focus-within kbd { display: none; }
-.buscar-x { flex: none; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 5px; font-size: 11px; color: var(--muted); }
-.buscar-x:hover { background: var(--line); color: var(--text); }
+
+/* Los avisos de redes (Redes.tsx), encima del historial: filas de aviso con su punto rojo. */
+.avisos-redes { flex: none; display: flex; flex-direction: column; gap: 1px; padding-bottom: 4px; }
+.avisos-redes:empty { display: none; }
+.avisos-redes .aviso-redes { display: flex; align-items: center; gap: 9px; min-height: 30px; margin: 0 8px; padding: 4px 8px; border-radius: 8px; color: var(--bad); font-size: 12.5px; text-align: left; }
+.avisos-redes .aviso-redes::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--bad); flex: none; }
+.avisos-redes .aviso-redes span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.avisos-redes .aviso-redes:hover { background: var(--panel-2); }
 
 .sessions { flex: 1; overflow-y: auto; padding: 0 8px 10px; }
 /* Hoy, Ayer, Esta semana, Antes. Archivados es uno que se abre, con cuántos hay. */
@@ -40,6 +43,11 @@ button.barra-seccion:hover { color: var(--text); }
 .session-row { display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px 8px; border-radius: 8px; text-align: left; color: var(--muted); transition: background 0.12s, color 0.12s; }
 .session-row:hover { background: var(--panel-2); color: var(--text); }
 .session-row.active { background: var(--panel-2); color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
+/* El ⋯ del menú del hilo: solo al pasar el ratón (el clic derecho lo abre siempre). */
+.fila-menu { display: none; flex: none; width: 22px; height: 22px; place-items: center; margin-right: -4px; border-radius: 6px; color: var(--muted); }
+.fila-menu .ico { width: 14px; height: 14px; }
+.session-row:hover .fila-menu, .session-row.active .fila-menu { display: grid; }
+.fila-menu:hover { background: var(--line); color: var(--text); }
 .session-row.archived { opacity: 0.6; }
 .session-row.selected { background: var(--accent-soft); color: var(--text); }
 .session-icon { width: 18px; height: 18px; flex: none; display: grid; place-items: center; }
@@ -68,53 +76,6 @@ button.barra-seccion:hover { color: var(--text); }
 .lote-pausa { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; padding: 0 8px 4px 36px; }
 .lote-pausa .ghost { padding: 2px 4px; color: var(--warn); }
 
-/* Abajo: Opciones y Reiniciar backend, como filas con su icono. */
-.pie { display: flex; flex-direction: column; gap: 1px; padding: 8px; border-top: 1px solid var(--line); }
-.pie button { display: flex; align-items: center; gap: 9px; height: 32px; padding: 0 8px; border-radius: 8px; color: var(--muted); font-size: 13px; text-align: left; transition: background 0.15s, color 0.15s; }
-.pie button:hover:not(:disabled), .pie button.on { background: var(--panel-2); color: var(--text); }
-.pie svg { width: 18px; height: 15px; flex: none; }
-.pie .reconectando { color: var(--warn); opacity: 1; }
-.pie .reconectando svg { animation: spin 1s steps(12) infinite; }
-.pie .bad, .pie .pie-nota { padding: 2px 8px; overflow-wrap: anywhere; }
-
-/* Píldora moderna y compacta de créditos de Google Flow dentro del botón Opciones */
-.pie-creditos-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-  margin-left: auto;
-  line-height: 1.4;
-  letter-spacing: -0.2px;
-}
-.pie-creditos-pill .flow-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.pie-creditos-pill .flow-dot.ok {
-  background: var(--ok);
-  box-shadow: 0 0 5px var(--ok-border);
-}
-.pie-creditos-pill .flow-dot.aviso {
-  background: var(--warn);
-  box-shadow: 0 0 5px var(--warn-border);
-}
-.pie-creditos-pill .flow-dot.vacio {
-  background: var(--bad);
-}
-.plegada .pie .pie-creditos-pill {
-  display: none;
-}
-
 /* Renombrar en línea: el campo ocupa el sitio del título, en su fila o en la cabecera del hilo (`Renombrar.tsx`). */
 .renombrar { flex: 1; min-width: 0; padding: 1px 6px; margin: -2px 0; border-radius: 6px; background: var(--bg); border: 1px solid var(--accent); outline: none; font-size: 13px; }
 .renombrar.mal { border-color: var(--bad); }
@@ -134,40 +95,26 @@ button.barra-seccion:hover { color: var(--text); }
 .avance-barra { flex: 1; min-width: 20px; height: 3px; border-radius: 99px; background: var(--line); overflow: hidden; }
 .avance-barra span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width 0.4s ease; }
 .avance.espera { color: var(--warn); }
-/* Terminado: el check verde dice el estado; el texto queda discreto, como el de las demás fases. */
+/* Terminado: punto verde + la palabra, en el mismo tamaño discreto que las demás fases. */
 .avance.hecho { gap: 5px; }
-.avance.hecho .avance-ico { flex: none; width: 12px; height: 12px; color: var(--ok); stroke-width: 2.5; }
-
-/* Arriba: el logo, que abre un chat nuevo, y el botón que pliega la barra (Ctrl+B). */
-.brand-fila { display: flex; align-items: center; }
-.brand-fila .brand { flex: 1; min-width: 0; }
-.plegar { flex: none; width: 28px; height: 28px; margin-right: 10px; display: grid; place-items: center; border-radius: 7px; color: var(--muted); transition: background 0.15s, color 0.15s; }
-.plegar:hover { background: var(--panel-2); color: var(--text); }
-.plegar svg { width: 17px; height: 17px; }
 
 /*
  * Plegada: una columna de iconos, cada uno con su nombre al pasar el ratón. Los textos se esconden con `font-size: 0` (los
  * iconos llevan su propio tamaño): una entrada nueva de la barra se pliega igual sin tocar nada. Las secciones quedan en
  * una raya, y el punto de cada hilo (trabajando, terminó) va sobre su icono.
  */
-.app.plegada { grid-template-columns: 56px 1fr; }
+.app.plegada .cuerpo { grid-template-columns: 56px 1fr; }
 .plegada .select-bar { left: 70px; }
-.plegada .brand-fila { flex-direction: column; }
-.plegada .brand { justify-content: center; gap: 0; padding: 14px 0 6px; font-size: 0; }
-.plegada .plegar { margin: 0 0 6px; }
-.plegada .new-chat, .plegada .buscar { justify-content: center; gap: 0; padding: 0; font-size: 0; }
-.plegada .new-chat { position: relative; }
-.plegada .nav-cuenta { position: absolute; top: 4px; right: 10px; min-width: 8px; width: 8px; height: 8px; padding: 0; margin: 0; font-size: 0; }
-.plegada .buscar { cursor: pointer; }
-.plegada .buscar input, .plegada .buscar kbd, .plegada .buscar-x { display: none; }
+.plegada .new-chat { justify-content: center; gap: 0; padding: 0; font-size: 0; }
+.plegada .new-chat.primario { margin-top: 8px; }
+.plegada .nav-grupo { display: none; }
+/* Plegada, un aviso de redes queda en su punto rojo, que lo dice al pasar el ratón. */
+.plegada .avisos-redes .aviso-redes { margin: 0 14px; justify-content: center; gap: 0; font-size: 0; }
+.plegada .avisos-redes .aviso-redes span { display: none; }
 .plegada .sessions { scrollbar-width: none; }
 .plegada .barra-seccion { width: auto; height: 1px; margin: 8px 6px; padding: 0; overflow: hidden; background: var(--line); font-size: 0; }
 .plegada .barra-seccion::after, .plegada .lote-row::after { display: none; }
 .plegada .session-row { position: relative; justify-content: center; padding: 8px 0; }
-.plegada :is(.session-title, .session-texto, .draft-tag, .draft-x, .check, .lote-cuenta, .renombrar, .barra-vacio, .lote-pausa) { display: none; }
+.plegada :is(.session-title, .session-texto, .draft-tag, .draft-x, .check, .lote-cuenta, .renombrar, .barra-vacio, .lote-pausa, .fila-menu) { display: none; }
 .plegada .session-row .dot { position: absolute; top: 4px; right: 4px; }
 .plegada .lote-videos { margin-left: 3px; padding-left: 2px; }
-.plegada .pie button, .plegada .pie .aviso-redes { justify-content: center; gap: 0; padding: 0; font-size: 0; }
-/* Un fallo del pie (el servidor no compila) queda en un punto rojo, que lo dice al pasar el ratón. */
-.plegada .pie .bad { align-self: center; width: 7px; height: 7px; margin: 6px 0; padding: 0; border-radius: 50%; background: var(--bad); font-size: 0; }
-.plegada .pie .pie-nota { display: none; }

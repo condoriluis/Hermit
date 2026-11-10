@@ -1,1 +1,1 @@
-Voz con Fish Audio y ElevenLabs, Flow que reintenta solo, el video explicativo rehecho y las piezas terminadas en galerías
+Hermit con aspecto de IDE: cabecera, menú lateral y barra de estado; Opciones por secciones, bienvenida más limpia, tooltips que se adaptan y subtítulos con estilo en motivacional, crimen y top

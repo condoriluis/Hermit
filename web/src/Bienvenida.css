@@ -1,4 +1,4 @@
-.modal.bienvenida { width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow-y: auto; padding: 26px 28px 20px; }
+.modal.bienvenida { width: min(880px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow-y: auto; padding: 26px 28px 20px; }
 .bienvenida header { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 18px; }
 .bienvenida header img { width: 48px; height: 48px; flex: none; }
 .bienvenida header h2 { margin: 2px 0 6px; font-size: 20px; }
@@ -22,4 +22,4 @@
 .bienvenida .opcion p { margin: 6px 0 0; font-size: 12.5px; line-height: 1.45; }
 .bienvenida .anclar { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 10px; }
 .bienvenida .anclar p { margin: 0; }
-.bienvenida .modal-actions { justify-content: space-between; border-top: 1px solid var(--line); padding-top: 16px; margin-top: 4px; }
+.bienvenida .modal-actions { justify-content: flex-end; border-top: 1px solid var(--line); padding-top: 16px; margin-top: 4px; }

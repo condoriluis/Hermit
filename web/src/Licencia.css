@@ -22,5 +22,5 @@
 .licencia-acepto input { margin-top: 2px; }
 .licencia-unirse { margin: 40px auto 0; }
 
-/* Abajo de la barra lateral: el botón de la versión nueva (Actualizar.tsx). */
-.pie button.aviso-hermit { color: var(--warn); }
+/* En la barra de estado: el botón de la versión nueva (Actualizar.tsx). */
+.estado-barra .aviso-hermit { color: var(--warn); }

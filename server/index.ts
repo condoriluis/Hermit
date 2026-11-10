@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { createReadStream, createWriteStream, existsSync, mkdirSync, readdirSync, statSync, watch } from 'node:fs'
+import { createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, readdirSync, statSync, watch } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { createServer as servidorTcp } from 'node:net'
 import { basename, dirname, extname, join, resolve } from 'node:path'
@@ -53,6 +53,14 @@ import { type Agente, version } from './version.ts'
 import { cargarPreciosCodex } from './precios.ts'
 
 const APP = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+// La versión de la app, para la barra de estado. Si el package.json no está (un empaquetado raro), no se muestra.
+const VERSION = (() => {
+  try {
+    return (JSON.parse(readFileSync(join(APP, 'package.json'), 'utf8')) as { version?: string }).version ?? ''
+  } catch {
+    return ''
+  }
+})()
 const PORT = Number(process.env.PORT ?? 4848)
 const CARDS = join(APP, 'cards.json')
 /**
@@ -341,7 +349,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
 
   if (path === '/api/state' && method === 'GET') {
     if (!cargandoModelos && (['claude', 'codex', 'opencode'] as const).some((p) => rutaAgente(p) && !modelos.some((m) => proveedorDe(m.id) === p))) pedirModelos()
-    send(res, 200, { cards: cards(), sessions: sessions.list(), models: modelos, app: APP, avances: avance?.todos() ?? {} })
+    send(res, 200, { cards: cards(), sessions: sessions.list(), models: modelos, app: APP, version: VERSION, avances: avance?.todos() ?? {} })
     return true
   }
 

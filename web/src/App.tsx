@@ -17,7 +17,8 @@ import { Composer, Icon, Picker, type Choice, type Draft } from './Composer'
 import { LINK, pedirMejora, threadIcons, threadRef } from './etiquetas'
 import { Confirm } from './Confirm'
 import { TusCambios } from './TusCambios'
-import { ActualizarHermit, AvisoAgentes } from './Actualizar' // versiones nuevas
+import { Cabecera } from './Cabecera' // el marco: cabecera y barra de estado
+import { BarraEstado } from './BarraEstado'
 import { TarjetasEnlaces } from './Enlaces' // tarjeta de los enlaces
 import { esDeEstudio, Estudio } from './Estudio' // panel de etapas
 import { BotonNavegador, PanelNavegador, useNavegadorAbierto } from './Navegador' // navegador de cada hilo
@@ -135,6 +136,7 @@ export function App() {
   const [connected, setConnected] = useState(false)
   const [falloEstado, setFalloEstado] = useState('')
   const [app, setApp] = useState('')
+  const [version, setVersion] = useState('')
   const [menu, setMenu] = useState<{ session: SessionMeta; x: number; y: number } | null>(null)
   // El hilo que se renombra en su fila de la barra lateral.
   const [renombrando, setRenombrando] = useState<string | null>(null)
@@ -182,6 +184,7 @@ export function App() {
           // Los modelos pueden llegar después, por el WebSocket: una lista vacía no tapa la que ya llegó.
           if (state.models.length) setModels(state.models)
           setApp(state.app)
+          setVersion(state.version ?? '')
           setSessions(state.sessions)
           setAvances(state.avances ?? {}) // avance
           eventos.conexion(true)
@@ -383,7 +386,11 @@ export function App() {
     addEventListener('keydown', onKey)
     return () => removeEventListener('keydown', onKey)
   }, [])
-  const q = plegada ? '' : sinTildes(busca.trim())
+  // Buscar está en la cabecera, siempre a la vista: filtra aunque la barra esté plegada, y buscar la despliega.
+  const q = sinTildes(busca.trim())
+  useEffect(() => {
+    if (q && plegada) plegar(false)
+  }, [q])
   const encontrados = q ? sessions.filter((s) => sinTildes(`${s.title} ${cardOf(s.cardId)?.title ?? ''}`).includes(q)) : []
 
   /**
@@ -457,30 +464,41 @@ export function App() {
     .filter(([id, d]) => filled(d) && !(id === freshId && view.kind === 'new'))
     .sort(([, a], [, b]) => b.at - a.at)
 
+  // Lo que dice la barra de estado a la derecha: el agente y el modelo de la vista abierta (en un hilo, el suyo; en el
+  // inicio, el último elegido a mano) y cuántos hilos trabajan ahora.
+  const modeloActivo = (() => {
+    const id = view.kind === 'session' ? sessions.find((s) => s.id === view.id)?.model : view.kind === 'new' || view.kind === 'draft' ? lastChoice(models)?.model : undefined
+    if (!id) return ''
+    return `${NOMBRE_AGENTE[proveedorDe(id)]} · ${models.find((m) => m.id === id)?.label ?? id}`
+  })()
+  const trabajando = sessions.filter((s) => !s.archived && (s.running || !!s.background?.length))
+
   return (
     <>
       <TooltipGlobal />
       <ToastContainer />
       <div className={`app${plegada ? ' plegada' : ''}`}>
+      <Cabecera
+        plegada={plegada}
+        plegar={plegar}
+        onNuevo={newChat}
+        enOpciones={view.kind === 'opciones'}
+        onOpciones={() => go({ kind: 'opciones' })}
+        avisosComunidad={avisosComunidad}
+        busca={busca}
+        setBusca={setBusca}
+        campoBusca={campoBusca}
+      />
+      <div className="cuerpo">
       <aside className="sidebar">
         {/* Plegada, cada botón es su icono y dice qué es al pasar el ratón; los textos se esconden en Barra.css. */}
-        <div className="brand-fila">
-          <button className="brand" onClick={newChat} title={plegada ? 'Nuevo chat' : undefined}>
-            <img src="/icon.svg" alt="" /> Hermit
-          </button>
-          <button className="plegar" title={plegada ? 'Desplegar la barra (Ctrl+B)' : 'Plegar la barra (Ctrl+B)'} aria-expanded={!plegada} onClick={() => plegar(!plegada)}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="5" width="18" height="14" rx="2" />
-              <path d="M9 5v14" />
-            </svg>
-          </button>
-        </div>
-        <button className={`new-chat${view.kind === 'new' ? ' active' : ''}`} onClick={newChat} title={plegada ? 'Nuevo chat' : undefined}>
+        <button className={`new-chat primario${view.kind === 'new' ? ' active' : ''}`} onClick={newChat} title={plegada ? 'Nuevo chat' : undefined}>
           <span className="new-chat-icon">
             <Icono de="mas" />
           </span>{' '}
           Nuevo chat
         </button>
+        <div className="nav-grupo">Crear</div>
         {!VENTA && (
           <button className={`new-chat${view.kind === 'ideas' ? ' active' : ''}`} onClick={() => go({ kind: 'ideas' })} title={plegada ? 'Ideas' : undefined}>
             <span className="new-chat-icon">
@@ -529,38 +547,11 @@ export function App() {
           </span>{' '}
           Modelos 3D
         </button>
-        {/* comunidad */}
-        <button className={`new-chat${view.kind === 'comunidad' ? ' active' : ''}`} onClick={() => go({ kind: 'comunidad' })} title={plegada ? 'Comunidad' : undefined}>
-          <span className="new-chat-icon">
-            <Icono de="personas" />
-          </span>{' '}
-          Comunidad
-          {avisosComunidad > 0 && (
-            <span className="nav-cuenta" title={`${avisosComunidad} ${avisosComunidad === 1 ? 'aviso' : 'avisos'} sin leer`}>
-              {avisosComunidad > 99 ? '99+' : avisosComunidad}
-            </span>
-          )}
-        </button>
-        <label className="buscar" title={plegada ? 'Buscar (Ctrl K)' : undefined} onClick={() => plegada && buscar()}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <circle cx="11" cy="11" r="7" />
-            <path d="m20 20-3.5-3.5" />
-          </svg>
-          <input
-            ref={campoBusca}
-            placeholder="Buscar"
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            onKeyDown={(e) => e.key === 'Escape' && (setBusca(''), e.currentTarget.blur())}
-          />
-          {busca ? (
-            <button className="buscar-x" title="Borrar la búsqueda" onClick={() => setBusca('')}>
-              ✕
-            </button>
-          ) : (
-            <kbd>Ctrl K</kbd>
-          )}
-        </label>
+        {/* La comunidad vive en la cabecera (icono de cuenta), con sus avisos sin leer de cuenta. */}
+        {/* Redes: lo que falló o las sesiones que se cerraron, cada aviso con su enlace a donde se arregla. */}
+        <div className="avisos-redes">
+          <AvisoRedes connected={connected} />
+        </div>
         <div className="sessions">
           {q ? (
             encontrados.length ? (
@@ -633,7 +624,6 @@ export function App() {
             onRename={() => (plegar(false), setRenombrando(menu.session.id))}
           />
         )}
-        <Pie running={sessions.some((s) => s.running || !!s.background?.length)} connected={connected} enOpciones={view.kind === 'opciones'} fallo={falloEstado} plegada={plegada} />
       </aside>
 
       <main className="main">
@@ -708,6 +698,8 @@ export function App() {
           />
         )}
       </main>
+      </div>
+      <BarraEstado connected={connected} fallo={falloEstado} trabajando={trabajando.length} nombres={trabajando.map((s) => s.title)} modelo={modeloActivo} version={version} />
     </div>
     </>
   )
@@ -750,6 +742,19 @@ const FilaHilo = memo(function FilaHilo({ s, icono, activa, marcada, plegada, av
       {s.pendiente && <span className="draft-tag">{s.lote?.pausa ? 'En pausa' : 'En espera'}</span>}
       {(s.running || !!s.background?.length) && <span className="dot running" title={s.running ? 'Trabajando' : `En segundo plano: ${s.background!.join(', ')}`} />}
       {terminada && <span className="dot done" title="Terminó su turno; aún no lo has abierto" />}
+      {/* El menú del hilo también con un clic: renombrar, archivar, eliminar… (el clic derecho lo abre igual). */}
+      <span
+        className="fila-menu"
+        role="button"
+        title="Opciones del hilo"
+        aria-label={`Opciones de «${s.title}»`}
+        onClick={(e) => {
+          e.stopPropagation()
+          acciones.menu(s, e)
+        }}
+      >
+        <Icono de="tres" />
+      </span>
     </button>
   )
 })
@@ -1001,7 +1006,6 @@ function NewSession(props: {
           <p className="muted">Elige un formato para empezar a crear o escribe directamente en el compositor.</p>
         </div>
         <div className="new-session-acciones">
-          <AvisoAgentes />
           <AvisoEquipo />
         </div>
       </header>
@@ -1606,86 +1610,3 @@ function cuando(t: number) {
 
 /** Para buscar sin que importen mayúsculas ni tildes. */
 const sinTildes = (t: string) => t.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
-
-/**
- * Abajo de la barra lateral: Opciones y Reiniciar backend, que aplica los cambios del servidor. Mientras el servidor
- * vuelve, el botón dice que se está reconectando.
- */
-/** Calcula el rendimiento aproximado de video según los créditos de Google Flow (10 créditos por clip de 8 s en Veo Lite). */
-function rindeVideo(creditos: number): { largo: string; corto: string } {
-  if (creditos <= 0) return { largo: 'sin saldo para video', corto: '0 s de video' }
-  const clips = Math.floor(creditos / 10)
-  if (clips === 0) return { largo: 'menos de 1 clip (Veo Lite usa 10)', corto: '<8 s de video' }
-  const seg = clips * 8
-  const tiempo = seg >= 60 ? `~${Math.floor(seg / 60)} min${seg % 60 ? ` ${seg % 60} s` : ''}` : `~${seg} s`
-  return {
-    largo: `${tiempo} de video (~${clips} ${clips === 1 ? 'clip' : 'clips'} de 8 s)`,
-    corto: `${tiempo} de video`
-  }
-}
-
-function Pie({ running, connected, enOpciones, fallo, plegada }: { running: boolean; connected: boolean; enOpciones: boolean; fallo: string; plegada: boolean }) {
-  const [error, setError] = useState('')
-  const { estado: flow } = useFlow()
-  const nCuentas = flow?.cuentas?.length ?? 0
-  const quedanFlow = flow?.quedan ?? 0
-  const puntoClase = quedanFlow > 20 ? 'ok' : quedanFlow > 0 ? 'aviso' : 'vacio'
-  const rinde = rindeVideo(quedanFlow)
-
-  return (
-    <div className="pie">
-      <AvisoRedes connected={connected} /> {/* redes */}
-      <button
-        className={enOpciones ? 'on' : ''}
-        data-tooltip={
-          plegada
-            ? (nCuentas > 0 ? `Opciones · ${quedanFlow} créditos (${nCuentas} ${nCuentas === 1 ? 'cuenta' : 'cuentas'}) · Rinde ${rinde.corto}` : 'Opciones')
-            : undefined
-        }
-        data-tooltip-lado={plegada ? 'derecho' : undefined}
-        onClick={() => go({ kind: 'opciones' })}
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
-          <circle cx="15" cy="7" r="2" />
-          <circle cx="9" cy="17" r="2" />
-        </svg>
-        Opciones
-        {nCuentas > 0 && !plegada && (
-          <span
-            className="pie-creditos-pill"
-            data-tooltip={`${quedanFlow} créditos en ${nCuentas} ${nCuentas === 1 ? 'cuenta' : 'cuentas'} de Google Flow · Rinde aprox. ${rinde.largo} con Veo Lite. Las imágenes con Nano Banana son gratis.`}
-          >
-            <span className={`flow-dot ${puntoClase}`} />
-            {quedanFlow} créditos
-          </span>
-        )}
-      </button>
-      {/* Reiniciar aplica los cambios del código: en la app que se vende solo llegan con una versión nueva. */}
-      {VENTA ? (
-        <>
-          <ActualizarHermit />
-          {!connected && <span className="muted small pie-nota">Reconectando…</span>}
-        </>
-      ) : (
-        <button
-          className={connected ? '' : 'reconectando'}
-          disabled={running || !connected}
-          title={running ? 'Espera a que ningún agente esté trabajando' : 'Aplica los cambios del servidor (la interfaz se actualiza sola)'}
-          onClick={() => api('/api/restart', {}).catch((e) => setError(e.message))}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 12a8 8 0 1 1-2.34-5.66L20 8.5" />
-            <path d="M20 4v4.5h-4.5" />
-          </svg>
-          {connected ? 'Reiniciar backend' : 'Reconectando…'}
-        </button>
-      )}
-      {(error || fallo) && (
-        <span className="bad small" title={plegada ? error || fallo : undefined}>
-          {error || fallo}
-        </span>
-      )}
-    </div>
-  )
-}

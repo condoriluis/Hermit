@@ -1,0 +1,89 @@
+/*
+ * El marco de la app, como el de un IDE: la cabecera (40px, se arrastra la ventana) y la barra de estado (24px).
+ * Colores y radios: los tokens de tokens.css.
+ */
+
+.topbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 6px 0 10px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  -webkit-app-region: drag;
+  user-select: none;
+}
+/* En Mac los semáforos nativos tapan la esquina: la columna izquierda empieza después de ellos. */
+.topbar.maca { padding-left: 84px; }
+.topbar-izq, .topbar-der { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.topbar-der { justify-content: flex-end; }
+.topbar button, .topbar input, .topbar label, .topbar .creditos-pill { -webkit-app-region: no-drag; }
+.topbar input { user-select: text; }
+/* Un modal o un menú abierto desde la cabecera no es zona de arrastre. */
+.modal-backdrop, .modal, .menu-backdrop, .menu, .select-bar, .select-pill, .context-card, .picker-menu { -webkit-app-region: no-drag; }
+
+.topbar-brand { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px 0 4px; border-radius: 8px; font-size: 14px; font-weight: 650; letter-spacing: -0.01em; }
+.topbar-brand:hover { background: var(--panel-2); }
+.topbar-brand img { width: 20px; height: 20px; }
+
+.topbar-btn { position: relative; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 7px; color: var(--muted); transition: background 0.15s, color 0.15s; }
+.topbar-btn:hover:not(:disabled) { background: var(--panel-2); color: var(--text); }
+.topbar-btn.on { color: var(--text); background: var(--panel-2); }
+.topbar-btn:disabled { opacity: 0.4; }
+.topbar-btn .ico { width: 16px; height: 16px; }
+.topbar-btn.mal { color: var(--bad); }
+/* El punto que avisa: hay una versión nueva de los agentes. */
+.topbar-btn .punto-aviso { position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 0 2px var(--panel); }
+/* La cuenta de avisos sin leer sobre el botón de la comunidad. */
+.topbar-cuenta { position: absolute; top: -2px; right: -4px; min-width: 15px; height: 15px; padding: 0 4px; display: grid; place-items: center; border-radius: 999px; background: var(--accent); color: var(--on-solid); font-size: 9.5px; font-weight: 750; font-variant-numeric: tabular-nums; box-shadow: 0 0 0 2px var(--panel); }
+
+/* Buscar, en el centro: una caja compacta con su atajo. */
+.topbar-buscar { justify-self: center; display: flex; align-items: center; gap: 8px; width: min(460px, 100%); height: 30px; padding: 0 6px 0 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); color: var(--muted); cursor: text; transition: border-color 0.15s, color 0.15s; }
+.topbar-buscar:hover { border-color: var(--line-fuerte); }
+.topbar-buscar:focus-within { border-color: var(--accent-border); color: var(--text); }
+.topbar-buscar .ico { width: 15px; height: 15px; flex: none; }
+.topbar-buscar input { flex: 1; min-width: 0; padding: 0; background: none; border: 0; outline: none; font-size: 13px; }
+.topbar-buscar input::placeholder { color: var(--placeholder); }
+.topbar-buscar kbd { flex: none; padding: 1px 5px; border: 1px solid var(--line); border-radius: 5px; font: 10.5px/15px var(--mono); color: var(--muted); }
+.topbar-buscar:focus-within kbd { display: none; }
+.topbar-buscar .buscar-x { flex: none; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 5px; font-size: 11px; color: var(--muted); }
+.topbar-buscar .buscar-x:hover { background: var(--line); color: var(--text); }
+
+/* Los créditos de Flow: la misma píldora que llevaba Opciones en el pie. */
+.creditos-pill { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); font-size: 11.5px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.creditos-pill .flow-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.creditos-pill .flow-dot.ok { background: var(--ok); box-shadow: 0 0 5px var(--ok-border); }
+.creditos-pill .flow-dot.aviso { background: var(--warn); box-shadow: 0 0 5px var(--warn-border); }
+.creditos-pill .flow-dot.vacio { background: var(--bad); }
+
+/* Minimizar, maximizar y cerrar, al extremo derecho (Windows y Linux). */
+.ventana-ctrls { display: flex; align-items: center; margin-left: 4px; }
+.ventana-ctrls button { width: 34px; height: 32px; display: grid; place-items: center; color: var(--muted); transition: background 0.15s, color 0.15s; }
+.ventana-ctrls button:hover { background: var(--panel-2); color: var(--text); }
+.ventana-ctrls .ventana-cerrar:hover { background: var(--bad); color: var(--text); }
+.ventana-ctrls .ico { width: 14px; height: 14px; }
+
+/* La barra de estado (24px). */
+.estado-barra { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 24px; padding: 0 10px; background: var(--panel); border-top: 1px solid var(--line); font-size: 11.5px; color: var(--muted); }
+.estado-izq, .estado-der { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.estado-texto { white-space: nowrap; }
+.estado-izq .dot { width: 7px; height: 7px; }
+.estado-tareas { color: var(--accent); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.estado-btn { padding: 1px 7px; border-radius: 5px; color: var(--muted); white-space: nowrap; transition: background 0.15s, color 0.15s; }
+.estado-btn:hover:not(:disabled) { background: var(--panel-2); color: var(--text); }
+.estado-error { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.estado-der { gap: 12px; }
+.estado-der > * { white-space: nowrap; }
+.estado-modelo { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+.estado-version { font-variant-numeric: tabular-nums; opacity: 0.8; }
+.estado-barra .aviso-hermit { display: inline-flex; align-items: center; gap: 4px; color: var(--warn); font-size: 11.5px; }
+.estado-barra .aviso-hermit svg { width: 13px; height: 13px; flex: none; }
+.estado-barra .pie-nota { font-size: 11.5px; }
+
+@media (max-width: 900px) {
+  .topbar-buscar { display: none; }
+  .creditos-pill { display: none; }
+  .estado-modelo { display: none; }
+}

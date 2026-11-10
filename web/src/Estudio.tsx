@@ -45,8 +45,10 @@ export function Estudio({ session, card, head, chat }: { session: SessionMeta; c
   const escritos = useEscritos(session.id)
   const { avance, error } = useAvance(session.id)
   const p = usePasos(avance, events, escritos, session.running || !!session.background?.length)
-  // Mientras la etapa actual espera tu voz o tu grabación, el compositor no deja abrir un turno: la etapa es la salida.
-  const enEspera = p.current >= 0 && p.espera(p.current) ? p.etapas[p.current] : undefined
+  // Mientras la etapa actual espera tu voz o tu grabación y el hilo está quieto, el compositor no deja abrir un turno:
+  // la etapa es la salida. Con el agente trabajando sí se puede escribir (le llega en mitad del turno, como en el servidor).
+  const trabaja = session.running || !!session.background?.length
+  const enEspera = !trabaja && p.current >= 0 && p.espera(p.current) ? p.etapas[p.current] : undefined
   const bloqueo = enEspera
     ? `Falta «${enEspera.nombre}» (${enEspera.listo}): entrégalo en su etapa${/\.wav$/i.test(enEspera.listo) ? ' o pide que lo genere' : ''}; el agente no sigue sin eso.`
     : undefined

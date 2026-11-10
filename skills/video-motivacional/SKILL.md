@@ -37,5 +37,6 @@ El mensaje trae `Formato: vertical` o `Formato: horizontal`; sin la línea, vert
 3. **Voz.** La voz se genera de forma autónoma: con `generar_voz` si el mensaje indica una voz de AI Studio, o automáticamente con TTS en `public/voz.wav` sin detener el turno. Se masteriza con `node <base>/scripts/masterizar.mjs` a −14 LUFS.
 4. **Material.** Clips de archivo libres en 4K o HD con tratamiento de color oscuro en `fuentes/material/`.
 5. **Revisión.** Hoja de contacto en `revision/hoja.png` con `node <base>/scripts/hoja.mjs` para validar ritmo y contraste de lectura.
-6. **Final y Portada.** Render final en `out/motivacional-<nombre>.mp4`, comprobado con `comprobar.mjs`. En vertical se adhiere la portada de primer fotograma con `portada.mjs`; en horizontal se genera `portada.png` para YouTube.
+6. **Subtítulos.** Se queman con `python <base>/scripts/subtitulos.py <video> out/motivacional-<nombre>.mp4 --voz public/voz.wav --estilo minimal --formato <vertical|horizontal>`: blanco puro palabra a palabra, sin colores estridentes. Si el vídeo abre con una tarjeta o un plano sin voz, `--offset <segundos>` para que entren cuando empiece la narración.
+7. **Final y Portada.** El render final queda en `out/motivacional-<nombre>.mp4`, comprobado con `comprobar.mjs`. En vertical se adhiere la portada de primer fotograma con `portada.mjs`; en horizontal se genera `portada.png` para YouTube.
 

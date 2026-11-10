@@ -8,7 +8,7 @@ import { abrirBienvenida } from './Bienvenida'
 import { Picker } from './Composer'
 import { EspacioDisco } from './Espacio' // espacio en disco
 import { TuEquipo } from './Equipo' // tu equipo
-import { Icono } from './Iconos'
+import { Icono, type NombreIcono } from './Iconos'
 import { SuscripcionOpciones } from './Licencia' // apoyo
 import { Logo } from './Logos'
 import { BotonNavegador } from './Navegador'
@@ -37,10 +37,26 @@ export function Opciones({ onDone }: { onDone(): void }) {
   )
 }
 
+type Seccion = 'redes' | 'agentes' | 'voz' | 'flow' | 'llaves' | 'radar' | 'avisos' | 'equipo' | 'herramientas' | 'apoyo' | 'ayuda'
+
 function Ajustes({ onDone, iniciando, onIniciando }: { onDone(): void; iniciando: boolean; onIniciando(si: boolean): void }) {
   const req = useRequisitos(true)
   // Uno para Voz y Google Flow: la cuenta de la voz también genera en Flow, y quitarla en uno la quita en el otro.
   const voz = useVoz()
+  const [seccion, setSeccion] = useState<Seccion>('redes')
+  const secciones: { id: Seccion; nombre: string; icono: NombreIcono }[] = [
+    { id: 'redes', nombre: 'Redes', icono: 'compartir' },
+    { id: 'agentes', nombre: 'Agentes', icono: 'usuario' },
+    { id: 'voz', nombre: 'Voz', icono: 'microfono' },
+    { id: 'flow', nombre: 'Google Flow', icono: 'play' },
+    ...(!VENTA ? [{ id: 'llaves' as const, nombre: 'Llaves de API', icono: 'codigo' as const }] : []),
+    { id: 'radar', nombre: 'Radar', icono: 'radar' },
+    { id: 'avisos', nombre: 'Avisos', icono: 'campana' },
+    { id: 'equipo', nombre: 'Equipo', icono: 'personas' },
+    { id: 'herramientas', nombre: 'Herramientas', icono: 'ajustes' },
+    ...(VENTA ? [{ id: 'apoyo' as const, nombre: 'Apoyo', icono: 'estrella' as const }] : []),
+    { id: 'ayuda', nombre: 'Ayuda', icono: 'pregunta' }
+  ]
   return (
     <div className="opciones">
       <button className="ghost" onClick={onDone}>
@@ -48,68 +64,111 @@ function Ajustes({ onDone, iniciando, onIniciando }: { onDone(): void; iniciando
       </button>
       <div className="opciones-titulo">
         <h1>Opciones</h1>
-        <div className="opciones-titulo-acciones">
-          <button className="ghost small" onClick={abrirBienvenida}>
-            Ver la bienvenida
-          </button>
-          {iniciando && <BotonNavegador hilo={NAVEGADOR_REDES} trabajando={false} />}
+        {iniciando && <BotonNavegador hilo={NAVEGADOR_REDES} trabajando={false} />}
+      </div>
+      <div className="opciones-cuerpo">
+        <nav className="opciones-nav" aria-label="Secciones">
+          {secciones.map((s) => (
+            <button key={s.id} className={`opciones-nav-item${seccion === s.id ? ' on' : ''}`} onClick={() => setSeccion(s.id)}>
+              <Icono de={s.icono} />
+              <span>{s.nombre}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="opciones-pantalla">
+          {seccion === 'redes' && (
+            <>
+              {/* Las redes, lo primero: es por donde salen los videos. Cada quien las conecta con sus propias credenciales. */}
+              <section className="grupo redes-grupo">
+                <div className="redes-cabeza">
+                  <div>
+                    <h2>Redes</h2>
+                    <p>Por donde salen tus videos. Hermit los programa en cada red y te avisa si algo falla.</p>
+                  </div>
+                  <a className="boton" href="#/mis-videos" title="Revisa y programa los que faltan, de todos los estilos">
+                    Programar videos
+                  </a>
+                </div>
+                <div className="panel">
+                  <RedesOpciones onIniciando={onIniciando} />
+                  <YoutubeOpciones />
+                </div>
+                <p className="grupo-nota">Los verticales salen en TikTok e Instagram; los largos, en YouTube. Hermit tiene que estar abierto mientras sube a TikTok y a YouTube; Instagram publica aunque la computadora esté apagada.</p>
+              </section>
+            </>
+          )}
+          {seccion === 'agentes' && (
+            <Grupo titulo="Agentes" nota="Cada agente se descarga la primera vez que lo eliges. Claude y ChatGPT necesitan un plan de pago o una llave de API; OpenCode, solo tu cuenta, que es gratis. Los demás, la cuenta o la llave de cada uno.">
+              <Agentes />
+              <CuentaCodex />
+              <CuentaOpenCode />
+              {OTROS_AGENTES.map((p) => (
+                <CuentaAgente key={p} p={p} />
+              ))}
+            </Grupo>
+          )}
+          {seccion === 'voz' && (
+            <Grupo titulo="Voz" nota="Al pedir un video eliges en «Voz» si la mandas tú o si el agente la genera con una de estas. La sesión de Google vive en un perfil aparte del navegador de Hermit, que ningún agente usa; las llaves, en tu usuario de esta computadora.">
+              <VozOpciones voz={voz} />
+            </Grupo>
+          )}
+          {seccion === 'flow' && (
+            <Grupo
+              titulo="Google Flow"
+              nota="Los agentes generan imágenes y videos con tus cuentas de Google: la de la Voz y las que agregues aquí, hasta 50. Las imágenes son gratis; los videos gastan créditos de Flow, y si una cuenta se queda sin ellos, Hermit sigue con otra. Agrega solo cuentas tuyas: Google puede limitar o bloquear las que usa de más."
+            >
+              <FlowOpciones voz={voz} />
+            </Grupo>
+          )}
+          {/* Solo sirven a Ideas: sin la de YouTube, las recomendaciones van con el canal conectado. */}
+          {seccion === 'llaves' && !VENTA && (
+            <Grupo titulo="Llaves de API">
+              <Llave id="youtube" />
+              <Llave id="meta" />
+            </Grupo>
+          )}
+          {seccion === 'radar' && (
+            <Grupo titulo="Radar" nota="El Diff investiga aquí primero: el radar lee estas fuentes cada 5 minutos y guarda sus noticias, así cada noticiero sale con lo último.">
+              <RadarOpciones />
+            </Grupo>
+          )}
+          {seccion === 'avisos' && (
+            <Grupo titulo="Avisos">
+              <Avisos />
+            </Grupo>
+          )}
+          {seccion === 'equipo' && (
+            <>
+              <TuEquipo />
+              <EspacioDisco />
+            </>
+          )}
+          {seccion === 'herramientas' && <Herramientas req={req} />}
+          {seccion === 'apoyo' && VENTA && (
+            <Grupo titulo="Apoyo" nota="Hermit es gratis. El apoyo es opcional y se cobra con PayPal; cancelado, lo ya pagado sigue valiendo hasta su fecha.">
+              <SuscripcionOpciones />
+            </Grupo>
+          )}
+          {seccion === 'ayuda' && (
+            <Grupo titulo="Ayuda">
+              <div className="item">
+                <div className="fila">
+                  <span className="logo">
+                    <Icono de="pregunta" />
+                  </span>
+                  <div className="fila-nombre">
+                    <strong>La bienvenida</strong>
+                    <span>Qué hace Hermit, qué hace falta en tu computadora y cómo va un video, paso a paso.</span>
+                  </div>
+                  <button className="boton" onClick={abrirBienvenida}>
+                    Ver la bienvenida
+                  </button>
+                </div>
+              </div>
+            </Grupo>
+          )}
         </div>
       </div>
-      {/* Las redes, lo primero: es por donde salen los videos. Cada quien las conecta con sus propias credenciales. */}
-      <section className="grupo redes-grupo">
-        <div className="redes-cabeza">
-          <div>
-            <h2>Redes</h2>
-            <p>Por donde salen tus videos. Hermit los programa en cada red y te avisa si algo falla.</p>
-          </div>
-          <a className="boton" href="#/mis-videos" title="Revisa y programa los que faltan, de todos los estilos">
-            Programar videos
-          </a>
-        </div>
-        <div className="panel">
-          <RedesOpciones onIniciando={onIniciando} />
-          <YoutubeOpciones />
-        </div>
-        <p className="grupo-nota">Los verticales salen en TikTok e Instagram; los largos, en YouTube. Hermit tiene que estar abierto mientras sube a TikTok y a YouTube; Instagram publica aunque la computadora esté apagada.</p>
-      </section>
-      {VENTA && (
-        <Grupo titulo="Apoyo" nota="Hermit es gratis. El apoyo es opcional y se cobra con PayPal; cancelado, lo ya pagado sigue valiendo hasta su fecha.">
-          <SuscripcionOpciones />
-        </Grupo>
-      )}
-      <Grupo titulo="Agentes" nota="Cada agente se descarga la primera vez que lo eliges. Claude y ChatGPT necesitan un plan de pago o una llave de API; OpenCode, solo tu cuenta, que es gratis. Los demás, la cuenta o la llave de cada uno.">
-        <Agentes />
-        <CuentaCodex />
-        <CuentaOpenCode />
-        {OTROS_AGENTES.map((p) => (
-          <CuentaAgente key={p} p={p} />
-        ))}
-      </Grupo>
-      <Grupo titulo="Voz" nota="Al pedir un video eliges en «Voz» si la mandas tú o si el agente la genera con una de estas. La sesión de Google vive en un perfil aparte del navegador de Hermit, que ningún agente usa; las llaves, en tu usuario de esta computadora.">
-        <VozOpciones voz={voz} />
-      </Grupo>
-      <Grupo
-        titulo="Google Flow"
-        nota="Los agentes generan imágenes y videos con tus cuentas de Google: la de la Voz y las que agregues aquí, hasta 50. Las imágenes son gratis; los videos gastan créditos de Flow, y si una cuenta se queda sin ellos, Hermit sigue con otra. Agrega solo cuentas tuyas: Google puede limitar o bloquear las que usa de más."
-      >
-        <FlowOpciones voz={voz} />
-      </Grupo>
-      {/* Solo sirven a Ideas: sin la de YouTube, las recomendaciones van con el canal conectado. */}
-      {!VENTA && (
-        <Grupo titulo="Llaves de API">
-          <Llave id="youtube" />
-          <Llave id="meta" />
-        </Grupo>
-      )}
-      <Grupo titulo="Radar" nota="El Diff investiga aquí primero: el radar lee estas fuentes cada 5 minutos y guarda sus noticias, así cada noticiero sale con lo último.">
-        <RadarOpciones />
-      </Grupo>
-      <Grupo titulo="Avisos">
-        <Avisos />
-      </Grupo>
-      <TuEquipo />
-      <EspacioDisco />
-      <Herramientas req={req} />
     </div>
   )
 }
@@ -1071,7 +1130,7 @@ export function Requisitos({ skill, onListo }: { skill?: string; onListo?(listo?
  * con un clic, y solas en cuanto falta algo.
  */
 function Herramientas({ req }: { req: UsoRequisitos }) {
-  const [abierta, setAbierta] = useState(false)
+  const [abierta, setAbierta] = useState(true)
   const lista = req.lista ?? []
   const bajables = lista.filter((r) => !r.listo && r.instalable && !r.estado)
   const todoListo = !!req.lista && lista.every((r) => (r.listo || r.opcional) && !r.error)
@@ -1088,7 +1147,7 @@ function Herramientas({ req }: { req: UsoRequisitos }) {
           todoListo &&
           abierta && (
             <button className="resumen on" onClick={() => setAbierta(false)}>
-              Plegar
+              Cerrar
             </button>
           )
         )

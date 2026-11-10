@@ -82,9 +82,8 @@ export const Modelos3D = memo(function Modelos3D() {
     <div className="m3d" ref={raiz}>
       <header className="m3d-cabeza">
         <div>
-          <div className="m3d-antetitulo">Biblioteca</div>
           <h1>Modelos 3D</h1>
-          <p>Lo que ya está hecho para tus videos. Antes de modelar algo, el agente busca aquí; lo nuevo que hace, lo guarda aquí.</p>
+          <p className="muted">Lo que ya está hecho para tus videos. Antes de modelar algo, el agente busca aquí; lo nuevo que hace, lo guarda aquí.</p>
         </div>
         <label className="m3d-busca">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

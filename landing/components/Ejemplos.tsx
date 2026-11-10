@@ -57,7 +57,11 @@ export default function Ejemplos() {
   }, [])
 
   const maxLado = Math.floor(EJEMPLOS.length / 2) // distribuye los videos simétricamente a izq/der
-  const anchoVideo = Math.min(300, Math.max(140, ancho / (1 + 2 * 2 * SEPARACION))) // tamaño fijo: siempre 2 visibles a cada lado
+  // Cuántas tarjetas caben a cada lado sin salirse de la pantalla: en el celular solo una, y las
+  // demás se recogen detrás de la pila; en escritorio se ven todas como antes.
+  const ladoVisible = ancho < 700 ? 1 : ancho < 1050 ? 2 : maxLado
+  const separacion = ancho < 700 ? 0.55 : SEPARACION
+  const anchoVideo = Math.min(300, Math.max(140, ancho / (1 + 2 * 2 * separacion))) // tamaño fijo: siempre 2 visibles a cada lado
   const altoVideo = Math.round((anchoVideo * 16) / 9)
   const factor = anchoVideo / 300
 
@@ -143,14 +147,17 @@ export default function Ejemplos() {
               const signo = rel === 0 ? 0 : rel < 0 ? -1 : 1
               const activo = rel === 0
               const alzado = resaltado === n && !activo
+              // Más allá de `ladoVisible` la tarjeta no cabe en pantalla: se recoge detrás de la
+              // pila (centro, hundida y transparente) y entra deslizándose al acercarse al frente.
+              const oculto = lado > ladoVisible
 
               // A los dos lados, la misma separación. Cada vez más hundida, girada hacia el centro y
               // transparente. Al pasar el mouse, la tarjeta sale un poco y viene al frente.
-              const x = rel * anchoVideo * SEPARACION + (alzado ? signo * 14 : 0)
-              const y = lado * 10 * factor + (alzado ? -10 : 0)
-              const z = (-lado * 150 + (alzado ? 120 : 0)) * factor
-              const giro = -signo * Math.min(40, 22 + lado * 8) * (alzado ? 0.45 : 1)
-              const escala = Math.max(0.6, 1 - lado * 0.08) + (alzado ? 0.05 : 0)
+              const x = oculto ? 0 : rel * anchoVideo * separacion + (alzado ? signo * 14 : 0)
+              const y = oculto ? 0 : lado * 10 * factor + (alzado ? -10 : 0)
+              const z = oculto ? -800 * factor : (-lado * 150 + (alzado ? 120 : 0)) * factor
+              const giro = oculto ? 0 : -signo * Math.min(40, 22 + lado * 8) * (alzado ? 0.45 : 1)
+              const escala = oculto ? 0.8 : Math.max(0.6, 1 - lado * 0.08) + (alzado ? 0.05 : 0)
 
               return (
                 <button
@@ -167,8 +174,9 @@ export default function Ejemplos() {
                   aria-label={`Ver ${e.titulo}`}
                   aria-current={activo}
                   style={{
-                    zIndex: 40 - lado * 8 + (alzado ? 5 : 0),
-                    opacity: alzado ? 1 : Math.max(0.38, 1 - lado * 0.16),
+                    zIndex: oculto ? 0 : 40 - lado * 8 + (alzado ? 5 : 0),
+                    opacity: oculto ? 0 : alzado ? 1 : Math.max(0.38, 1 - lado * 0.16),
+                    visibility: oculto ? 'hidden' : 'visible',
                     transform: `translate3d(${x}px, ${y}px, ${z}px) rotateY(${giro}deg) scale(${escala})`,
                     transitionDuration: '700ms',
                     transitionTimingFunction: 'cubic-bezier(.22,1,.36,1)',

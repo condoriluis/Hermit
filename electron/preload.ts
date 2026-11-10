@@ -11,6 +11,18 @@ const puente: PuenteHermit = {
   traer: () => ipcRenderer.send('traer'),
   anclada: () => ipcRenderer.invoke('anclada'),
   anclar: () => ipcRenderer.invoke('anclar'),
+  // Los controles de ventana del header (main.ts). En Mac la interfaz no los usa.
+  ventana: {
+    minimizar: () => ipcRenderer.send('ventana:minimizar'),
+    alternar: () => ipcRenderer.send('ventana:alternar'),
+    cerrar: () => ipcRenderer.send('ventana:cerrar'),
+    estado: () => ipcRenderer.invoke('ventana:estado'),
+    oirEstado: (cb) => {
+      const oir = (_e: IpcRendererEvent, max: boolean) => cb(max)
+      ipcRenderer.on('ventana:estado', oir)
+      return () => void ipcRenderer.off('ventana:estado', oir)
+    }
+  },
   // El navegador integrado (navegador.ts).
   navegador: {
     ver: (hilo, caja, pantalla) => ipcRenderer.send('navegador:ver', hilo, caja, pantalla),

@@ -130,6 +130,16 @@ else {
   })
   ipcMain.handle('anclada', () => anclada())
   ipcMain.handle('anclar', () => anclar())
+  // Los controles de ventana del header (la barra de título va oculta: `titleBarStyle`). En Mac no se usan: quedan los
+  // semáforos nativos.
+  ipcMain.on('ventana:minimizar', (e) => BrowserWindow.fromWebContents(e.sender)?.minimize())
+  ipcMain.on('ventana:alternar', (e) => {
+    const w = BrowserWindow.fromWebContents(e.sender)
+    if (w?.isMaximized()) w.unmaximize()
+    else w?.maximize()
+  })
+  ipcMain.on('ventana:cerrar', (e) => BrowserWindow.fromWebContents(e.sender)?.close())
+  ipcMain.handle('ventana:estado', (e) => BrowserWindow.fromWebContents(e.sender)?.isMaximized() ?? false)
   void app.whenReady().then(iniciar)
 }
 
@@ -160,6 +170,8 @@ function abrir() {
     ...medidas,
     title: 'Hermit',
     show: false,
+    // Sin barra de título: el header de la app lleva sus botones (en Mac quedan los semáforos, arriba a la izquierda).
+    titleBarStyle: 'hidden',
     backgroundColor: FONDO,
     // En Windows 11, la barra de título y el borde del color de Hermit (Electron los vuelve a pintar al enfocarla). En
     // Windows 10 solo se oscurecen.
@@ -194,6 +206,9 @@ function abrir() {
     } else guardarLugar(v)
   })
   v.on('closed', () => (ventana = undefined))
+  // Para que el botón de maximizar del header pinte el icono que toca.
+  v.on('maximize', () => v.webContents.send('ventana:estado', true))
+  v.on('unmaximize', () => v.webContents.send('ventana:estado', false))
   if (maximizada) v.maximize()
   v.show()
   if (listo) void v.loadURL(URL_HERMIT)

@@ -1269,6 +1269,18 @@ export interface ActualizacionHermit {
   aMano?: boolean
 }
 
+/** Los controles de ventana del header (`electron/preload.ts` → `ventana:*` en main.ts). */
+export interface PuenteVentana {
+  minimizar(): void
+  /** Maximiza o restaura, según esté. */
+  alternar(): void
+  cerrar(): void
+  /** Si la ventana está maximizada ahora. */
+  estado(): Promise<boolean>
+  /** Avisa cuando cambia (maximizar, restaurar, doble clic en el borde…). Devuelve la función para dejar de oír. */
+  oirEstado(cb: (maximizada: boolean) => void): () => void
+}
+
 /** Lo que la ventana de Hermit (electron/preload.ts) le da a la interfaz como `window.hermit`. En un navegador no está. */
 export interface PuenteHermit {
   actualizacion(): Promise<ActualizacionHermit>
@@ -1280,6 +1292,8 @@ export interface PuenteHermit {
   anclada(): Promise<boolean | null>
   /** Pide a Windows anclarla, que pregunta en su ventana. `windows`: Windows no dejó pedirlo. */
   anclar(): Promise<'anclada' | 'no' | 'windows'>
+  /** Los controles de ventana del header. No está en una ventana de antes de que existiera. */
+  ventana?: PuenteVentana
   /** El navegador integrado de cada hilo. No está en una ventana de antes de que existiera. */
   navegador?: PuenteNavegador
 }

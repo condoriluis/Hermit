@@ -36,5 +36,6 @@ El mensaje trae `Formato: vertical` o `Formato: horizontal`; sin la línea, vert
 3. **Voz.** La voz se genera de forma autónoma: con `generar_voz` si el mensaje indica una voz de AI Studio, o automáticamente con TTS en `public/voz.wav` sin detener el turno. Se masteriza a −14 LUFS con `node <base>/scripts/masterizar.mjs`.
 4. **Material.** Imágenes y clips de alta definición para cada puesto en `fuentes/material/`.
 5. **Revisión.** Se comprueba la hoja de contactos con `node <base>/scripts/hoja.mjs` en `revision/hoja.png`.
-6. **Final y Portada.** Render en `out/top-<nombre>.mp4`. Comprobación con `comprobar.mjs`. En vertical se fija la portada de primer fotograma; en horizontal se entrega la miniatura de YouTube en `portada.png`.
+6. **Subtítulos.** Se queman con `python <base>/scripts/subtitulos.py <video> out/top-<nombre>.mp4 --voz public/voz.wav --estilo top --formato <vertical|horizontal>`: blanco en negrita palabra a palabra, la palabra que se dice en amarillo puro — el golpe de la cuenta regresiva. Si el vídeo abre con una tarjeta o un plano sin voz, `--offset <segundos>`.
+7. **Final y Portada.** Render en `out/top-<nombre>.mp4`. Comprobación con `comprobar.mjs`. En vertical se fija la portada de primer fotograma; en horizontal se entrega la miniatura de YouTube en `portada.png`.
 

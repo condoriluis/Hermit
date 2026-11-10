@@ -23,7 +23,7 @@ const OPCIONES = [
   },
   {
     titulo: 'Rango gratis',
-    nota: 'No son gratis del todo: su uso gratis tiene límites, y esos límites varían.',
+    nota: 'Su uso gratis tiene límites, y esos límites varían.',
     agentes: [
       ['opencode', 'OpenCode'],
       ['antigravity', 'Antigravity'],
@@ -87,17 +87,13 @@ export function Bienvenida() {
           <img src="/icon.svg" alt="" />
           <div>
             <h2>Te damos la bienvenida a Hermit</h2>
-            <p>
-              Hermit hace videos con Claude, con ChatGPT, con OpenCode y otros agentes. Eliges un estilo, le das un tema o un enlace, y
-              lo ves trabajar paso a paso: investiga, escribe el guion, te pide tu voz y arma el video.
-            </p>
+            <p>Hermit hace videos con agentes de IA: eliges un estilo, le das un tema y lo ves trabajar paso a paso.</p>
           </div>
         </header>
 
         {/* Con uno basta. Con ChatGPT, además, hace las imágenes de los videos. */}
         <Paso n={1} titulo="Elige con qué trabaja" hecho={claude || chatgpt || opencode}>
-          Con uno basta, y Hermit no te cobra aparte. Todos se conectan en Opciones → Agentes; Pi usa el plan o la llave que le
-          conectes.
+          Conecta al menos un agente; Hermit no te cobra aparte. Todos se conectan en Opciones → Agentes.
           {OPCIONES.map(({ titulo, nota, agentes }) => (
             <div className="opcion" key={titulo}>
               <b>{titulo}</b>
@@ -119,8 +115,7 @@ export function Bienvenida() {
           <CuentaOpenCode aviso onFalta={(falta) => setOpencode(falta === undefined ? undefined : !falta)} />
         </Paso>
         <Paso n={2} titulo="Prepara tu computadora" hecho={listo}>
-          Los estilos usan unas herramientas (FFmpeg, Python…). Si falta alguna, aquí sale el botón para descargarla; tarda unos
-          minutos y solo se hace una vez.
+          Los estilos usan unas herramientas (FFmpeg, Python…). Si falta alguna, descárgala aquí; se hace una sola vez.
           <Requisitos onListo={setListo} />
         </Paso>
         {anclada !== null && (
@@ -142,21 +137,16 @@ export function Bienvenida() {
           </Paso>
         )}
         <Paso n={anclada === null ? 3 : 4} titulo="Haz tu primer video">
-          Elige un estilo, escribe el tema o pega un enlace y pulsa <b>↑</b>. Cuando el guion está listo, Hermit te pide tu voz:
-          grábalo con el celular y súbelo en la etapa «Tu voz». Luego arma el video y lo revisa. El Diff tarda de una a dos
-          horas; el Video explicativo, unos 40 minutos. Cuando acaba, lo descargas desde el video o en «Mis videos».
+          Elige un estilo, escribe el tema o pega un enlace y pulsa <b>↑</b>. Cuando el guion está listo, te pide tu voz: grábala
+          con el celular y súbela en «Tu voz». Al acabar, el video queda en «Mis videos».
         </Paso>
         <Paso n={anclada === null ? 4 : 5} titulo="Lo que gasta">
-          Cada video usa una parte de los límites de tu plan, que ves en Opciones. Las cifras en dólares que salen en cada
-          video dicen cuánto costaría pagado aparte, no lo que se te cobra. Un video gasta bastante: con el plan Pro el límite
-          se acaba pronto, y con Max alcanza para varios. Con una llave de API no hay límites: esas cifras son lo que pagas.
-          Con los modelos gratis de OpenCode no pagas nada, pero tu uso gratis tiene un tope, y es de tu computadora: al
-          acabarse, vuelve solo en unas horas, y cambiar de cuenta no lo repone. Sus modelos de pago se cobran del saldo de tu
-          cuenta de OpenCode.
+          Cada video usa parte de los límites de tu plan, que ves en Opciones. Las cifras en dólares son lo que costaría pagado
+          aparte, no lo que se te cobra. Con una llave de API no hay límites: ahí esas cifras son lo que pagas. Los modelos gratis
+          de OpenCode tienen tope, y vuelven solos en unas horas.
         </Paso>
 
         <div className="modal-actions">
-          <span className="muted small">La vuelves a ver en Opciones.</span>
           <button className="primary" autoFocus onClick={cerrar}>
             Empezar
           </button>

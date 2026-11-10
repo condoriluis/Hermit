@@ -37,5 +37,6 @@ El mensaje trae `Formato: vertical` o `Formato: horizontal`; sin la línea, vert
 3. **Voz.** La voz se genera de forma autónoma: con `generar_voz` si el mensaje indica una voz de AI Studio, o automáticamente con TTS en `public/voz.wav` sin detener el turno. Se masteriza con `node <base>/scripts/masterizar.mjs` a −14 LUFS.
 4. **Material.** Documentos, recortes y fotos de archivo en `fuentes/evidencia/`.
 5. **Revisión.** Se extrae la hoja de contactos con `node <base>/scripts/hoja.mjs` en `revision/hoja.png`.
-6. **Final y Portada.** Render final en `out/crimen-<nombre>.mp4`, comprobado con `comprobar.mjs`. En vertical se adhiere la portada de primer fotograma; en horizontal se entrega la miniatura de YouTube en `portada.png`.
+6. **Subtítulos.** Se queman con `python <base>/scripts/subtitulos.py <video> out/crimen-<nombre>.mp4 --voz public/voz.wav --estilo crimen --formato <vertical|horizontal>`: blanco con contorno marcado y la palabra que se dice en ámbar, como las fechas y sellos de un expediente. Si el vídeo abre con una tarjeta o un plano sin voz, `--offset <segundos>`.
+7. **Final y Portada.** Render final en `out/crimen-<nombre>.mp4`, comprobado con `comprobar.mjs`. En vertical se adhiere la portada de primer fotograma; en horizontal se entrega la miniatura de YouTube en `portada.png`.
 

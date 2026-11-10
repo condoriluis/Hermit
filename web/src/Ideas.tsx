@@ -185,9 +185,9 @@ export function Ideas(props: {
 
   return (
     <div className="ideas">
-      <header className="ideas-head">
+      <header className="galeria-head ideas-head">
         <div>
-          <h1>💡 Ideas</h1>
+          <h1>Ideas</h1>
           {!nuevo && esVertical(actual) ? (
             <p className="muted">
               Qué video vertical hacer, con evidencia. Hermit busca tu nicho en TikTok y en Instagram, mide cada video contra su cuenta y lee qué piden sus comentarios, y Claude

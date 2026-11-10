@@ -22,11 +22,13 @@ input, textarea, select { font: inherit; color: inherit; }
 /* Donde se cruzan las dos barras: sin esto, Chromium pinta un cuadro blanco. */
 ::-webkit-scrollbar-corner { background: transparent; }
 
-.app { display: grid; grid-template-columns: 248px 1fr; height: 100%; }
+/* El marco: cabecera (40px), el cuerpo con la barra y el área central, y la barra de estado (24px). */
+.app { display: grid; grid-template-rows: 40px minmax(0, 1fr) 24px; height: 100%; }
+.cuerpo { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 0; }
 
 /* Barra lateral: en Barra.css. Aquí, la selección de varios hilos y el menú de cada uno. */
 /* La selección: un globo fuera de la barra lateral, a media altura, con su pico señalando a los hilos. */
-.select-bar { position: fixed; left: 262px; z-index: 40; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; transform: translateY(-50%); animation: slide 0.16s ease-out; }
+.select-bar { position: fixed; left: 254px; z-index: 40; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; transform: translateY(-50%); animation: slide 0.16s ease-out; }
 .select-pill { position: relative; display: flex; align-items: center; gap: 2px; padding: 5px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 12px 32px var(--shadow-fuerte); }
 .select-pill::before { content: ''; position: absolute; left: -6px; top: 50%; width: 10px; height: 10px; margin-top: -5px; background: var(--panel-2); border-left: 1px solid var(--line); border-bottom: 1px solid var(--line); transform: rotate(45deg); }
 .select-pill button { padding: 5px 10px; border-radius: 9px; font-size: 12.5px; color: var(--muted); }
@@ -65,12 +67,14 @@ input, textarea, select { font: inherit; color: inherit; }
 
 /* Inicio: arriba las skills, a lo ancho; abajo, centradas, la elegida y el compositor, que no se mueven de su sitio. Si
    sobran skills, hacen scroll ellas solas y el compositor sigue a la vista. */
-.new-session { height: 100%; display: flex; flex-direction: column; gap: 20px; padding: 32px 48px 24px; }
+.new-session { height: 100%; display: flex; flex-direction: column; gap: 16px; padding: 24px 32px 20px; }
 .new-top { flex: 1; min-height: 0; width: 100%; max-width: 1560px; margin: 0 auto; display: flex; flex-direction: column; justify-content: flex-start; }
-.new-bottom { flex: none; width: 100%; max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+/* El compositor del inicio, ancho de lectura (~900px) y centrado; la descripción del formato, encima y sobria. */
+.new-bottom { flex: none; width: 100%; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
 .new-head { text-align: center; }
-.new-head h1 { margin: 2px 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
-.new-head p { margin: 0; color: var(--muted); }
+.new-head .card-icon.big { font-size: 30px; }
+.new-head h1 { margin: 2px 0; font-size: 19px; font-weight: 650; letter-spacing: -0.01em; }
+.new-head p { margin: 0; font-size: 12.5px; color: var(--muted); }
 /* «Con tus cambios (N)» (TusCambios.tsx): ámbar, que avisa sin alarmar. */
 .tus-cambios { margin-top: 8px; padding: 3px 11px; border-radius: 999px; border: 1px solid var(--warn); color: var(--warn); font-size: 12.5px; font-weight: 600; transition: background 0.15s; }
 .tus-cambios:hover { background: var(--warn-soft); }
@@ -114,24 +118,22 @@ input, textarea, select { font: inherit; color: inherit; }
 .card-actions span { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 6px; background: var(--scrim-control); color: var(--text); font-size: 12px; }
 .card-actions span:hover { background: var(--panel); }
 .card-actions span.danger:hover { color: var(--bad); }
-/* «Gratis»: cinta diagonal en la esquina superior derecha, cruzando el borde (la recorta el `overflow: hidden` de la
-   card). No tapa el icono, que va arriba a la izquierda; se aparta al pasar el ratón, que ahí salen duplicar y borrar. */
+/* «Gratis»: una etiqueta discreta en la esquina, sin cinta. No tapa el icono; se va al pasar el ratón, que ahí salen
+   duplicar y borrar. */
 .card-badge-gratis {
   position: absolute;
-  top: 15px;
-  right: -51px;
+  top: 10px;
+  right: 10px;
   z-index: 1;
-  width: 150px;
-  padding: 3px 0;
-  text-align: center;
-  transform: rotate(45deg);
+  padding: 2px 8px;
+  border-radius: 999px;
   background: var(--scrim-control);
   border: 1px solid var(--ok-border);
   color: var(--ok);
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  line-height: 1.6;
+  letter-spacing: 0.05em;
+  line-height: 1.5;
   pointer-events: none;
   text-transform: uppercase;
   transition: opacity 0.15s;
@@ -442,49 +444,49 @@ span.sub-avatar > .logo.chico svg { width: 13px; height: 13px; }
   background: var(--panel-2);
   color: var(--text);
   border: 1px solid var(--line);
-  padding: 4px 8px;
+  padding: 5px 9px;
   border-radius: 6px;
   font-size: 11.5px;
-  line-height: 1.35;
-  white-space: nowrap;
-  max-width: 320px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.4;
+  /* El texto envuelve: los \n de los `title` hacen salto de línea y lo largo baja, nunca se corta. */
+  white-space: pre-line;
+  overflow-wrap: break-word;
+  max-width: 300px;
   box-shadow: 0 6px 18px var(--shadow);
   transform-origin: center;
   transition: opacity 0.12s ease-out, transform 0.12s ease-out;
   opacity: 0;
 }
 .hermit-tooltip.arriba {
-  transform: translate(-50%, -100%) scale(0.96);
+  transform: translate(-50%, calc(-100% - 6px)) scale(0.96);
 }
 .hermit-tooltip.arriba.visible {
   opacity: 1;
-  transform: translate(-50%, -100%) scale(1);
+  transform: translate(-50%, calc(-100% - 6px)) scale(1);
 }
 .hermit-tooltip.abajo {
-  transform: translate(-50%, 0) scale(0.96);
+  transform: translate(-50%, 6px) scale(0.96);
 }
 .hermit-tooltip.abajo.visible {
   opacity: 1;
-  transform: translate(-50%, 0) scale(1);
+  transform: translate(-50%, 6px) scale(1);
 }
-/* Tooltip anclado a la derecha del elemento (p.ej. barra lateral plegada) */
+/* Tooltip al lado del elemento (p.ej. barra lateral plegada): centrado en vertical, a su derecha o su izquierda. */
 .hermit-tooltip.derecho {
-  transform: translate(0, -50%) scale(0.96);
-  white-space: normal;
+  transform: translate(8px, -50%) scale(0.96);
   max-width: 280px;
 }
 .hermit-tooltip.derecho.visible {
   opacity: 1;
-  transform: translate(0, -50%) scale(1);
+  transform: translate(8px, -50%) scale(1);
 }
-.hermit-tooltip.derecho.arriba {
-  transform: translate(0, -50%) scale(0.96);
+.hermit-tooltip.izquierda {
+  transform: translate(calc(-100% - 8px), -50%) scale(0.96);
+  max-width: 280px;
 }
-.hermit-tooltip.derecho.arriba.visible {
+.hermit-tooltip.izquierda.visible {
   opacity: 1;
-  transform: translate(0, -50%) scale(1);
+  transform: translate(calc(-100% - 8px), -50%) scale(1);
 }
 
 /* Toasts modernos estilo Sonner */

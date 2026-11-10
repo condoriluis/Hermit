@@ -254,7 +254,6 @@ export function Comunidad() {
         <main className="com-centro">
           <header className="com-cabeza">
             <div>
-              <div className="com-antetitulo">Hermit</div>
               <h1>Comunidad</h1>
             </div>
             {feed && <Avisos sinLeer={feed.avisos} onAbrir={setAbierta} onLeidos={() => setFeed((f) => f && { ...f, avisos: 0 })} />}

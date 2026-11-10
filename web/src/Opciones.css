@@ -3,12 +3,27 @@
  * debajo (que a veces se abre o despliega) y, a la derecha, su estado y lo que se puede hacer con ella.
  */
 
-.opciones { padding: 56px 48px 72px; max-width: 720px; width: 100%; margin: 0 auto; overflow-y: auto; display: flex; flex-direction: column; gap: 26px; }
+.opciones { padding: 28px 32px 56px; max-width: 1060px; width: 100%; margin: 0 auto; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
 /* El título, con la misma medida y el mismo peso que el del inicio: una sola escala en toda la app. */
 .opciones h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
 .opciones-titulo { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.opciones-titulo-acciones { display: flex; align-items: center; gap: 10px; }
-.opciones > .ghost { align-self: flex-start; margin-bottom: -20px; }
+.opciones > .ghost { align-self: flex-start; margin-bottom: -12px; }
+
+/* Dos columnas, como los ajustes de un IDE: el menú a la izquierda y solo la sección elegida a la derecha. */
+.opciones-cuerpo { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 36px; align-items: start; }
+.opciones-nav { position: sticky; top: 0; display: flex; flex-direction: column; gap: 2px; }
+.opciones-nav-item { display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px 10px; border-radius: 8px; color: var(--muted); font-size: 13px; font-weight: 500; text-align: left; transition: color 0.15s, background 0.15s; }
+.opciones-nav-item .ico { width: 15px; height: 15px; flex: none; }
+.opciones-nav-item:hover { color: var(--text); background: var(--panel); }
+.opciones-nav-item.on { color: var(--text); background: var(--panel-2); box-shadow: inset 2px 0 0 var(--accent); }
+.opciones-nav-item:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+.opciones-pantalla { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
+@media (max-width: 760px) {
+  .opciones { padding: 20px 16px 48px; }
+  .opciones-cuerpo { grid-template-columns: 1fr; gap: 20px; }
+  .opciones-nav { position: static; flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
+  .opciones-nav-item { width: auto; white-space: nowrap; }
+}
 
 .grupo { display: flex; flex-direction: column; gap: 8px; }
 .grupo-titulo { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 26px; padding: 0 4px; }

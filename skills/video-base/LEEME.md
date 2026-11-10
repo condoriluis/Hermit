@@ -6,7 +6,8 @@ Lo que comparten los estilos de vídeo: el lote, los errores ya vistos y los scr
 - **La usan:** `reel-collage` y `video-explicativo` (sus scripts, `LOTE.md` y este archivo; `video-explicativo`, también
   las huellas), `video-documental` (`hermit.py`, `chrome.mjs`, la hoja, masterizar y comprobar), las novelas de clips de
   Veo —`frutinovela`, `animalnovela`, `devnovela` y `minidrama`— (`FLOW.md`, `hermit.py`, `sonido.py`, la hoja, masterizar,
-  comprobar y la portada), los estilos que hace cada quien con `crear-estilo` y los procesos de Python de Hermit (`hermit.py`).
+  comprobar y la portada), `video-motivacional`, `video-crimen` y `video-top` (`subtitulos.py`), los estilos que hace
+  cada quien con `crear-estilo` y los procesos de Python de Hermit (`hermit.py`).
 - **`video-el-diff`** es un estilo propio que el usuario afina a mano: ni lo toques desde aquí ni le muevas nada. Solo
   toma prestados `chrome.mjs`, `recorte.py` y la portada (`PORTADA.md`, `portada.mjs`), así que un cambio en ellos
   también le llega.
@@ -112,6 +113,7 @@ Todos dicen cómo se usan si los corres sin argumentos. Node sin dependencias y 
 | `remotion.cjs` (librería) | `empaquetar(raiz)`: el `bundle()` de Remotion en una carpeta de %TEMP% que se borra al terminar (la de Remotion se quedaba, con una copia de `public/`). Todo script que empaquete usa este |
 | `recorte.py foto.jpg salida.png [--borde]` | Quita el fondo con rembg (o respeta el alfa que traiga) y corta al contenido; con `--borde`, un borde blanco de tijera. También una carpeta entera |
 | `sonido.py` (librería) | La limpieza del audio de los clips de Veo (`LIMPIAR`): quita el retumbe, baja el murmullo de fondo y cierra los huecos con una compuerta, sin tocar la voz. La usan los `unir.py` de frutinovela, animalnovela, devnovela y minidrama |
+| `subtitulos.py video.mp4 salida.mp4 --voz voz.wav [--formato vertical\|horizontal] [--estilo minimal\|crimen\|top] [--offset s]` | Subtítulos karaoke palabra a palabra (ASS `{\k}`, la palabra activa se pinta en el acento del estilo) quemados sobre el vídeo. Los tiempos salen del Whisper sobre `--voz` (o del audio del vídeo); `--offset` los retrasa si el vídeo abre con una tarjeta sin voz. La usan los estilos sin plantilla propia: motivacional (`minimal`), crimen (`crimen`) y top (`top`) |
 
 ## Cambiar la base
 

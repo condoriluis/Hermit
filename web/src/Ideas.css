@@ -1,8 +1,9 @@
-/* La sección Ideas: una columna que se lee de arriba abajo, en el orden del método. */
-.ideas { width: 100%; max-width: 980px; margin: 0 auto; padding: 40px 48px 64px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+/* La sección Ideas: el ancho de las galerías, con el contenido contenido a una columna legible. */
+.ideas { width: 100%; max-width: 1560px; margin: 0 auto; padding: 32px 48px 64px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
 .main:has(.ideas) { overflow-y: auto; }
-.ideas-head h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 6px; }
-.ideas-head p { margin: 0; max-width: 720px; font-size: 13.5px; }
+/* La cabeza va a todo lo ancho, como en «Mis videos»; lo demás (canales y contenido) se lee en una columna. */
+.ideas > *:not(.galeria-head):not(.ideas-canales) { width: 100%; max-width: 1040px; margin-inline: auto; }
+.ideas-head p { margin: 0; max-width: 720px; }
 
 .ideas-canales { display: flex; flex-wrap: wrap; gap: 6px; }
 .ideas-canal { display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 13px; font-weight: 600; transition: color 0.15s, border-color 0.15s, background 0.15s; }

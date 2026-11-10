@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FASES, type AvanceCorto, type Fase, type SessionMeta } from '../../shared/types'
-import { Icono } from './Iconos'
 
 /**
  * Lo de la barra lateral que no es la lista en sí (que vive en App): plegarla, y el avance de cada video bajo su título.
@@ -10,7 +9,7 @@ import { Icono } from './Iconos'
 /** Lo que eligió el usuario, en una ventana ancha y en una estrecha. Sin elegir, la ancha va abierta y la estrecha plegada. */
 export type Plegado = { ancha?: boolean; estrecha?: boolean }
 /** Con menos de este ancho, la barra se pliega sola. */
-const ESTRECHA = '(width < 1100px)'
+const ESTRECHA = '(width < 900px)'
 
 /**
  * Si la barra lateral está plegada en una columna de iconos, y plegarla o desplegarla. Ctrl+B lo hace desde cualquier
@@ -97,7 +96,7 @@ export function TituloDeFila({ titulo, vista }: { titulo: string; vista?: Vista 
     <span className="session-texto">
       <span className="session-title">{titulo}</span>
       <span className={`avance ${vista.clase ?? ''}`} title={vista.title}>
-        {vista.clase === 'hecho' && <Icono de="palomita" className="avance-ico" />}
+        {vista.clase === 'hecho' && <span className="dot done" />}
         <span className="avance-texto">{vista.texto}</span>
         {vista.parte < 1 && (
           <span className="avance-barra">

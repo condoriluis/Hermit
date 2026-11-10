@@ -1,7 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from './api'
 import { ActualizarHermit } from './Actualizar'
-import { abrirBienvenida } from './Bienvenida'
 import { VENTA } from '../../shared/venta'
 import './Marco.css'
 
@@ -29,6 +28,15 @@ export function BarraEstado({
   version: string
 }) {
   const [error, setError] = useState('')
+  const [acerca, setAcerca] = useState(false)
+
+  useEffect(() => {
+    if (!acerca) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setAcerca(false)
+    addEventListener('keydown', onKey)
+    return () => removeEventListener('keydown', onKey)
+  }, [acerca])
+
   return (
     <footer className="estado-barra">
       <div className="estado-izq">
@@ -59,11 +67,23 @@ export function BarraEstado({
         <ActualizarHermit />
         {modelo && <span className="estado-modelo" title="Agente y modelo de esta vista">{modelo}</span>}
         {version && (
-          <button className="estado-btn estado-version" title="Versión de Hermit — abre la bienvenida" onClick={abrirBienvenida}>
+          <button className="estado-btn estado-version" title={`Hermit ${version} — acerca de`} onClick={() => setAcerca(true)}>
             Hermit {version}
           </button>
         )}
       </div>
+      {acerca && (
+        <div className="modal-backdrop" onClick={() => setAcerca(false)}>
+          <div className="modal acerca" role="dialog" aria-modal="true" aria-label="Acerca de Hermit" onClick={(e) => e.stopPropagation()}>
+            <button className="acerca-cerrar" aria-label="Cerrar" onClick={() => setAcerca(false)}>×</button>
+            <img src="/icon.svg" alt="" />
+            <h2>Hermit</h2>
+            <p className="acerca-version">Versión {version}</p>
+            <p className="acerca-texto">Hermit hace videos con agentes de IA: eliges un estilo, le das un tema y lo ves trabajar paso a paso.</p>
+            <p className="acerca-credito">Hecho por luchodev</p>
+          </div>
+        </div>
+      )}
     </footer>
   )
 }

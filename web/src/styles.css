@@ -50,6 +50,7 @@ input, textarea, select { font: inherit; color: inherit; }
 .dot.running { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); animation: pulse 1.2s steps(5) infinite; }
 .dot.ok { background: var(--ok); opacity: 0.7; }
 .dot.done { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.dot.unread { background: var(--accent); box-shadow: 0 0 6px var(--accent-border); }
 .dot.error { background: var(--bad); }
 /* Lo que se anima sin parar va por pasos: suave, obliga a dibujar 60 cuadros por segundo mientras se vea (unos 0,2 núcleos
    de CPU cada animación, todo el rato que trabaja un agente); por pasos, unos diez, y casi no gasta. */

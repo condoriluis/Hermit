@@ -741,7 +741,7 @@ const FilaHilo = memo(function FilaHilo({ s, icono, activa, marcada, plegada, av
       <TituloDeFila titulo={s.title} vista={vista} />
       {s.pendiente && <span className="draft-tag">{s.lote?.pausa ? 'En pausa' : 'En espera'}</span>}
       {(s.running || !!s.background?.length) && <span className="dot running" title={s.running ? 'Trabajando' : `En segundo plano: ${s.background!.join(', ')}`} />}
-      {terminada && <span className="dot done" title="Terminó su turno; aún no lo has abierto" />}
+      {terminada && <span className="dot unread" title="Terminó su turno; aún no lo has abierto" />}
       {/* El menú del hilo también con un clic: renombrar, archivar, eliminar… (el clic derecho lo abre igual). */}
       <span
         className="fila-menu"

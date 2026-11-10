@@ -96,6 +96,7 @@ export function TituloDeFila({ titulo, vista }: { titulo: string; vista?: Vista 
     <span className="session-texto">
       <span className="session-title">{titulo}</span>
       <span className={`avance ${vista.clase ?? ''}`} title={vista.title}>
+        {vista.clase === 'hecho' && <span className="dot done" />}
         <span className="avance-texto">{vista.texto}</span>
         {vista.parte < 1 && (
           <span className="avance-barra">

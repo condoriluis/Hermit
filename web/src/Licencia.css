@@ -21,6 +21,3 @@
 .licencia-caja label.licencia-acepto { flex-direction: row; align-items: flex-start; gap: 8px; line-height: 1.45; }
 .licencia-acepto input { margin-top: 2px; }
 .licencia-unirse { margin: 40px auto 0; }
-
-/* En la barra de estado: el botón de la versión nueva (Actualizar.tsx). */
-.estado-barra .aviso-hermit { color: var(--warn); }

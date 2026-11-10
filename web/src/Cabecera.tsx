@@ -1,7 +1,7 @@
 import { useEffect, useState, type RefObject } from 'react'
 import { useFlow } from './Flow'
 import { Icono } from './Iconos'
-import { AvisoAgentes } from './Actualizar'
+import { ActualizarHermit, AvisoAgentes } from './Actualizar'
 import { navegacion, useNavegacion } from './navegacion'
 import './Marco.css'
 
@@ -78,6 +78,7 @@ export function Cabecera({
         )}
       </label>
       <div className="topbar-der">
+        <ActualizarHermit />
         <AvisoAgentes />
         <CreditosFlow />
         <button className={`topbar-btn${enOpciones ? ' on' : ''}`} title="Opciones" aria-label="Opciones" aria-current={enOpciones || undefined} onClick={onOpciones}>

@@ -78,9 +78,6 @@
 .estado-der > * { white-space: nowrap; }
 .estado-modelo { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
 .estado-version { font-variant-numeric: tabular-nums; opacity: 0.8; }
-.estado-barra .aviso-hermit { display: inline-flex; align-items: center; gap: 4px; color: var(--warn); font-size: 11.5px; }
-.estado-barra .aviso-hermit svg { width: 13px; height: 13px; flex: none; }
-.estado-barra .pie-nota { font-size: 11.5px; }
 
 @media (max-width: 900px) {
   .topbar-buscar { display: none; }
@@ -100,3 +97,14 @@
   color: var(--muted); font-size: 17px; line-height: 1; transition: background 0.15s, color 0.15s;
 }
 .modal.acerca .acerca-cerrar:hover { background: var(--panel-2); color: var(--text); }
+
+/* La actualización de Hermit en la cabecera: una píldora con el punto de aviso, como los créditos de Flow. */
+.topbar-update {
+  display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px;
+  border-radius: 999px; background: var(--warn-soft); border: 1px solid var(--warn-border);
+  color: var(--warn); font-size: 11.5px; font-weight: 600; white-space: nowrap;
+  font-variant-numeric: tabular-nums; transition: background 0.15s, border-color 0.15s;
+}
+.topbar-update svg { width: 12px; height: 12px; flex: none; }
+.topbar-update:hover { background: var(--warn-border); border-color: var(--warn); }
+.topbar .pie-nota { font-size: 11.5px; }

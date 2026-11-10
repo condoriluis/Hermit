@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { api } from './api'
-import { ActualizarHermit } from './Actualizar'
 import { VENTA } from '../../shared/venta'
 import './Marco.css'
 
@@ -64,7 +63,6 @@ export function BarraEstado({
         )}
       </div>
       <div className="estado-der">
-        <ActualizarHermit />
         {modelo && <span className="estado-modelo" title="Agente y modelo de esta vista">{modelo}</span>}
         {version && (
           <button className="estado-btn estado-version" title={`Hermit ${version} — acerca de`} onClick={() => setAcerca(true)}>

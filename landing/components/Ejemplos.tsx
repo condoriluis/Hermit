@@ -1,43 +1,52 @@
 'use client'
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from 'react'
+import { ChevronLeft, ChevronRight, Volume2, VolumeX } from 'lucide-react'
 
 /**
- * Los videos de ejemplo, en una pila 3D: el que se ve va al frente y los demás suben y se hunden
- * hacia atrás a la izquierda, clicables para elegirlos. Son archivos reales generados con Hermit,
- * sin edición a mano: van en `landing/public/videos/`, el video y su miniatura con el mismo nombre
- * (`animalnovela.mp4` y `animalnovela.jpg`). Para añadir otro, agrega una línea aquí y sube sus dos archivos.
+ * Los videos de ejemplo, en una pila 3D simétrica: el que se ve va al frente, al centro, y los
+ * demás se reparten a los dos lados, cada vez más hundidos, girados y transparentes. Se eligen con
+ * un clic y se pasan arrastrando con el mouse o con el dedo, hacia la izquierda o la derecha. Son
+ * archivos reales generados con Hermit, sin edición a mano: van en Cloudinary
+ * (`res.cloudinary.com/dpxtci7sn`) y el póster sale del mismo video con `portada()`, así que no
+ * hay ninguna imagen que subir aparte. Para añadir otro, sube su `.mp4` a Cloudinary (la parte que
+ * va tras `/upload/`) y agrega una línea aquí.
  */
+const CLOUDINARY = 'https://res.cloudinary.com/dpxtci7sn/video/upload'
 const EJEMPLOS = [
-  { archivo: 'animalnovela', estilo: 'Animalnovela', titulo: 'La inspección más sospechosa del bosque', duracion: '1:00' },
-  { archivo: 'frutinovela', estilo: 'Frutinovela', titulo: 'Todos Santos: 2 de noviembre', duracion: '0:32' },
-  { archivo: 'politica', estilo: 'Explicativo', titulo: '¿Convicción o 25 millones?', duracion: '0:30' },
+  { id: 'v1794276084/files/devnovela-nunca-hagas-deploy-viernes', estilo: 'Devnovela', titulo: 'Nunca hagas deploy un viernes', duracion: '0:51' },
+  { id: 'v1794277465/files/devnovela-git-vs-github', estilo: 'Devnovela', titulo: 'Git vs GitHub', duracion: '—' },
+  { id: 'v1794273538/files/crimen-muneco-chuky', estilo: 'Crimen', titulo: 'El muñeco Chucky', duracion: '0:30' },
+  { id: 'v1794277105/files/reddit-abuela-sigue-llamandome', estilo: 'Reddit', titulo: 'Abuela sigue llamándome', duracion: '—' },
+  { id: 'v1794277198/files/politica-vida-donal-tromp-ee', estilo: 'Política', titulo: 'La vida de Donald Trump', duracion: '—' },
+  { id: 'v1794276410/files/animalnovela-formato-vertical', estilo: 'Animalnovela', titulo: 'La inspección más sospechosa del bosque', duracion: '1:00' },
+  { id: 'v1794276221/files/frutinovela-todos-santos-2-noviembre', estilo: 'Frutinovela', titulo: 'Todos Santos: 2 de noviembre', duracion: '0:32' },
+  { id: 'v1794276459/files/motivacional-vida-continua-somos-triunfadores', estilo: 'Motivacional', titulo: 'La vida continúa: somos triunfadores', duracion: '0:41' },
 ]
 
-/**
- * Cada puesto dentro de la pila: el activo al frente y, hacia atrás, cada vez más arriba, más
- * hundido, más girado y más transparente. `capa` manda el orden de apilado. Las distancias se
- * encogen con el ancho del video, para que la pila quepa igual en un teléfono.
- */
-const PILA = [
-  { x: 0, y: 0, z: 0, giro: 0, ladeo: 0, escala: 1, opacidad: 1, capa: 30 },
-  { x: -70, y: -40, z: -120, giro: 22, ladeo: -5, escala: 0.91, opacidad: 0.92, capa: 20 },
-  { x: -130, y: -75, z: -240, giro: 32, ladeo: -8, escala: 0.82, opacidad: 0.78, capa: 15 },
-  { x: -180, y: -105, z: -340, giro: 38, ladeo: -10, escala: 0.74, opacidad: 0.55, capa: 10 },
-  { x: -210, y: -125, z: -400, giro: 42, ladeo: -12, escala: 0.68, opacidad: 0, capa: 1 },
-]
+/** El video, recomprimido por Cloudinary (`q_auto`): baja de peso sin que se note. */
+const video = (id: string) => `${CLOUDINARY}/q_auto/${id}.mp4`
+/** El póster: el primer cuadro del mismo video (`.mp4` → `.jpg`), con `so_0`. */
+const portada = (id: string) => `${CLOUDINARY}/so_0,q_auto/${id}.jpg`
+
+/** Cuánto se aparta cada tarjeta del centro, en anchos de video: más es más separado. */
+const SEPARACION = 0.62
+/** Cuánto hay que arrastrar, en píxeles, para pasar de video. */
+const UMBRAL_ARRASTRE = 40
 
 export default function Ejemplos() {
   const [i, setI] = useState(0)
   const [ancho, setAncho] = useState(0)
   const [visible, setVisible] = useState(false)
   const [resaltado, setResaltado] = useState<number | null>(null)
+  const [silenciado, setSilenciado] = useState(true)
   const videos = useRef<(HTMLVideoElement | null)[]>([])
   const caja = useRef<HTMLDivElement>(null)
-  const inicioToque = useRef<number | null>(null)
+  const inicioArrastre = useRef<number | null>(null)
+  const huboArrastre = useRef(0)
 
-  // El ancho de la caja manda: el video de adelante queda centrado y la pila se encoge a su medida.
+  // El ancho de la caja manda: la tarjeta de adelante va al centro y las de los lados se acomodan a
+  // su medida, para que las dos puntas quepan sin salirse de la pantalla.
   useLayoutEffect(() => {
     const el = caja.current
     if (!el) return
@@ -47,7 +56,8 @@ export default function Ejemplos() {
     return () => ro.disconnect()
   }, [])
 
-  const anchoVideo = Math.min(300, Math.max(190, ancho * 0.55))
+  const maxLado = Math.floor(EJEMPLOS.length / 2) // distribuye los videos simétricamente a izq/der
+  const anchoVideo = Math.min(300, Math.max(140, ancho / (1 + 2 * 2 * SEPARACION))) // tamaño fijo: siempre 2 visibles a cada lado
   const altoVideo = Math.round((anchoVideo * 16) / 9)
   const factor = anchoVideo / 300
 
@@ -56,14 +66,20 @@ export default function Ejemplos() {
     setI((i) => (paso + EJEMPLOS.length) % EJEMPLOS.length)
   }, [])
 
-  // Solo corre el video que se está viendo, y sin sonido. Los demás se quedan quietos.
+  // Solo corre el video que se está viendo; los demás se pausan, se resetean al inicio y
+  // vuelven a mostrar su portada (v.load() cancela la reproducción y restaura el poster).
   useEffect(() => {
     videos.current.forEach((v, n) => {
       if (!v) return
-      if (n === i && visible) v.play().catch(() => {})
-      else v.pause()
+      if (n === i && visible) {
+        v.muted = silenciado
+        v.play().catch(() => {})
+      } else {
+        v.pause()
+        v.load() // resetea al frame 0 y muestra la portada
+      }
     })
-  }, [i, visible])
+  }, [i, visible, silenciado])
 
   // Si la sección sale de la pantalla, se pausa: no gasta batería de nadie.
   useEffect(() => {
@@ -73,6 +89,17 @@ export default function Ejemplos() {
     obs.observe(el)
     return () => obs.disconnect()
   }, [])
+
+  // Arrastrar en el eje X, con el mouse o el dedo, pasa de video; un clic corto no arrastra.
+  const soltar = (e: PointerEvent<HTMLDivElement>) => {
+    const desde = inicioArrastre.current
+    inicioArrastre.current = null
+    if (desde === null) return
+    const d = e.clientX - desde
+    if (Math.abs(d) < UMBRAL_ARRASTRE) return
+    ir(i + (d < 0 ? 1 : -1))
+    huboArrastre.current = Date.now()
+  }
 
   return (
     <section id="ejemplos" className="py-24 relative">
@@ -85,43 +112,54 @@ export default function Ejemplos() {
             Mira lo que ya se creó
           </h2>
           <p className="mt-4 text-base sm:text-lg text-muted">
-            Estos videos los hizo Hermit solo, sin edición manual. Elige uno para verlo.
+            Estos videos los hizo Hermit solo, sin edición manual. Elige uno para verlo, o desliza a los lados.
           </p>
         </div>
 
-        <div ref={caja} className="relative max-w-2xl mx-auto">
+        <div ref={caja} className="relative max-w-4xl mx-auto">
           <div
-            className="relative mx-auto [perspective:1600px]"
+            className="relative mx-auto [perspective:1600px] [touch-action:pan-y]"
             style={{ width: anchoVideo, height: altoVideo }}
-            onTouchStart={(e) => {
-              inicioToque.current = e.touches[0].clientX
+            onPointerDown={(e) => {
+              if (e.pointerType === 'mouse' && e.button !== 0) return
+              inicioArrastre.current = e.clientX
             }}
-            onTouchEnd={(e) => {
-              if (inicioToque.current === null) return
-              const d = e.changedTouches[0].clientX - inicioToque.current
-              if (Math.abs(d) > 40) ir(i + (d < 0 ? 1 : -1))
-              inicioToque.current = null
+            onPointerMove={(e) => {
+              if (inicioArrastre.current === null) return
+              if (Math.abs(e.clientX - inicioArrastre.current) > 10 && !e.currentTarget.hasPointerCapture(e.pointerId)) {
+                e.currentTarget.setPointerCapture(e.pointerId)
+              }
+            }}
+            onPointerUp={soltar}
+            onPointerCancel={() => {
+              inicioArrastre.current = null
             }}
           >
             {EJEMPLOS.map((e, n) => {
               const puesto = (n - i + EJEMPLOS.length) % EJEMPLOS.length
-              const activo = puesto === 0
-              const p = PILA[Math.min(puesto, PILA.length - 1)]
+              // La distancia con signo al centro: los puestos de la derecha suman, los de la izquierda restan.
+              const rel = puesto <= maxLado ? puesto : puesto - EJEMPLOS.length
+              const lado = Math.abs(rel)
+              const signo = rel === 0 ? 0 : rel < 0 ? -1 : 1
+              const activo = rel === 0
               const alzado = resaltado === n && !activo
 
-              // Al pasar el mouse, la tarjeta sale un poco de la pila y viene al frente.
-              const x = (p.x + (alzado ? 34 : 0)) * factor
-              const y = (p.y + (alzado ? -16 : 0)) * factor
-              const z = (p.z + (alzado ? 110 : 0)) * factor
-              const giro = p.giro * (alzado ? 0.5 : 1)
-              const ladeo = p.ladeo * (alzado ? 0.55 : 1)
-              const escala = p.escala + (alzado ? 0.06 : 0)
+              // A los dos lados, la misma separación. Cada vez más hundida, girada hacia el centro y
+              // transparente. Al pasar el mouse, la tarjeta sale un poco y viene al frente.
+              const x = rel * anchoVideo * SEPARACION + (alzado ? signo * 14 : 0)
+              const y = lado * 10 * factor + (alzado ? -10 : 0)
+              const z = (-lado * 150 + (alzado ? 120 : 0)) * factor
+              const giro = -signo * Math.min(40, 22 + lado * 8) * (alzado ? 0.45 : 1)
+              const escala = Math.max(0.6, 1 - lado * 0.08) + (alzado ? 0.05 : 0)
 
               return (
                 <button
-                  key={e.archivo}
+                  key={e.id}
                   type="button"
-                  onClick={() => setI(n)}
+                  onClick={() => {
+                    if (Date.now() - huboArrastre.current < 300) return
+                    setI(n)
+                  }}
                   onMouseEnter={() => setResaltado(n)}
                   onMouseLeave={() => setResaltado(null)}
                   onFocus={() => setResaltado(n)}
@@ -129,10 +167,9 @@ export default function Ejemplos() {
                   aria-label={`Ver ${e.titulo}`}
                   aria-current={activo}
                   style={{
-                    zIndex: alzado ? p.capa + 5 : p.capa,
-                    opacity: alzado ? 1 : p.opacidad,
-                    pointerEvents: p.opacidad === 0 && !alzado ? 'none' : undefined,
-                    transform: `translate3d(${x}px, ${y}px, ${z}px) rotateY(${giro}deg) rotateZ(${ladeo}deg) scale(${escala})`,
+                    zIndex: 40 - lado * 8 + (alzado ? 5 : 0),
+                    opacity: alzado ? 1 : Math.max(0.38, 1 - lado * 0.16),
+                    transform: `translate3d(${x}px, ${y}px, ${z}px) rotateY(${giro}deg) scale(${escala})`,
                     transitionDuration: '700ms',
                     transitionTimingFunction: 'cubic-bezier(.22,1,.36,1)',
                   }}
@@ -144,9 +181,9 @@ export default function Ejemplos() {
                     ref={(el) => {
                       videos.current[n] = el
                     }}
-                    src={`/videos/${e.archivo}.mp4`}
-                    poster={`/videos/${e.archivo}.jpg`}
-                    muted
+                    src={video(e.id)}
+                    poster={portada(e.id)}
+                    muted={silenciado}
                     playsInline
                     preload="none"
                     aria-hidden={!activo}
@@ -154,27 +191,22 @@ export default function Ejemplos() {
                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                   />
 
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-black/40" />
-
-                  <div
-                    className={`absolute inset-x-0 bottom-0 p-4 pt-14 bg-gradient-to-t from-black/85 via-black/45 to-transparent transition-opacity duration-500 ${
-                      activo ? 'opacity-100' : 'opacity-0'
-                    }`}
-                  >
-                    <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-white uppercase backdrop-blur-sm">
-                      {e.estilo}
-                    </span>
-                    <p className="text-sm font-bold text-white font-heading mt-2">{e.titulo}</p>
-                    <p className="text-[11px] text-white/60 font-mono mt-0.5">
-                      MP4 1080×1920 · {e.duracion} · sin edición
-                    </p>
-                  </div>
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/25" />
                 </button>
               )
             })}
           </div>
 
-          <div className="flex items-center justify-center gap-5 mt-10">
+          {/* El dato del video va fuera de la tarjeta: dentro taparía los subtítulos que trae el propio video. */}
+          <div className="mt-7 text-center">
+            <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-panel-2 border border-line text-muted uppercase">
+              {EJEMPLOS[i].estilo}
+            </span>
+            <p className="text-lg font-bold text-text font-heading mt-2.5">{EJEMPLOS[i].titulo}</p>
+            <p className="text-[11px] text-muted font-mono mt-1">MP4 1080×1920 · {EJEMPLOS[i].duracion} · sin edición</p>
+          </div>
+
+          <div className="flex items-center justify-center gap-5 mt-6">
             <button
               type="button"
               onClick={() => ir(i - 1)}
@@ -192,7 +224,7 @@ export default function Ejemplos() {
             <div className="flex items-center gap-2">
               {EJEMPLOS.map((e, n) => (
                 <button
-                  key={e.archivo}
+                  key={e.id}
                   type="button"
                   onClick={() => setI(n)}
                   aria-label={`Ver ${e.titulo}`}
@@ -210,6 +242,15 @@ export default function Ejemplos() {
               className="p-2.5 rounded-full border border-line bg-panel text-muted hover:text-text hover:border-accent/40 transition-all"
             >
               <ChevronRight className="w-5 h-5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSilenciado((s) => !s)}
+              aria-label={silenciado ? 'Activar audio' : 'Silenciar'}
+              className="p-2.5 rounded-full border border-line bg-panel text-muted hover:text-text hover:border-accent/40 transition-all"
+            >
+              {silenciado ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
             </button>
           </div>
         </div>

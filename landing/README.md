@@ -23,11 +23,3 @@ npm run dev
 
 Abre [http://localhost:3000](http://localhost:3000) en tu navegador. Copia `.env.example` a `.env.local` si quieres apuntar a otro Worker o cambiar el QR.
 
----
-
-## ☁️ Cómo Desplegar en Vercel (Gratis)
-
-1. Sube esta carpeta o un repositorio con ella a tu cuenta de GitHub (`condoriluis/Hermit` o un repo dedicado `Hermit-landing`).
-2. Entra a [vercel.com](https://vercel.com) y pulsa **Add New Project**.
-3. Selecciona el repositorio y si está en una subcarpeta, fija el **Root Directory** en `landing`.
-4. Pulsa **Deploy**. En menos de 1 minuto estará en línea con HTTPS y CDN mundial gratuito.

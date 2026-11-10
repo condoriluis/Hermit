@@ -192,6 +192,8 @@ const EQUIPOS = 2
 const VISTO = 30 * DIA
 /** Las cuentas gratis que se piden (o se vuelven a pedir) desde una misma conexión en un día. */
 const CUENTAS_AL_DIA = 5
+/** Los pagos que una conexión puede abrir al día (cada uno puede crear una suscripción u orden en PayPal). */
+const PAGOS_AL_DIA = 20
 /** 32 letras y números sin los que se confunden (0, 1, I, O). */
 const ALFABETO = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
 export const CLAVE = /^HERMIT(-[2-9A-HJ-NP-Z]{4}){4}$/
@@ -315,7 +317,7 @@ async function atender(req: Request, env: Env, ctx: ExecutionContext, url: URL):
     if (req.method === 'POST' && url.pathname === '/webhook/paypal') return await webhookPaypal(req, env, ctx)
     if (req.method === 'GET' && url.pathname === '/paypal') return json(await configPaypal(env))
     if (req.method === 'POST' && url.pathname === '/suscribir') return await suscribir(env, await cuerpo(req), await conexion(req))
-    if (req.method === 'POST' && url.pathname === '/suscripcion') return await suscripcion(env, await cuerpo(req))
+    if (req.method === 'POST' && url.pathname === '/suscripcion') return await suscripcion(env, await cuerpo(req), await conexion(req))
     if (req.method === 'POST' && url.pathname === '/licencia') return await licencia(env, await cuerpo(req))
     if (req.method === 'POST' && url.pathname === '/cancelar') return await cancelar(env, await cuerpo(req))
     if (req.method === 'POST' && url.pathname === '/pago') return await pago(env, await cuerpo(req))
@@ -471,6 +473,7 @@ async function suscribir(env: Env, c: Record<string, unknown>, desde: string): P
   if (c.acepto !== true || !TERMINOS.test(terminos))
     throw new Rechazo(400, plan === 'gratis' ? 'Para unirte, acepta los términos.' : 'Para suscribirte, acepta el cobro automático y los términos.')
   if (plan === 'gratis') return unirse(env, email, equipo!, acepto, terminos, desde, c.porCorreo === true)
+  if (!(await cupo(env, desde, 'pago', PAGOS_AL_DIA))) throw new Rechazo(429, 'Desde esta conexión ya se hicieron muchos pagos hoy. Prueba mañana.')
   // Con una ya pagada, otra cobraría dos veces; con un lugar gratis de por vida, no hace falta. Con una cuenta, sí se apoya.
   await sinOtra(env, email, true)
   const p = await precios(env)
@@ -548,7 +551,7 @@ async function configPaypal(env: Env) {
  * clave se da en `/gracias` cuando PayPal la confirme, igual que con el enlace. Antes se comprueba en PayPal que sea
  * nuestro plan y que no esté cancelada ni vencida; si ya estaba registrada (un reintento del botón), la misma fila.
  */
-async function suscripcion(env: Env, c: Record<string, unknown>): Promise<Response> {
+async function suscripcion(env: Env, c: Record<string, unknown>, desde: string): Promise<Response> {
   const email = String(c.email ?? '').trim().toLowerCase()
   if (!EMAIL.test(email) || email.length > 254) throw new Rechazo(400, 'Escribe un correo válido.')
   const acepto = new Date().toISOString()
@@ -557,9 +560,17 @@ async function suscripcion(env: Env, c: Record<string, unknown>): Promise<Respon
     throw new Rechazo(400, 'Para suscribirte, acepta el cobro automático y los términos.')
   const id = String(c.suscripcion ?? '')
   if (!/^I-[A-Z0-9]+$/i.test(id)) throw new Rechazo(400, 'Suscripción inválida.')
+  if (!(await cupo(env, desde, 'pago', PAGOS_AL_DIA))) throw new Rechazo(429, 'Desde esta conexión ya se hicieron muchos pagos hoy. Prueba mañana.')
   const ya = await env.DB.prepare('SELECT id FROM licencias WHERE paypal = ?').bind(id).first<{ id: string }>()
   if (ya) return json({ id: ya.id })
-  await sinOtra(env, email, true)
+  // Si ya hay un apoyo activo con ese correo no se registra otra: la recién aprobada se cancela en PayPal para que no
+  // cobre todos los meses sin fila que la respalde.
+  try {
+    await sinOtra(env, email, true)
+  } catch (error) {
+    await paypal(env, 'POST', `/v1/billing/subscriptions/${id}/cancel`, { reason: 'Ya tiene otra suscripción de Hermit' }).catch(() => {})
+    throw error
+  }
   const p = await precios(env)
   const s = await paypal<SuscripcionPaypal>(env, 'GET', `/v1/billing/subscriptions/${id}`)
   if (s.plan_id !== (await planPaypal(env, p.mensual, p.moneda))) throw new Rechazo(400, 'Esa suscripción no es del plan de Hermit.')

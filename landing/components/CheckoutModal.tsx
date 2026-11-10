@@ -59,6 +59,7 @@ export default function CheckoutModal({ isOpen, onClose, plan, precioUSD, cambio
   const [error, setError] = useState('')
   const [enviado, setEnviado] = useState(false)
   const [paypalFallo, setPaypalFallo] = useState(false)
+  const [qrLista, setQrLista] = useState(false)
   const paypalRef = useRef<HTMLDivElement>(null)
 
   const bob = enBolivianos(precioUSD, cambio)
@@ -68,6 +69,7 @@ export default function CheckoutModal({ isOpen, onClose, plan, precioUSD, cambio
       setError('')
       setEnviado(false)
       setPaypalFallo(false)
+      setQrLista(false)
     }
   }, [isOpen])
 
@@ -275,10 +277,19 @@ export default function CheckoutModal({ isOpen, onClose, plan, precioUSD, cambio
                 </div>
 
                 <div className="p-4 rounded-lg bg-bg border border-line text-center flex flex-col items-center justify-center">
-                  <div className="w-40 h-40 bg-white rounded-lg p-2 flex items-center justify-center shadow-md">
+                  <div className="w-40 h-40 bg-white rounded-lg p-2 flex items-center justify-center shadow-md relative overflow-hidden">
+                    {QR_IMG && !qrLista && (
+                      <div className="absolute inset-2 rounded bg-gray-200 animate-pulse" aria-hidden="true" />
+                    )}
                     {QR_IMG ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={QR_IMG} alt="QR para pagar el apoyo" className="w-full h-full object-contain rounded" />
+                      <img
+                        src={QR_IMG}
+                        alt="QR para pagar el apoyo"
+                        onLoad={() => setQrLista(true)}
+                        onError={() => setQrLista(true)}
+                        className={`w-full h-full object-contain rounded transition-opacity duration-300 ${qrLista ? 'opacity-100' : 'opacity-0'}`}
+                      />
                     ) : (
                       <div className="w-full h-full border-2 border-dashed border-gray-400 flex flex-col items-center justify-center text-gray-800 text-[10px] font-mono text-center">
                         <QrCode className="w-14 h-14 text-gray-800 mb-1" />

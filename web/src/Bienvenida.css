@@ -3,6 +3,7 @@
 .bienvenida header img { width: 48px; height: 48px; flex: none; }
 .bienvenida header h2 { margin: 2px 0 6px; font-size: 20px; }
 .bienvenida header p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.bienvenida header .version { margin-top: 6px; font-family: var(--mono); font-size: 12px; }
 .bienvenida .paso { display: flex; gap: 14px; padding: 14px 0; border-top: 1px solid var(--line); }
 .bienvenida .paso-n {
   flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;

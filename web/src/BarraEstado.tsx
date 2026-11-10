@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from './api'
 import { ActualizarHermit } from './Actualizar'
+import { abrirBienvenida } from './Bienvenida'
 import { VENTA } from '../../shared/venta'
 import './Marco.css'
 
@@ -32,7 +33,7 @@ export function BarraEstado({
     <footer className="estado-barra">
       <div className="estado-izq">
         <span className={`dot ${connected ? 'ok' : 'bad'}`} />
-        <span className="estado-texto">{connected ? 'Backend conectado' : 'Reconectando…'}</span>
+        <span className="estado-texto">{connected ? 'Conectado' : 'Reconectando…'}</span>
         {trabajando > 0 && (
           <span className="estado-tareas" title={nombres.join('\n')}>
             {trabajando} trabajando
@@ -57,7 +58,11 @@ export function BarraEstado({
       <div className="estado-der">
         <ActualizarHermit />
         {modelo && <span className="estado-modelo" title="Agente y modelo de esta vista">{modelo}</span>}
-        {version && <span className="estado-version">Hermit {version}</span>}
+        {version && (
+          <button className="estado-btn estado-version" title="Versión de Hermit — abre la bienvenida" onClick={abrirBienvenida}>
+            Hermit {version}
+          </button>
+        )}
       </div>
     </footer>
   )

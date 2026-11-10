@@ -627,7 +627,7 @@ export function App() {
       </aside>
 
       <main className="main">
-        <Bienvenida />
+        <Bienvenida version={version} />
         <AvisoVideos />
         <AvisoFlow />
         {view.kind === 'opciones' && (

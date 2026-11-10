@@ -39,7 +39,7 @@ export const abrirBienvenida = () => dispatchEvent(new Event(EVENTO))
  * La bienvenida: sale la primera vez que se abre Hermit y luego desde Opciones. Dice qué hace, qué hace falta (con lo
  * que falta a la vista, para hacerlo ahí mismo), cómo va un video, cuánto tarda y qué cuesta.
  */
-export function Bienvenida() {
+export function Bienvenida({ version = '' }: { version?: string }) {
   const [abierta, setAbierta] = useState(() => !localStorage.getItem(VISTA))
   const [claude, setClaude] = useState<boolean>()
   const [chatgpt, setChatgpt] = useState<boolean>()
@@ -88,6 +88,7 @@ export function Bienvenida() {
           <div>
             <h2>Te damos la bienvenida a Hermit</h2>
             <p>Hermit hace videos con agentes de IA: eliges un estilo, le das un tema y lo ves trabajar paso a paso.</p>
+            {version && <p className="version">Hermit {version}</p>}
           </div>
         </header>
 

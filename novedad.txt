@@ -1,1 +1,1 @@
-Hermit con aspecto de IDE: cabecera, menú lateral y barra de estado; Opciones por secciones, bienvenida más limpia, tooltips que se adaptan y subtítulos con estilo en motivacional, crimen y top
+La versión del pie abre un «Acerca de», el aviso de actualización pasa a la cabecera como píldora y el pie queda más limpio

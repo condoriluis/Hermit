@@ -116,5 +116,7 @@ button.barra-seccion:hover { color: var(--text); }
 .plegada .barra-seccion::after, .plegada .lote-row::after { display: none; }
 .plegada .session-row { position: relative; justify-content: center; padding: 8px 0; }
 .plegada :is(.session-title, .session-texto, .draft-tag, .draft-x, .check, .lote-cuenta, .renombrar, .barra-vacio, .lote-pausa, .fila-menu) { display: none; }
+/* El ⋮ y la ✕ de borrador no vuelven ni con el ratón encima: plegada solo queda el icono del estilo. */
+.plegada .session-row :is(.fila-menu, .draft-x, .lote-cuenta) { display: none; }
 .plegada .session-row .dot { position: absolute; top: 4px; right: 4px; }
 .plegada .lote-videos { margin-left: 3px; padding-left: 2px; }

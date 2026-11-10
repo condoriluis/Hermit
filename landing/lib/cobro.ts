@@ -58,6 +58,41 @@ export async function suscribir(email: string, plan: Plan, terminos: string): Pr
   }
 }
 
+/**
+ * Lo que el botón de PayPal de la página necesita para abrirse ahí mismo: el client id (público por diseño) y el plan
+ * mensual. El año sigue con su orden y su enlace de siempre.
+ */
+export async function configPaypal(): Promise<{ clientId: string; planId: string } | undefined> {
+  try {
+    const r = await fetch(`${COBRO}/paypal`)
+    if (!r.ok) return
+    const d = await r.json().catch(() => ({}))
+    if (!d.client_id || !d.plan) return
+    return { clientId: String(d.client_id), planId: String(d.plan) }
+  } catch {
+    return
+  }
+}
+
+/**
+ * Registra la suscripción mensual que el botón de PayPal acaba de aprobar y da la fila para `/gracias`, donde la clave
+ * aparece cuando PayPal confirma el cobro. El cobro la verifica contra su API antes de aceptarla.
+ */
+export async function registrarSuscripcion(email: string, terminos: string, suscripcion: string): Promise<{ id?: string; error?: string }> {
+  try {
+    const r = await fetch(`${COBRO}/suscripcion`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email, acepto: true, terminos, suscripcion }),
+    })
+    const d = await r.json().catch(() => ({}))
+    if (d.id) return { id: String(d.id) }
+    return { error: String(d.error ?? 'No pudimos registrar tu suscripción. Intenta otra vez en un momento.') }
+  } catch {
+    return { error: 'No pudimos llegar al cobro de Hermit. Revisa tu conexión e intenta otra vez.' }
+  }
+}
+
 /** El dólar del mercado en Bolivia, si su fuente no contesta: así nadie se queda sin poder pagar. */
 export const RESPALDO_BOB = 12
 

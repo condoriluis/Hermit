@@ -133,7 +133,9 @@ type Tarifas = Pick<Env, 'FUNDADORES' | 'FUNDADORES_HASTA' | 'PRECIO_MENSUAL' | 
 interface SuscripcionPaypal {
   id: string
   status: string
+  plan_id?: string
   custom_id?: string
+  subscriber?: { email_address?: string }
   billing_info?: { next_billing_time?: string }
   links?: { rel: string; href: string }[]
 }
@@ -311,7 +313,9 @@ async function atender(req: Request, env: Env, ctx: ExecutionContext, url: URL):
     if (req.method === 'GET' && url.pathname === '/gracias') return await gracias(env, url)
     if (req.method === 'GET' && url.pathname === '/renovar') return await renovacion(env, url)
     if (req.method === 'POST' && url.pathname === '/webhook/paypal') return await webhookPaypal(req, env, ctx)
+    if (req.method === 'GET' && url.pathname === '/paypal') return json(await configPaypal(env))
     if (req.method === 'POST' && url.pathname === '/suscribir') return await suscribir(env, await cuerpo(req), await conexion(req))
+    if (req.method === 'POST' && url.pathname === '/suscripcion') return await suscripcion(env, await cuerpo(req))
     if (req.method === 'POST' && url.pathname === '/licencia') return await licencia(env, await cuerpo(req))
     if (req.method === 'POST' && url.pathname === '/cancelar') return await cancelar(env, await cuerpo(req))
     if (req.method === 'POST' && url.pathname === '/pago') return await pago(env, await cuerpo(req))
@@ -481,6 +485,25 @@ async function suscribir(env: Env, c: Record<string, unknown>, desde: string): P
     return json(equipo ? { clave: previa.clave, enlace: previa.enlace } : { enlace: previa.enlace })
   }
 
+  const fila = await crearPendiente(env, email, plan, p, acepto, terminos)
+  // Dónde se paga y en qué columna queda: la orden del año o la suscripción mensual.
+  let abierto: { columna: 'orden' | 'paypal'; id: string; enlace: string }
+  try {
+    abierto = plan === 'anual' ? { columna: 'orden', ...(await ordenPaypal(env, fila)) } : { columna: 'paypal', ...(await suscripcionPaypal(env, fila)) }
+  } catch (error) {
+    await env.DB.prepare('DELETE FROM licencias WHERE id = ?').bind(fila.id).run()
+    throw error instanceof Rechazo ? new Rechazo(502, 'PayPal no pudo abrir el pago. Revisa tu correo e intenta otra vez.') : error
+  }
+  await env.DB.prepare(`UPDATE licencias SET ${abierto.columna} = ?, enlace = ?, revisada = ? WHERE id = ?`)
+    .bind(abierto.id, abierto.enlace ?? null, new Date().toISOString(), fila.id)
+    .run()
+  if (!equipo) return json({ enlace: abierto.enlace })
+  await recordarEquipo(env, fila.clave, equipo, Date.now())
+  return json({ clave: fila.clave, enlace: abierto.enlace })
+}
+
+/** La fila `pending` de un apoyo por PayPal, antes de abrir su cobro (orden del año o suscripción mensual). */
+async function crearPendiente(env: Env, email: string, plan: 'mensual' | 'anual', p: Awaited<ReturnType<typeof precios>>, acepto: string, terminos: string): Promise<Fila> {
   const fila: Fila = {
     id: crypto.randomUUID(),
     clave: nuevaClave(),
@@ -507,20 +530,45 @@ async function suscribir(env: Env, c: Record<string, unknown>, desde: string): P
   await env.DB.prepare('INSERT INTO licencias (id, clave, email, plan, monto, moneda, fundador, estado, creada, acepto, terminos, modo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
     .bind(fila.id, fila.clave, email, plan, fila.monto, fila.moneda, fila.fundador, fila.estado, fila.creada, acepto, terminos, fila.modo)
     .run()
-  // Dónde se paga y en qué columna queda: la orden del año o la suscripción mensual.
-  let abierto: { columna: 'orden' | 'paypal'; id: string; enlace: string }
-  try {
-    abierto = plan === 'anual' ? { columna: 'orden', ...(await ordenPaypal(env, fila)) } : { columna: 'paypal', ...(await suscripcionPaypal(env, fila)) }
-  } catch (error) {
-    await env.DB.prepare('DELETE FROM licencias WHERE id = ?').bind(fila.id).run()
-    throw error instanceof Rechazo ? new Rechazo(502, 'PayPal no pudo abrir el pago. Revisa tu correo e intenta otra vez.') : error
-  }
-  await env.DB.prepare(`UPDATE licencias SET ${abierto.columna} = ?, enlace = ?, revisada = ? WHERE id = ?`)
-    .bind(abierto.id, abierto.enlace ?? null, new Date().toISOString(), fila.id)
-    .run()
-  if (!equipo) return json({ enlace: abierto.enlace })
-  await recordarEquipo(env, fila.clave, equipo, Date.now())
-  return json({ clave: fila.clave, enlace: abierto.enlace })
+  return fila
+}
+
+/**
+ * Lo que el botón de PayPal de la página necesita para abrirse ahí mismo: el client id (público por diseño, va en el
+ * JavaScript de cualquier sitio que cobre con PayPal) y el plan mensual. El año sigue con su orden y su enlace.
+ */
+async function configPaypal(env: Env) {
+  const plan = await idPaypal(env, `${env.PAYPAL_MODO}:mensual:${env.MONEDA}:${Number(env.PRECIO_MENSUAL)}`)
+  if (!plan || !env.PAYPAL_CLIENT_ID) throw new Rechazo(503, 'El pago con PayPal no está disponible ahora. Intenta en un rato.')
+  return { client_id: env.PAYPAL_CLIENT_ID, plan }
+}
+
+/**
+ * Registra la suscripción mensual que el botón de PayPal de la página acaba de aprobar: la fila queda pendiente y la
+ * clave se da en `/gracias` cuando PayPal la confirme, igual que con el enlace. Antes se comprueba en PayPal que sea
+ * nuestro plan y que no esté cancelada ni vencida; si ya estaba registrada (un reintento del botón), la misma fila.
+ */
+async function suscripcion(env: Env, c: Record<string, unknown>): Promise<Response> {
+  const email = String(c.email ?? '').trim().toLowerCase()
+  if (!EMAIL.test(email) || email.length > 254) throw new Rechazo(400, 'Escribe un correo válido.')
+  const acepto = new Date().toISOString()
+  const terminos = String(c.terminos ?? '') || acepto.slice(0, 10)
+  if (c.acepto !== true || !TERMINOS.test(terminos))
+    throw new Rechazo(400, 'Para suscribirte, acepta el cobro automático y los términos.')
+  const id = String(c.suscripcion ?? '')
+  if (!/^I-[A-Z0-9]+$/i.test(id)) throw new Rechazo(400, 'Suscripción inválida.')
+  const ya = await env.DB.prepare('SELECT id FROM licencias WHERE paypal = ?').bind(id).first<{ id: string }>()
+  if (ya) return json({ id: ya.id })
+  await sinOtra(env, email, true)
+  const p = await precios(env)
+  const s = await paypal<SuscripcionPaypal>(env, 'GET', `/v1/billing/subscriptions/${id}`)
+  if (s.plan_id !== (await planPaypal(env, p.mensual, p.moneda))) throw new Rechazo(400, 'Esa suscripción no es del plan de Hermit.')
+  if (s.status !== 'ACTIVE' && s.status !== 'APPROVAL_PENDING') throw new Rechazo(400, 'Esa suscripción ya no está vigente. Vuelve a pagarla desde la página.')
+  const pagador = s.subscriber?.email_address?.trim().toLowerCase()
+  if (pagador && pagador !== email) throw new Rechazo(400, 'La suscripción está a nombre de otro correo.')
+  const fila = await crearPendiente(env, email, 'mensual', p, acepto, terminos)
+  await env.DB.prepare('UPDATE licencias SET paypal = ?, revisada = ? WHERE id = ?').bind(id, new Date().toISOString(), fila.id).run()
+  return json({ id: fila.id })
 }
 
 /** La página de PayPal en español, sin dirección de envío, y de vuelta a `/gracias` al pagar o al salir. */

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
   X,
   QrCode,
@@ -11,7 +11,28 @@ import {
   Loader2,
   Heart
 } from 'lucide-react'
-import { enBolivianos, suscribir, TERMINOS, type Plan } from '@/lib/cobro'
+import { COBRO, configPaypal, enBolivianos, registrarSuscripcion, suscribir, TERMINOS, type Plan } from '@/lib/cobro'
+
+declare global {
+  interface Window {
+    paypal?: {
+      Buttons: (opciones: Record<string, unknown>) => { render: (el: HTMLElement) => void }
+    }
+  }
+}
+
+/** El SDK de PayPal se carga una sola vez, con el client id del cobro. */
+let sdkPaypal: Promise<boolean> | undefined
+function cargarSdkPaypal(clientId: string): Promise<boolean> {
+  sdkPaypal ??= new Promise((listo) => {
+    const s = document.createElement('script')
+    s.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD&intent=subscription&vault=true&components=buttons`
+    s.onload = () => listo(true)
+    s.onerror = () => listo(false)
+    document.body.appendChild(s)
+  })
+  return sdkPaypal
+}
 
 // El número de soporte (solo dígitos, como lo pide wa.me) y la imagen del QR, desde el entorno.
 const WHATSAPP = (process.env.NEXT_PUBLIC_WHATSAPP_SOPORTE || '').replace(/\D/g, '')
@@ -37,6 +58,8 @@ export default function CheckoutModal({ isOpen, onClose, plan, precioUSD, cambio
   const [ocupado, setOcupado] = useState(false)
   const [error, setError] = useState('')
   const [enviado, setEnviado] = useState(false)
+  const [paypalFallo, setPaypalFallo] = useState(false)
+  const paypalRef = useRef<HTMLDivElement>(null)
 
   const bob = enBolivianos(precioUSD, cambio)
 
@@ -44,8 +67,44 @@ export default function CheckoutModal({ isOpen, onClose, plan, precioUSD, cambio
     if (isOpen) {
       setError('')
       setEnviado(false)
+      setPaypalFallo(false)
     }
   }, [isOpen])
+
+  // El mensual se paga con el botón oficial de PayPal aquí mismo (el SDK ofrece tarjeta sin cuenta). El año sigue con
+  // su orden y su enlace. El botón aparece cuando ya hay correo y términos aceptados, que es lo que el cobro pide.
+  useEffect(() => {
+    if (!isOpen || metodo !== 'paypal' || plan !== 'mensual' || !email.includes('@') || !acepto) return
+    let vivo = true
+    ;(async () => {
+      const cfg = await configPaypal()
+      const listo = cfg ? await cargarSdkPaypal(cfg.clientId) : false
+      if (!vivo) return
+      if (!cfg || !listo || !window.paypal || !paypalRef.current) {
+        setPaypalFallo(true)
+        return
+      }
+      paypalRef.current.innerHTML = ''
+      window.paypal.Buttons({
+        style: { layout: 'vertical', color: 'gold', shape: 'rect', height: 44 },
+        createSubscription: (_data: unknown, actions: { subscription: { create: (o: object) => Promise<string> } }) =>
+          actions.subscription.create({ plan_id: cfg.planId }),
+        onApprove: async (data: { subscriptionID?: string }) => {
+          const r = await registrarSuscripcion(email, TERMINOS, String(data.subscriptionID ?? ''))
+          if (r.id) {
+            window.location.href = `${COBRO}/gracias?s=${r.id}`
+            return
+          }
+          setError(r.error ?? 'No pudimos registrar tu suscripción. Intenta otra vez en un momento.')
+        },
+        onCancel: () => setError('Cancelaste el pago. Si quieres, puedes intentarlo otra vez.'),
+        onError: () => setError('PayPal no pudo abrir el pago. Intenta otra vez en un momento.')
+      }).render(paypalRef.current)
+    })()
+    return () => {
+      vivo = false
+    }
+  }, [isOpen, metodo, plan, email, acepto])
 
   if (!isOpen) return null
 
@@ -68,6 +127,8 @@ export default function CheckoutModal({ isOpen, onClose, plan, precioUSD, cambio
   async function enviar(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    // El mensual con PayPal se paga con el botón del SDK que está en el modal; el formulario no hace nada ahí.
+    if (metodo === 'paypal' && plan === 'mensual') return
     // Por QR se paga a mano: se manda el comprobante y la clave llega por correo al confirmarlo.
     if (metodo === 'qr') {
       if (WHATSAPP) window.open(enlaceWhatsApp(), '_blank', 'noopener,noreferrer')
@@ -268,22 +329,37 @@ export default function CheckoutModal({ isOpen, onClose, plan, precioUSD, cambio
 
             {error && <p className="text-xs text-bad">{error}</p>}
 
-            <button
-              type="submit"
-              disabled={ocupado || !email || !acepto}
-              className="w-full py-3.5 px-6 rounded-xl bg-accent hover:bg-accent-hover text-on-solid font-bold text-sm shadow-glow transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {ocupado ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Abriendo PayPal…</span>
-                </>
-              ) : metodo === 'qr' ? (
-                <span>Ya pagué {bob.toLocaleString('es-MX')} Bs</span>
-              ) : (
-                <span>Continuar a PayPal (${precioUSD} USD)</span>
-              )}
-            </button>
+            {metodo === 'paypal' && plan === 'mensual' ? (
+              <div>
+                <div ref={paypalRef} className="min-h-[44px]" />
+                {!email.includes('@') || !acepto ? (
+                  <p className="text-[11px] text-muted text-center mt-2">
+                    Escribe tu correo y marca los términos para ver los botones de PayPal.
+                  </p>
+                ) : paypalFallo ? (
+                  <p className="text-xs text-bad text-center mt-2">
+                    PayPal no pudo cargar. Revisa tu conexión e intenta de nuevo.
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <button
+                type="submit"
+                disabled={ocupado || !email || !acepto}
+                className="w-full py-3.5 px-6 rounded-xl bg-accent hover:bg-accent-hover text-on-solid font-bold text-sm shadow-glow transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {ocupado ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Abriendo PayPal…</span>
+                  </>
+                ) : metodo === 'qr' ? (
+                  <span>Ya pagué {bob.toLocaleString('es-MX')} Bs</span>
+                ) : (
+                  <span>Continuar a PayPal (${precioUSD} USD)</span>
+                )}
+              </button>
+            )}
           </form>
         )}
 

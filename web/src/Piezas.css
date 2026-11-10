@@ -55,3 +55,10 @@
 /* Las marcas de redes («Sin programar», «Falta en…») viven dentro de la tarjeta: en celdas angostas el texto se parte
    en dos renglones antes que salirse y que lo tape la tarjeta de al lado. */
 .pieza-card .insignia { white-space: normal; }
+
+/* El filtro por forma (vertical/horizontal): un segmento con dos iconos, como las pestañas de tipo de estilo. */
+.mis-formas { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); }
+.mis-formas button { display: grid; place-items: center; width: 30px; height: 26px; border-radius: 999px; color: var(--muted); transition: color 0.15s, background 0.15s; }
+.mis-formas button .ico { width: 14px; height: 14px; }
+.mis-formas button:hover { color: var(--text); }
+.mis-formas button.on { color: var(--accent); background: var(--accent-soft); }

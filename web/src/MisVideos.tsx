@@ -29,6 +29,8 @@ export function MisVideos({ cards, sessions, estilo, onEstilo }: { cards: Card[]
   const [ritmo, setRitmo] = useState(false)
   // redes: con un estado elegido en el resumen (los que faltan, los que fallaron…), solo esos.
   const [porEstado, setPorEstado] = useState<EstadoRedes | null>(null)
+  // La forma del video: vertical (TikTok, Reels, Shorts) u horizontal (YouTube). Vertical es lo de todos los días.
+  const [forma, setForma] = useState<'vertical' | 'horizontal'>('vertical')
 
   const videos = datos ? deTipo(datos.piezas, 'video') : []
   const cuantos = new Map<string, number>()
@@ -40,6 +42,8 @@ export function MisVideos({ cards, sessions, estilo, onEstilo }: { cards: Card[]
   // Un estado que ya no tiene videos (los arreglaste) es como ninguno.
   const enEstado = porEstado && datos?.redes ? vistos.filter((v) => estadoEnRedes(datos.redes!, v.ruta) === porEstado) : []
   const enRejilla = enEstado.length ? enEstado : vistos
+  // Sin forma leída (`vertical` undefined) se cuenta como vertical: es lo que sale en TikTok, Reels y Shorts.
+  const enForma = enRejilla.filter((v) => (forma === 'horizontal' ? v.vertical === false : v.vertical !== false))
   // redes: los que se ven y ya están en todas las redes conectadas. Su archivo sobra en el disco.
   const programados = vistos.filter((v) => datos?.redes?.programados?.includes(v.ruta))
   // redes: mientras Hermit sube a TikTok, su navegador se ve a la derecha (`ConNavegadorRedes`); al acabar la cola, se
@@ -90,6 +94,20 @@ export function MisVideos({ cards, sessions, estilo, onEstilo }: { cards: Card[]
           ))}
         </div>
       )}
+      {videos.length > 0 && (
+        <div className="mis-formas" role="group" aria-label="Forma del video">
+          {(
+            [
+              ['vertical', 'Verticales', 'vertical', 'TikTok, Reels y Shorts'],
+              ['horizontal', 'Horizontales', 'horizontal', 'YouTube y videos largos']
+            ] as const
+          ).map(([f, nombre, icono, donde]) => (
+            <button key={f} className={forma === f ? 'on' : ''} aria-pressed={forma === f} title={`${nombre} · ${donde}`} onClick={() => setForma(f)}>
+              <Icono de={icono} />
+            </button>
+          ))}
+        </div>
+      )}
       <ResumenRedes marcas={datos?.redes} videos={vistos} estado={enEstado.length ? porEstado : null} onEstado={setPorEstado} onCambio={otraVuelta} /> {/* redes */}
       {/* La app que se vende aún no publica: sin marcas de redes, lo de redes no se dibuja; lo de YouTube se quita aquí. */}
       {ritmo && <Ritmos />}
@@ -98,9 +116,9 @@ export function MisVideos({ cards, sessions, estilo, onEstilo }: { cards: Card[]
       <CalendarioYoutube />
       {error && <p className="bad small">{error}</p>}
       {fallo && <p className="bad small">{fallo}</p>}
-      {!datos ? null : vistos.length ? (
-        // Por estilo y por estado, una rejilla nueva: empieza arriba y con la primera tanda.
-        <Rejilla key={`${filtro ?? ''}|${enEstado.length ? porEstado : ''}`} items={enRejilla}>
+      {!datos ? null : enForma.length ? (
+        // Por estilo, estado y forma, una rejilla nueva: empieza arriba y con la primera tanda.
+        <Rejilla key={`${filtro ?? ''}|${enEstado.length ? porEstado : ''}|${forma}`} items={enForma}>
           {(v) => (
             <VideoDe
               key={v.src}
@@ -113,7 +131,9 @@ export function MisVideos({ cards, sessions, estilo, onEstilo }: { cards: Card[]
           )}
         </Rejilla>
       ) : (
-        <p className="estilo-vacio">Aún no hay videos terminados. Cada uno sale aquí en cuanto su estilo lo termina.</p>
+        <p className="estilo-vacio">
+          {vistos.length ? `Aún no hay videos ${forma === 'horizontal' ? 'horizontales' : 'verticales'}.` : 'Aún no hay videos terminados. Cada uno sale aquí en cuanto su estilo lo termina.'}
+        </p>
       )}
       {viendo && (
         <div className="lightbox" onClick={() => setViendo(null)}>

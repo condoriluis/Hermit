@@ -111,7 +111,9 @@ button.barra-seccion:hover { color: var(--text); }
 /* Plegada, un aviso de redes queda en su punto rojo, que lo dice al pasar el ratón. */
 .plegada .avisos-redes .aviso-redes { margin: 0 14px; justify-content: center; gap: 0; font-size: 0; }
 .plegada .avisos-redes .aviso-redes span { display: none; }
-.plegada .sessions { scrollbar-width: none; }
+/* Plegada es la barra de actividad: solo los botones de arriba. La lista de hilos, sin títulos, era un menú de
+   iconos sueltos; se llega a los hilos desplegando (Ctrl+B) o con Buscar (Ctrl+K). */
+.plegada .sessions { display: none; }
 .plegada .barra-seccion { width: auto; height: 1px; margin: 8px 6px; padding: 0; overflow: hidden; background: var(--line); font-size: 0; }
 .plegada .barra-seccion::after, .plegada .lote-row::after { display: none; }
 .plegada .session-row { position: relative; justify-content: center; padding: 8px 0; }

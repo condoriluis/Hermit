@@ -51,3 +51,7 @@
 .mis-ritmo { display: flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 13px; font-weight: 600; transition: color 0.15s, border-color 0.15s; }
 .mis-ritmo .ico { width: 14px; height: 14px; }
 .mis-ritmo:hover, .mis-ritmo.on { color: var(--accent); border-color: var(--accent); }
+
+/* Las marcas de redes («Sin programar», «Falta en…») viven dentro de la tarjeta: en celdas angostas el texto se parte
+   en dos renglones antes que salirse y que lo tape la tarjeta de al lado. */
+.pieza-card .insignia { white-space: normal; }

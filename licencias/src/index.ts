@@ -526,7 +526,7 @@ async function suscribir(env: Env, c: Record<string, unknown>, desde: string): P
 /** La página de PayPal en español, sin dirección de envío, y de vuelta a `/gracias` al pagar o al salir. */
 function experiencia(env: Env, f: Fila, accion: 'PAY_NOW' | 'SUBSCRIBE_NOW') {
   const vuelta = `${env.ORIGEN}/gracias?s=${f.id}`
-  return { brand_name: 'Hermit', locale: 'es-MX', shipping_preference: 'NO_SHIPPING', user_action: accion, return_url: vuelta, cancel_url: vuelta }
+  return { brand_name: 'Hermit', locale: 'es-XL', shipping_preference: 'NO_SHIPPING', user_action: accion, return_url: vuelta, cancel_url: vuelta }
 }
 
 /** El enlace `rel` de lo que dio PayPal. */

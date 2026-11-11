@@ -81,7 +81,7 @@ export function ArticulosOpciones() {
   /** Un campo del formulario; con `secreta`, el input es de contraseña con el ojito para verla. */
   const campo = (nombre: string, valor: string, cambiar: (v: string) => void, extra: InputHTMLAttributes<HTMLInputElement> = {}, clave?: string) => (
     <label className="opcion-fila">
-      <span className="muted small" style={{ flex: '0 0 108px' }}>{nombre}</span>
+      <span className="muted small" style={{ flex: '0 0 120px' }}>{nombre}</span>
       {clave ? (
         <span className="opcion-clave">
           <input type={ver[clave] ? 'text' : 'password'} value={valor} onChange={(e) => cambiar(e.target.value)} autoComplete="off" spellCheck={false} {...extra} />
@@ -126,10 +126,12 @@ export function ArticulosOpciones() {
           }}
         >
           {campo('Dirección de tu blog', d.apiUrl, (v) => setD({ ...d, apiUrl: v }), { placeholder: 'https://tublog.com', type: 'url', required: true })}
-          {campo('Llave de tu blog', d.apiKey, (v) => setD({ ...d, apiKey: v }), { placeholder: 'La llave que te da tu blog', required: true }, 'apiKey')}
-          <p className="muted small">Casi todos solo necesitan estos dos datos; lo demás ya viene bien puesto.</p>
+          {campo('Ruta del endpoint', d.endpoint, (v) => setD({ ...d, endpoint: v }), { placeholder: '/api/articles' })}
+          {campo('Nombre del header', d.authHeader, (v) => setD({ ...d, authHeader: v }), { placeholder: 'x-api-key' })}
+          {campo('Llave de tu blog', d.apiKey, (v) => setD({ ...d, apiKey: v }), { placeholder: 'El valor de ese header', required: true }, 'apiKey')}
+          <p className="muted small">Los artículos se envían a <code>dirección + ruta</code>, con la llave en el header que indicas. Si no sabes qué poner en los dos del medio, déjalos como están: casi todos usan <code>/api/articles</code> y <code>x-api-key</code>. La llave se guarda en tu usuario de esta computadora, no en la app.</p>
           <div className="opcion-fila">
-            <span className="muted small" style={{ flex: '0 0 108px' }}>Estado por defecto</span>
+            <span className="muted small" style={{ flex: '0 0 120px' }}>Estado por defecto</span>
             <Segmento
               label="Estado por defecto"
               valor={d.status}
@@ -145,19 +147,20 @@ export function ArticulosOpciones() {
           </button>
           {avanzado && (
             <>
-              {campo('Nombre del header', d.authHeader, (v) => setD({ ...d, authHeader: v }), { placeholder: 'x-api-key' })}
               <label className="opcion-fila">
-                <span className="muted small" style={{ flex: '0 0 108px' }}>Headers extra</span>
-                <textarea
-                  rows={2}
-                  value={d.headers}
-                  onChange={(e) => setD({ ...d, headers: e.target.value })}
-                  placeholder='Opcional, JSON: {"X-Cuenta":"123"}'
-                  spellCheck={false}
-                  style={{ flex: 1, minWidth: 0, padding: '7px 11px', borderRadius: 8, background: 'var(--panel)', border: '1px solid var(--line)', outline: 'none', fontFamily: 'var(--mono)', fontSize: 12, resize: 'vertical' }}
-                />
+                <span className="muted small" style={{ flex: '0 0 120px' }}>Headers extra</span>
+                <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <textarea
+                    rows={2}
+                    value={d.headers}
+                    onChange={(e) => setD({ ...d, headers: e.target.value })}
+                    placeholder='Opcional, JSON: {"X-Cuenta":"123"}'
+                    spellCheck={false}
+                    style={{ padding: '7px 11px', borderRadius: 8, background: 'var(--panel)', border: '1px solid var(--line)', outline: 'none', fontFamily: 'var(--mono)', fontSize: 12, resize: 'vertical' }}
+                  />
+                  <span className="muted small">Solo si tu blog pide más headers además del de la llave.</span>
+                </span>
               </label>
-              {campo('Ruta del endpoint', d.endpoint, (v) => setD({ ...d, endpoint: v }), { placeholder: '/api/articles' })}
               {campo('Categoría', d.categoryId, (v) => setD({ ...d, categoryId: v }), { type: 'number', min: 1, style: { maxWidth: 90 } })}
               <p className="muted small" style={{ marginTop: 6 }}>
                 Cloudinary <span className="muted">(opcional, para que la portada se suba sola)</span>
@@ -167,7 +170,7 @@ export function ArticulosOpciones() {
               {campo('Secreto', d.cloudSecret, (v) => setD({ ...d, cloudSecret: v }), { placeholder: 'API secret' }, 'cloudSecret')}
               {campo('Carpeta', d.folder, (v) => setD({ ...d, folder: v }), { placeholder: 'articulos' })}
               <p className="muted small">
-                La llave se guarda en tu usuario de esta computadora, no en la app. Si tu blog usa otro header (por ejemplo <code>Authorization</code> con <code>Bearer tu-token</code> como llave) u otra ruta, se cambia aquí; si no, déjalo como está.
+                Cloudinary es el servicio que aloja la portada: sin él los artículos salen sin imagen; con él, Hermit la sube sola.
               </p>
             </>
           )}

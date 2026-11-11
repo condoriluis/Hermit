@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="docs/imagenes/portada.png" alt="Hermit: videos verticales que se hacen casi solos" width="100%">
+  <img src="docs/imagenes/portada.png" alt="Hermit: videos, artículos, imágenes y presentaciones que se hacen casi solos" width="100%">
 </p>
 
 <p align="center">
   <img alt="Windows, Mac y Linux" src="https://img.shields.io/badge/Windows%20%C2%B7%20Mac%20%C2%B7%20Linux-171512?logo=electron&logoColor=ede6d6">
-  <img alt="Con IA" src="https://img.shields.io/badge/con-Claude%20%C2%B7%20ChatGPT%20%C2%B7%20OpenCode-4f8cff?labelColor=171512">
+  <img alt="Con IA" src="https://img.shields.io/badge/con-11%20agentes%20de%20IA-4f8cff?labelColor=171512">
   <a href="LICENSE"><img alt="Licencia" src="https://img.shields.io/badge/licencia-Apache%202.0-ede6d6?labelColor=171512"></a>
 </p>
 
@@ -16,7 +16,7 @@
 
 ---
 
-**Hermit** es una app de escritorio que crea contenido y videos verticales para TikTok, Reels y YouTube Shorts de forma local. Eliges una herramienta o estilo, le das un tema o un enlace, y agentes de inteligencia artificial investigan, redactan el guion, gestionan la voz y generan el contenido en tu computadora. Todo transparente: ves el progreso en tiempo real y pides cambios en lenguaje natural.
+**Hermit** es una app de escritorio que crea contenido de forma local: **videos** en 13 estilos (verticales para TikTok, Reels y Shorts, y horizontales para YouTube), **artículos para blog con su portada**, **imágenes con IA** y **presentaciones** en PowerPoint y PDF. Eliges una tarjeta, le das un tema o un enlace, y tu agente de inteligencia artificial investiga, redacta, produce y te entrega el resultado en tu computadora. Todo transparente: ves el progreso en tiempo real y pides cambios en lenguaje natural.
 
 Creado y mantenido por **luchodev**. Es libre, sin costo oculto y con soporte opcional.
 
@@ -30,7 +30,7 @@ Cada formato es una **herramienta** visible en la pantalla principal:
 | **Guion** | Redacta el guion con gancho inicial y remate de impacto. |
 | **Voz** | Puedes subir tu grabación de audio o generar voz con IA. |
 | **Video** | Ensambla las escenas y renderiza el contenido localmente. |
-| **Entrega** | Video final listo con portada para previsualizar o descargar. |
+| **Entrega** | El resultado final listo: video con portada, artículo publicado, presentación o imagen. |
 
 ## Correr desde el código
 
@@ -51,8 +51,8 @@ npm start
 | Interfaz de usuario | React 19, Vite, Tailwind CSS (`web/`) |
 | Servidor local | Node.js (`server/`): sesiones, websockets, tareas en segundo plano |
 | Landing y API | Next.js 16+, Supabase, PayPal y QR Simple (`landing/`) |
-| Los agentes | [Claude Agent SDK](https://docs.anthropic.com/en/docs/claude-code/sdk), con tu cuenta de Claude |
-| Los videos | [Remotion](https://www.remotion.dev) en cada estilo, y Python para transcribir y descargar |
+| Los agentes | Tu agente de IA favorito con tu propia cuenta: Claude, ChatGPT (Codex), Gemini, Devin, Grok, Cursor, Muse, Pi, DeepSeek, OpenCode y Antigravity |
+| Los videos | [Remotion](https://www.remotion.dev) en varios estilos, clips de Google Flow (Veo) en las novelas, y Python + FFmpeg para voz, subtítulos y montaje; las imágenes salen de Flow o de ChatGPT |
 | El cobro y la comunidad | Un Worker de Cloudflare con D1 y R2 (`licencias/`) |
 
 ```
@@ -60,7 +60,7 @@ electron/   la ventana de escritorio
 server/     el servidor local que corre los agentes
 web/        la interfaz
 shared/     los tipos que comparten servidor e interfaz
-skills/     los estilos de video (El Diff, explicativo, reel de comedia, documental) y sus herramientas
+skills/     las cards: 13 estilos de video, artículos, imágenes, presentaciones y sus herramientas
 licencias/  el cobro del apoyo, la comunidad y las descargas (Cloudflare Worker)
 nube/       la nube que publica en Instagram (Cloudflare Worker)
 python/     los procesos de Python de Hermit
@@ -110,7 +110,8 @@ paga), modificarla y compartirla. Lo que no puedes es venderla, ni una versión 
 venga de ella. Los videos que hagas son tuyos y los puedes vender. Es la [Apache 2.0 con Commons Clause](LICENSE), a
 nombre de [luchodev](https://myhermit.vercel.app); por esa condición no es «open source» según la definición de la OSI.
 
-Remotion, que arma los videos, tiene su [propia licencia](https://www.remotion.dev/license): gratis para personas y
+Remotion, con que se dibujan varios estilos de video y los modelos 3D, tiene su
+[propia licencia](https://www.remotion.dev/license): gratis para personas y
 equipos pequeños; las empresas más grandes pagan la suya. Hermit no está afiliada, patrocinada ni respaldada por
 Anthropic ni por OpenAI.
 

@@ -6,16 +6,18 @@ import {
   Terminal,
   FolderPlus,
   Cpu,
-  CheckCircle2
+  CheckCircle2,
+  Image as ImageIcon,
+  Presentation
 } from 'lucide-react'
 
 const herramientas = [
   {
     icon: Video,
-    tag: 'Videos Cortos',
-    title: 'Videos para TikTok, Reels y Shorts',
-    desc: 'Crea videos verticales en segundos: la IA redacta un guion que engancha, graba la voz en off natural, agrega subtítulos y exporta el video en formato MP4 listo para publicar.',
-    pasos: ['Idea y gancho inicial', 'Guion narrado', 'Voz y música', 'Video final MP4'],
+    tag: 'Videos Cortos y Largos',
+    title: 'Videos en 13 estilos, verticales u horizontales',
+    desc: 'Crea videos para TikTok, Reels, Shorts y YouTube: historias de Reddit, tops, misterios, dramas, comedia, documental y más. La IA redacta el guion, produce las escenas, graba la voz y exporta el MP4 listo para publicar.',
+    pasos: ['Idea y guion', 'Voz y escenas', 'Subtítulos y portada', 'Video final MP4'],
     badge: 'Popular',
   },
   {
@@ -25,6 +27,22 @@ const herramientas = [
     desc: 'Escribe artículos completos y bien estructurados. Investiga el tema en profundidad, genera una imagen de portada llamativa y te entrega el texto listo para copiar.',
     pasos: ['Investigación del tema', 'Redacción completa', 'Imagen de portada', 'Vista previa lista'],
     badge: 'Para Leer',
+  },
+  {
+    icon: ImageIcon,
+    tag: 'Imágenes con IA',
+    title: 'Genera imágenes con un clic',
+    desc: 'Describe lo que quieres ver y la inteligencia artificial genera la imagen. Queda guardada en tu galería «Mis imágenes», lista para ver o descargar.',
+    pasos: ['Describe la imagen', 'Generación con IA', 'Galería «Mis imágenes»', 'Descarga libre'],
+    badge: 'Creativo',
+  },
+  {
+    icon: Presentation,
+    tag: 'Para Trabajo y Clases',
+    title: 'Presentaciones en PowerPoint y PDF',
+    desc: 'Dale un tema y la IA arma la presentación completa —portada, secciones y contenido— y te la entrega lista para abrir en PowerPoint o PDF.',
+    pasos: ['Tema y enfoque', 'Diapositivas redactadas', 'Diseño y portada', 'PPTX y PDF listos'],
+    badge: 'Trabajo',
   },
   {
     icon: Share2,
@@ -54,8 +72,8 @@ const herramientas = [
     icon: Cpu,
     tag: 'Tú Eliges',
     title: 'Compatible con tu IA Favorita',
-    desc: 'Funciona con las mejores inteligencias artificiales del mercado: Claude (Anthropic), ChatGPT (OpenAI), DeepSeek o modelos gratuitos que corren en tu PC.',
-    pasos: ['Claude 3.7', 'ChatGPT / OpenAI', 'DeepSeek', 'Modelos en tu PC'],
+    desc: 'Funciona con el agente de IA que ya tengas o prefieras: Claude, ChatGPT (Codex), Gemini, Devin, Grok, Cursor, Muse, Pi, DeepSeek, OpenCode y Antigravity, con tu propia cuenta.',
+    pasos: ['Claude', 'ChatGPT / Codex', 'Gemini', 'Devin y más'],
     badge: 'Sin Ataduras',
   },
 ]
@@ -77,7 +95,7 @@ export default function SkillsShowcase() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {herramientas.map((h, idx) => {
             const Icon = h.icon
             return (

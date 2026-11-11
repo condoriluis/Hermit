@@ -9,12 +9,12 @@ const faqs = [
     a: 'Hermit es un software de escritorio 100% gratuito e independiente. Puedes descargar el ejecutable (.exe, .dmg o AppImage) y usar todas las herramientas sin pagar nada. El apoyo voluntario ($5 USD al mes o $50 USD al año) es opcional para respaldar a luchodev en el mantenimiento de nuevas versiones.',
   },
   {
-    q: '¿Qué modelos de inteligencia artificial puedo conectar?',
-    a: 'Puedes conectar directamente tu cuenta o llaves de Claude (Anthropic), OpenAI (GPT-4o, Codex), DeepSeek o modelos locales con Ollama. Pagas únicamente el consumo directo a tu proveedor de IA a precio base, sin tarifas infladas.',
+    q: '¿Qué agentes de inteligencia artificial puedo conectar?',
+    a: 'Puedes trabajar con el agente de IA que ya tengas o prefieras: Claude, ChatGPT (Codex), Gemini, Devin, Grok, Cursor, Muse, Pi, DeepSeek, OpenCode o Antigravity, con tu propia cuenta o llave. Pagas únicamente el consumo directo a tu proveedor de IA, sin tarifas infladas.',
   },
   {
     q: '¿Dónde se guardan mis videos y artículos?',
-    a: 'En tu propia computadora. Todos los archivos (videos .mp4 en 1080x1920, artículos en Markdown, páginas HTML y portadas en PNG) se generan y almacenan en tus carpetas locales, asegurando tu total privacidad.',
+    a: 'En tu propia computadora. Todos los archivos (videos .mp4 verticales u horizontales, artículos en Markdown con su portada, presentaciones en PPTX y PDF, imágenes y portadas en PNG) se generan y almacenan en tus carpetas locales, asegurando tu total privacidad.',
   },
   {
     q: '¿Cómo funciona el pago por QR desde Bolivia?',

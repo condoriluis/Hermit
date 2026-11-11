@@ -145,17 +145,17 @@ export default function AppMockup() {
               <KeyRound className="w-4 h-4 text-accent" />
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              <h3 className="text-lg font-bold font-heading text-text">Conecta tu Claude</h3>
+              <h3 className="text-lg font-bold font-heading text-text">Conecta tu agente de IA</h3>
               <span className="px-2 py-0.5 rounded-md bg-panel-2 border border-line text-[10px] font-mono font-bold text-text-2">
-                Pro o Max
+                11 disponibles
               </span>
             </div>
             <p className="mt-2 text-sm text-muted leading-relaxed">
-              Entras con tu cuenta de Claude, la que pagas aparte a Anthropic: ella hace el trabajo
-              pesado. Si ya usas Claude Code en esta computadora, ya está conectada.
+              Entras con la cuenta del agente que ya uses —Claude, ChatGPT, Gemini, Devin y más—:
+              él hace el trabajo pesado con tu propia cuenta, sin intermediarios.
             </p>
             <p className="mt-3 text-xs text-muted/90 leading-relaxed">
-              También funciona con tu cuenta de ChatGPT (Codex), DeepSeek o Gemini.
+              Si ya usas Claude Code o Codex en esta computadora, puede que ya estén conectados.
             </p>
           </div>
 
@@ -167,10 +167,11 @@ export default function AppMockup() {
             </div>
             <h3 className="mt-4 text-lg font-bold font-heading text-text">Escribe el tema</h3>
             <p className="mt-2 text-sm text-muted leading-relaxed">
-              Eliges un estilo, escribes de qué va y Hermit hace el video o el artículo.
+              Eliges uno de los 13 estilos de video, un artículo para tu blog, una imagen o una
+              presentación, y Hermit hace el trabajo.
             </p>
             <div className="mt-4 flex flex-wrap gap-1.5">
-              {['El Diff', 'Explicativo', 'Documental', 'Animalnovela', 'Artículo'].map((e) => (
+              {['El Diff', 'Explicativo', 'Documental', 'Animalnovela', 'Artículo', 'Imágenes', 'Presentación'].map((e) => (
                 <span
                   key={e}
                   className="px-2 py-0.5 rounded-md bg-panel-2 text-[10px] font-mono text-text-2 border border-line"

@@ -34,7 +34,7 @@ export default function Hero() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         {/* Main Title - Accessible & Clear for Everyone */}
         <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight font-heading text-text max-w-5xl mx-auto leading-[1.14]">
-          Crea videos y artículos con Inteligencia Artificial{' '}
+          Crea videos, artículos, imágenes y presentaciones con Inteligencia Artificial{' '}
           <span className="bg-gradient-to-r from-accent via-accent-hover to-[#8db8ff] bg-clip-text text-transparent">
             directo en tu computadora
           </span>
@@ -42,8 +42,9 @@ export default function Hero() {
 
         {/* Subtitle - Easy to understand */}
         <p className="mt-6 text-lg sm:text-xl text-muted max-w-3xl mx-auto leading-relaxed font-normal">
-          Elige qué quieres crear en una tarjeta visual, escribe el tema y mira cómo el asistente
-          redacta el guion, graba la voz y arma el video o artículo paso a paso frente a ti.
+          Elige qué quieres crear en una tarjeta visual —13 estilos de video, artículos para tu blog,
+          imágenes y presentaciones—, escribe el tema y mira cómo el asistente lo produce paso a paso
+          frente a ti.
         </p>
 
         {/* Action CTAs */}

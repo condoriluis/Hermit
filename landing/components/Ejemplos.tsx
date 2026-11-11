@@ -14,6 +14,7 @@ import { ChevronLeft, ChevronRight, Volume2, VolumeX } from 'lucide-react'
  */
 const CLOUDINARY = 'https://res.cloudinary.com/dpxtci7sn/video/upload'
 const EJEMPLOS = [
+  { id: 'v1794420660/files/el-diff-final%20%281%29', estilo: 'El Diff', titulo: 'Hermit: qué es, para qué sirve y para quién', duracion: '0:52' },
   { id: 'v1794276084/files/devnovela-nunca-hagas-deploy-viernes', estilo: 'Devnovela', titulo: 'Nunca hagas deploy un viernes', duracion: '0:51' },
   { id: 'v1794277465/files/devnovela-git-vs-github', estilo: 'Devnovela', titulo: 'Git vs GitHub', duracion: '—' },
   { id: 'v1794273538/files/crimen-muneco-chuky', estilo: 'Crimen', titulo: 'El muñeco Chucky', duracion: '0:30' },

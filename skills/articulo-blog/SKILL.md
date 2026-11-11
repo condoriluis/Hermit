@@ -12,6 +12,7 @@ Genera la imagen de portada editorial en 16:9 con IA, la sube a Cloudinary **si 
 ## Conexión con el blog
 
 - **URL de la API** y **llave de API**: obligatorias para publicar; las pone el usuario en Opciones → Artículos.
+- **Header de la llave** (por defecto `x-api-key`), **headers extra** (JSON) y **ruta del endpoint** (por defecto `/api/articles`): opcionales, para blogs que autentiquen o reciban distinto — por ejemplo `Authorization` con `Bearer tu-token` como llave.
 - **Cloudinary** (nombre, llave, secreto y carpeta): opcional; solo para alojar la portada.
 - **Categoría** (`categoryId`) y **estado por defecto** (`DRAFT` o `PUBLISHED`): también en Opciones → Artículos; el `articulo.json` puede llevar los suyos y mandan sobre los de la config.
 

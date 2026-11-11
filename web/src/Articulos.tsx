@@ -22,8 +22,9 @@ export function ArticulosOpciones() {
   const [abierto, setAbierto] = useState(false)
   const [ocupado, setOcupado] = useState(false)
   const [error, setError] = useState('')
-  const [d, setD] = useState({ apiUrl: '', apiKey: '', endpoint: '', cloudName: '', cloudKey: '', cloudSecret: '', folder: '', categoryId: '1', status: 'DRAFT' as 'DRAFT' | 'PUBLISHED' })
+  const [d, setD] = useState({ apiUrl: '', apiKey: '', authHeader: '', headers: '', endpoint: '', cloudName: '', cloudKey: '', cloudSecret: '', folder: '', categoryId: '1', status: 'DRAFT' as 'DRAFT' | 'PUBLISHED' })
   const [ver, setVer] = useState<Record<string, boolean>>({})
+  const [avanzado, setAvanzado] = useState(false)
 
   useEffect(() => {
     api<ArticulosConfig>('/api/articulos/config').then((c) => {
@@ -31,6 +32,8 @@ export function ArticulosOpciones() {
       setD({
         apiUrl: c.apiUrl ?? '',
         apiKey: c.apiKey ?? '',
+        authHeader: c.authHeader ?? '',
+        headers: c.headers ? JSON.stringify(c.headers) : '',
         endpoint: c.endpoint ?? '',
         cloudName: c.cloudinary?.cloudName ?? '',
         cloudKey: c.cloudinary?.apiKey ?? '',
@@ -45,9 +48,24 @@ export function ArticulosOpciones() {
   function guardar() {
     setOcupado(true)
     setError('')
+    let headers: Record<string, string> | undefined
+    const texto = d.headers.trim()
+    if (texto) {
+      try {
+        const o = JSON.parse(texto)
+        if (!o || typeof o !== 'object' || Array.isArray(o) || Object.values(o).some((v) => typeof v !== 'string')) throw new Error()
+        headers = o as Record<string, string>
+      } catch {
+        setOcupado(false)
+        setError('Los headers extra deben ser un JSON de texto: {"X-Cosa":"valor"}.')
+        return
+      }
+    }
     const body: ArticulosConfig = {
       apiUrl: d.apiUrl,
       apiKey: d.apiKey,
+      authHeader: d.authHeader.trim() || undefined,
+      headers,
       endpoint: d.endpoint || '/api/articles',
       categoryId: Number(d.categoryId) || 1,
       status: d.status,
@@ -87,8 +105,8 @@ export function ArticulosOpciones() {
           <strong>Tu blog</strong>
           <span>
             {config?.apiUrl
-              ? `Los artículos de la card «Artículo para tu blog» se publican en ${host(config.apiUrl)}${config.cloudinary?.cloudName ? ' · portada en Cloudinary' : ''}`
-              : 'Conecta la API de tu blog (Blogi o compatible) para que los artículos se publiquen directo.'}
+              ? `Los artículos de la card «Artículo para tu blog» se publican en ${host(config.apiUrl)}${config.cloudinary?.cloudName ? ' · con portada automática' : ''}`
+              : 'Conecta tu blog para que la card «Artículo para tu blog» escriba y publique directo, sin copiar y pegar.'}
           </span>
         </div>
         {config === null ? (
@@ -107,21 +125,11 @@ export function ArticulosOpciones() {
             if (d.apiUrl.trim() && d.apiKey.trim()) guardar()
           }}
         >
-          {campo('URL de la API', d.apiUrl, (v) => setD({ ...d, apiUrl: v }), { placeholder: 'https://tu-blog.com', type: 'url', required: true })}
-          {campo('Llave de la API', d.apiKey, (v) => setD({ ...d, apiKey: v }), { placeholder: 'La que pide la API en x-api-key', required: true }, 'apiKey')}
-          {campo('Ruta del endpoint', d.endpoint, (v) => setD({ ...d, endpoint: v }), { placeholder: '/api/articles' })}
-          <p className="muted small">La llave se guarda en tu usuario de esta computadora, no en la app. El endpoint es opcional: casi todos usan <code>/api/articles</code>.</p>
-          <p className="muted small" style={{ marginTop: 6 }}>
-            Cloudinary <span className="muted">(opcional, para alojar la portada)</span>
-          </p>
-          {campo('Nube', d.cloudName, (v) => setD({ ...d, cloudName: v }), { placeholder: 'cloud-name' })}
-          {campo('Llave', d.cloudKey, (v) => setD({ ...d, cloudKey: v }), { placeholder: 'API key' })}
-          {campo('Secreto', d.cloudSecret, (v) => setD({ ...d, cloudSecret: v }), { placeholder: 'API secret' }, 'cloudSecret')}
-          {campo('Carpeta', d.folder, (v) => setD({ ...d, folder: v }), { placeholder: 'articulos' })}
+          {campo('Dirección de tu blog', d.apiUrl, (v) => setD({ ...d, apiUrl: v }), { placeholder: 'https://tublog.com', type: 'url', required: true })}
+          {campo('Llave de tu blog', d.apiKey, (v) => setD({ ...d, apiKey: v }), { placeholder: 'La llave que te da tu blog', required: true }, 'apiKey')}
+          <p className="muted small">Casi todos solo necesitan estos dos datos; lo demás ya viene bien puesto.</p>
           <div className="opcion-fila">
-            <span className="muted small" style={{ flex: '0 0 108px' }}>Categoría</span>
-            <input style={{ maxWidth: 90 }} type="number" min={1} value={d.categoryId} onChange={(e) => setD({ ...d, categoryId: e.target.value })} />
-            <span className="muted small">Estado por defecto</span>
+            <span className="muted small" style={{ flex: '0 0 108px' }}>Estado por defecto</span>
             <Segmento
               label="Estado por defecto"
               valor={d.status}
@@ -132,6 +140,37 @@ export function ArticulosOpciones() {
               onCambio={(id) => setD({ ...d, status: id })}
             />
           </div>
+          <button type="button" className="ghost small" style={{ alignSelf: 'flex-start' }} onClick={() => setAvanzado(!avanzado)} aria-expanded={avanzado}>
+            {avanzado ? '▾' : '▸'} Ajustes avanzados{avanzado ? '' : ' (solo si tu blog los pide)'}
+          </button>
+          {avanzado && (
+            <>
+              {campo('Nombre del header', d.authHeader, (v) => setD({ ...d, authHeader: v }), { placeholder: 'x-api-key' })}
+              <label className="opcion-fila">
+                <span className="muted small" style={{ flex: '0 0 108px' }}>Headers extra</span>
+                <textarea
+                  rows={2}
+                  value={d.headers}
+                  onChange={(e) => setD({ ...d, headers: e.target.value })}
+                  placeholder='Opcional, JSON: {"X-Cuenta":"123"}'
+                  spellCheck={false}
+                  style={{ flex: 1, minWidth: 0, padding: '7px 11px', borderRadius: 8, background: 'var(--panel)', border: '1px solid var(--line)', outline: 'none', fontFamily: 'var(--mono)', fontSize: 12, resize: 'vertical' }}
+                />
+              </label>
+              {campo('Ruta del endpoint', d.endpoint, (v) => setD({ ...d, endpoint: v }), { placeholder: '/api/articles' })}
+              {campo('Categoría', d.categoryId, (v) => setD({ ...d, categoryId: v }), { type: 'number', min: 1, style: { maxWidth: 90 } })}
+              <p className="muted small" style={{ marginTop: 6 }}>
+                Cloudinary <span className="muted">(opcional, para que la portada se suba sola)</span>
+              </p>
+              {campo('Nube', d.cloudName, (v) => setD({ ...d, cloudName: v }), { placeholder: 'cloud-name' })}
+              {campo('Llave', d.cloudKey, (v) => setD({ ...d, cloudKey: v }), { placeholder: 'API key' })}
+              {campo('Secreto', d.cloudSecret, (v) => setD({ ...d, cloudSecret: v }), { placeholder: 'API secret' }, 'cloudSecret')}
+              {campo('Carpeta', d.folder, (v) => setD({ ...d, folder: v }), { placeholder: 'articulos' })}
+              <p className="muted small">
+                La llave se guarda en tu usuario de esta computadora, no en la app. Si tu blog usa otro header (por ejemplo <code>Authorization</code> con <code>Bearer tu-token</code> como llave) u otra ruta, se cambia aquí; si no, déjalo como está.
+              </p>
+            </>
+          )}
           <div className="opcion-fila">
             <button className="primary" disabled={ocupado || !d.apiUrl.trim() || !d.apiKey.trim()}>
               {ocupado ? 'Guardando…' : 'Guardar'}
@@ -144,7 +183,7 @@ export function ArticulosOpciones() {
                 onClick={() => {
                   setOcupado(true)
                   api<ArticulosConfig>('/api/articulos/config', {})
-                    .then((c) => (setConfig(c), setAbierto(false), setD({ apiUrl: '', apiKey: '', endpoint: '', cloudName: '', cloudKey: '', cloudSecret: '', folder: 'articulos', categoryId: '1', status: 'DRAFT' })))
+                    .then((c) => (setConfig(c), setAbierto(false), setD({ apiUrl: '', apiKey: '', authHeader: '', headers: '', endpoint: '', cloudName: '', cloudKey: '', cloudSecret: '', folder: 'articulos', categoryId: '1', status: 'DRAFT' })))
                     .catch((e) => setError(e.message))
                     .finally(() => setOcupado(false))
                 }}

@@ -395,8 +395,12 @@ export interface Opciones {
 export interface ArticulosConfig {
   /** La dirección de la API del blog (la de Blogi o una compatible), sin diagonal final. */
   apiUrl?: string
-  /** La llave que la API pide en `x-api-key`. */
+  /** La llave que la API pide, en el header `authHeader` (por defecto `x-api-key`). */
   apiKey?: string
+  /** Cómo se llama el header de la llave: `x-api-key`, `Authorization`, `X-API-Key`… Por defecto `x-api-key`. */
+  authHeader?: string
+  /** Headers extra que la API pida además del de la llave, como objeto JSON: `{"X-Cuenta":"123"}`. */
+  headers?: Record<string, string>
   /** La ruta donde la API recibe el artículo (POST con JSON). Por defecto `/api/articles`. */
   endpoint?: string
   /** Cloudinary, para subir la portada; sin ella el artículo sale sin imagen alojada. */

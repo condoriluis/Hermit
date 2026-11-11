@@ -1,8 +1,8 @@
 // Publica un artículo en el blog del usuario (el que conectó en Hermit → Opciones → Artículos):
 // sube la portada a su Cloudinary si lo configuró, genera una vista previa HTML local y envía el
 // artículo a la API del blog. La config vive en <app>/data/articulos.json; también valen variables
-// de entorno (ARTICULOS_API_URL, ARTICULOS_API_KEY, CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY,
-// CLOUDINARY_API_SECRET, CLOUDINARY_FOLDER).
+// de entorno (ARTICULOS_API_URL, ARTICULOS_API_KEY, ARTICULOS_AUTH_HEADER, ARTICULOS_HEADERS,
+// ARTICULOS_ENDPOINT, CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET, CLOUDINARY_FOLDER).
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, dirname, extname, join, resolve } from 'node:path'
@@ -11,6 +11,18 @@ import { fileURLToPath } from 'node:url'
 // <app>/skills/articulo-blog/scripts → <app> ; en desarrollo, la raíz del repo; en la app, la suya.
 const RAIZ_APP = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 const ARCHIVO_CONFIG = process.env.ARTICULOS_CONFIG || join(RAIZ_APP, 'data', 'articulos.json')
+
+/** Los headers extra de la config: objeto en el JSON, o texto JSON si viene de una variable de entorno. */
+function leerHeaders(v) {
+  if (!v) return {}
+  if (typeof v === 'object') return v
+  try {
+    const o = JSON.parse(v)
+    return o && typeof o === 'object' && !Array.isArray(o) ? o : {}
+  } catch {
+    return {}
+  }
+}
 
 /** La config del blog: la del archivo de Hermit, con las variables de entorno por encima. */
 function cargarConfiguracion() {
@@ -31,6 +43,8 @@ function cargarConfiguracion() {
   return {
     apiUrl: (env.ARTICULOS_API_URL || guardada.apiUrl || '').replace(/\/+$/, ''),
     apiKey: env.ARTICULOS_API_KEY || guardada.apiKey || '',
+    authHeader: env.ARTICULOS_AUTH_HEADER || guardada.authHeader || 'x-api-key',
+    headers: leerHeaders(env.ARTICULOS_HEADERS || guardada.headers),
     endpoint: env.ARTICULOS_ENDPOINT || guardada.endpoint || '/api/articles',
     cloudinary,
     categoryId: Number(guardada.categoryId) || 1,
@@ -312,7 +326,8 @@ async function main() {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': config.apiKey
+      ...config.headers,
+      [config.authHeader]: config.apiKey
     },
     body: JSON.stringify(payload)
   })

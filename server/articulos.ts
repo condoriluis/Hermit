@@ -27,6 +27,17 @@ function limpiar(d: ArticulosConfig): ArticulosConfig {
   }
   const apiKey = vacio(d.apiKey, 500)
   if (apiKey) c.apiKey = apiKey
+  const authHeader = vacio(d.authHeader, 100)
+  if (authHeader && /^[\w-]+$/.test(authHeader)) c.authHeader = authHeader
+  if (d.headers && typeof d.headers === 'object' && !Array.isArray(d.headers)) {
+    const headers: Record<string, string> = {}
+    for (const [k, v] of Object.entries(d.headers).slice(0, 10)) {
+      const nombre = vacio(k, 100)
+      const valor = vacio(v, 500)
+      if (nombre && /^[\w-]+$/.test(nombre) && valor) headers[nombre] = valor
+    }
+    if (Object.keys(headers).length) c.headers = headers
+  }
   const endpoint = vacio(d.endpoint, 200)
   if (endpoint) c.endpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
   const cl = d.cloudinary ?? {}

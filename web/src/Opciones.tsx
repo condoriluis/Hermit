@@ -123,7 +123,7 @@ function Ajustes({ onDone, iniciando, onIniciando }: { onDone(): void; iniciando
             </Grupo>
           )}
           {seccion === 'articulos' && (
-            <Grupo titulo="Artículos" nota="La card «Artículo para tu blog» escribe y publica en el blog que conectes aquí: su API y su llave, y su Cloudinary si quieres que la portada se suba sola. Las llaves se quedan en tu usuario de esta computadora.">
+            <Grupo titulo="Artículos" nota="La card «Artículo para tu blog» escribe y publica en el blog que conectes aquí: solo pide la dirección y la llave. Las llaves se quedan en tu usuario de esta computadora, no en la app.">
               <ArticulosOpciones />
             </Grupo>
           )}

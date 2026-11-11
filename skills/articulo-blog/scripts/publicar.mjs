@@ -47,7 +47,7 @@ function cargarConfiguracion() {
     headers: leerHeaders(env.ARTICULOS_HEADERS || guardada.headers),
     endpoint: env.ARTICULOS_ENDPOINT || guardada.endpoint || '/api/articles',
     cloudinary,
-    categoryId: Number(guardada.categoryId) || 1,
+    categoryId: Number(guardada.categoryId) || 0,
     status: guardada.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT'
   }
 }
@@ -245,7 +245,7 @@ function generarVistaPreviaHtml(payload, proyDir, respuesta, config) {
     <h1>${payload.title}</h1>
     <div class="extracto">${payload.excerpt}</div>
     <div class="meta">
-      <span>Fecha: ${fecha}</span> · <span>Categoría ID: ${payload.categoryId}</span>
+      <span>Fecha: ${fecha}</span>${payload.categoryId ? ` · <span>Categoría ID: ${payload.categoryId}</span>` : ''}
     </div>
     <div class="tags">${tagsHtml}</div>
     ${payload.cover ? `<img class="portada" src="${payload.cover}" alt="${payload.title}">` : ''}
@@ -305,13 +305,15 @@ async function main() {
   }
 
   const status = forzarPublicar || data.status === 'PUBLISHED' || (!data.status && config.status === 'PUBLISHED') ? 'PUBLISHED' : 'DRAFT'
+  const categoryId = Number(data.categoryId) || config.categoryId
   const payload = {
     title: String(data.title || '').trim(),
     slug: data.slug ? String(data.slug).trim() : undefined,
     excerpt: String(data.excerpt || '').trim().slice(0, 500),
     content: String(data.content || '').trim(),
     cover: coverUrl,
-    categoryId: Number(data.categoryId) || config.categoryId,
+    // Sin categoría ni en el artículo ni en la config, el campo no viaja: cada blog decide si la pide.
+    ...(categoryId ? { categoryId } : {}),
     status,
     tags: Array.isArray(data.tags) ? data.tags.map((t) => String(t).trim()).filter(Boolean) : []
   }

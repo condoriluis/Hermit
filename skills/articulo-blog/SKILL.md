@@ -33,7 +33,7 @@ El artículo se genera en `articulo.json` con los siguientes campos obligatorios
 ```
 
 - **`status`**: `"DRAFT"` (borrador para revisar en el panel) o `"PUBLISHED"` (público de inmediato si el usuario lo pide o indica «publicar»). Si no lo pones, manda el estado por defecto de Opciones → Artículos.
-- **`categoryId`**: el de la categoría del blog donde va; si no lo pones, el de la config (1 por defecto).
+- **`categoryId`**: el de la categoría del blog donde va; si no lo pones, manda el de la config. Si no está en ninguno de los dos, el campo no se envía y cada blog decide si la pide.
 - **`content`**: Redactado en HTML semántico limpio (`<p>`, `<h2>`, `<h3>`, `<ul>`, `<li>`, `<code>`, `<pre>`, `<blockquote>`, `<strong>`). Estructura con fluidez editorial:
   - **Introducción**: Contexto rápido y problema a resolver.
   - **Desarrollo**: Dividido en secciones con `<h2>` descriptivos, explicaciones técnicas claras, ejemplos de código o listas de pasos.

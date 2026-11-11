@@ -137,3 +137,12 @@
 }
 .opcion-clave .ojo:hover { color: var(--text); background: var(--panel-2); }
 .opcion-clave .ojo .ico { width: 15px; height: 15px; }
+
+/* El × que quita un header extra del formulario de Artículos. */
+.quitar {
+  flex: none; width: 28px; height: 28px; display: grid; place-items: center; padding: 0;
+  border-radius: 7px; border: 1px solid var(--line); color: var(--muted);
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.quitar:hover { color: var(--bad); border-color: var(--bad); background: var(--bad-soft); }
+.quitar .ico { width: 13px; height: 13px; }

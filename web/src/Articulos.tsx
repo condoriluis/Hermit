@@ -22,7 +22,8 @@ export function ArticulosOpciones() {
   const [abierto, setAbierto] = useState(false)
   const [ocupado, setOcupado] = useState(false)
   const [error, setError] = useState('')
-  const [d, setD] = useState({ apiUrl: '', apiKey: '', authHeader: '', headers: '', endpoint: '', cloudName: '', cloudKey: '', cloudSecret: '', folder: '', categoryId: '1', status: 'DRAFT' as 'DRAFT' | 'PUBLISHED' })
+  const [d, setD] = useState({ apiUrl: '', apiKey: '', authHeader: '', endpoint: '', cloudName: '', cloudKey: '', cloudSecret: '', folder: '', categoryId: '', status: 'DRAFT' as 'DRAFT' | 'PUBLISHED' })
+  const [extras, setExtras] = useState<{ n: string; v: string }[]>([])
   const [ver, setVer] = useState<Record<string, boolean>>({})
   const [avanzado, setAvanzado] = useState(false)
 
@@ -33,41 +34,38 @@ export function ArticulosOpciones() {
         apiUrl: c.apiUrl ?? '',
         apiKey: c.apiKey ?? '',
         authHeader: c.authHeader ?? '',
-        headers: c.headers ? JSON.stringify(c.headers) : '',
         endpoint: c.endpoint ?? '',
         cloudName: c.cloudinary?.cloudName ?? '',
         cloudKey: c.cloudinary?.apiKey ?? '',
         cloudSecret: c.cloudinary?.apiSecret ?? '',
         folder: c.cloudinary?.folder ?? 'articulos',
-        categoryId: String(c.categoryId ?? 1),
+        categoryId: String(c.categoryId ?? ''),
         status: c.status ?? 'DRAFT'
       })
+      setExtras(Object.entries(c.headers ?? {}).map(([n, v]) => ({ n, v })))
     }, (e) => setError(e.message))
   }, [])
 
   function guardar() {
-    setOcupado(true)
     setError('')
-    let headers: Record<string, string> | undefined
-    const texto = d.headers.trim()
-    if (texto) {
-      try {
-        const o = JSON.parse(texto)
-        if (!o || typeof o !== 'object' || Array.isArray(o) || Object.values(o).some((v) => typeof v !== 'string')) throw new Error()
-        headers = o as Record<string, string>
-      } catch {
-        setOcupado(false)
-        setError('Los headers extra deben ser un JSON de texto: {"X-Cosa":"valor"}.')
+    const headers: Record<string, string> = {}
+    for (const { n, v } of extras) {
+      const nombre = n.trim()
+      const valor = v.trim()
+      if (nombre && valor) headers[nombre] = valor
+      else if (nombre || valor) {
+        setError('Cada header extra necesita nombre y valor; borra el que esté a medias.')
         return
       }
     }
+    setOcupado(true)
     const body: ArticulosConfig = {
       apiUrl: d.apiUrl,
       apiKey: d.apiKey,
       authHeader: d.authHeader.trim() || undefined,
-      headers,
+      headers: Object.keys(headers).length ? headers : undefined,
       endpoint: d.endpoint || '/api/articles',
-      categoryId: Number(d.categoryId) || 1,
+      categoryId: Number(d.categoryId) || undefined,
       status: d.status,
       cloudinary: d.cloudName || d.cloudKey || d.cloudSecret ? { cloudName: d.cloudName, apiKey: d.cloudKey, apiSecret: d.cloudSecret, folder: d.folder || 'articulos' } : undefined
     }
@@ -147,21 +145,23 @@ export function ArticulosOpciones() {
           </button>
           {avanzado && (
             <>
-              <label className="opcion-fila">
-                <span className="muted small" style={{ flex: '0 0 120px' }}>Headers extra</span>
-                <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <textarea
-                    rows={2}
-                    value={d.headers}
-                    onChange={(e) => setD({ ...d, headers: e.target.value })}
-                    placeholder='Opcional, JSON: {"X-Cuenta":"123"}'
-                    spellCheck={false}
-                    style={{ padding: '7px 11px', borderRadius: 8, background: 'var(--panel)', border: '1px solid var(--line)', outline: 'none', fontFamily: 'var(--mono)', fontSize: 12, resize: 'vertical' }}
-                  />
-                  <span className="muted small">Solo si tu blog pide más headers además del de la llave.</span>
-                </span>
-              </label>
-              {campo('Categoría', d.categoryId, (v) => setD({ ...d, categoryId: v }), { type: 'number', min: 1, style: { maxWidth: 90 } })}
+              <div className="opcion-fila" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+                <span className="muted small">Headers extra</span>
+                {extras.map((h, i) => (
+                  <span key={i} className="opcion-fila" style={{ gap: 8 }}>
+                    <input placeholder="Nombre" value={h.n} onChange={(e) => setExtras(extras.map((x, j) => (j === i ? { ...x, n: e.target.value } : x)))} spellCheck={false} />
+                    <input placeholder="Valor" value={h.v} onChange={(e) => setExtras(extras.map((x, j) => (j === i ? { ...x, v: e.target.value } : x)))} spellCheck={false} />
+                    <button type="button" className="quitar" title="Quitar este header" aria-label="Quitar este header" onClick={() => setExtras(extras.filter((_, j) => j !== i))}>
+                      <Icono de="cerrar" />
+                    </button>
+                  </span>
+                ))}
+                <button type="button" className="ghost small" style={{ alignSelf: 'flex-start' }} onClick={() => setExtras([...extras, { n: '', v: '' }])}>
+                  + Añadir header
+                </button>
+                <span className="muted small">Solo si tu blog pide más headers además del de la llave.</span>
+              </div>
+              {campo('Categoría', d.categoryId, (v) => setD({ ...d, categoryId: v }), { type: 'number', min: 1, placeholder: 'La del blog', style: { maxWidth: 90 } })}
               <p className="muted small" style={{ marginTop: 6 }}>
                 Cloudinary <span className="muted">(opcional, para que la portada se suba sola)</span>
               </p>
@@ -186,7 +186,7 @@ export function ArticulosOpciones() {
                 onClick={() => {
                   setOcupado(true)
                   api<ArticulosConfig>('/api/articulos/config', {})
-                    .then((c) => (setConfig(c), setAbierto(false), setD({ apiUrl: '', apiKey: '', authHeader: '', headers: '', endpoint: '', cloudName: '', cloudKey: '', cloudSecret: '', folder: 'articulos', categoryId: '1', status: 'DRAFT' })))
+                    .then((c) => (setConfig(c), setAbierto(false), setD({ apiUrl: '', apiKey: '', authHeader: '', endpoint: '', cloudName: '', cloudKey: '', cloudSecret: '', folder: 'articulos', categoryId: '', status: 'DRAFT' }), setExtras([])))
                     .catch((e) => setError(e.message))
                     .finally(() => setOcupado(false))
                 }}

@@ -692,7 +692,7 @@ async function unirse(env: Env, email: string, equipo: string, acepto: string, t
     'Hola:',
     'Ya tienes tu cuenta de Hermit: con ella entras a la comunidad. Hermit es gratis y lo seguirá siendo.',
     `Tu clave es ${clave}. Escríbela en Hermit para entrar, y guárdala: con ella entras desde otra computadora (dos a la vez). También queda en Opciones de Hermit.`,
-    'Hermit trabaja con tu propia cuenta de Claude Pro o Max, que pagas aparte a Anthropic. Si tienes dudas, responde a este correo.'
+    'Hermit trabaja con tu propia cuenta de IA (Claude, ChatGPT, Gemini, Devin y más), que pagas aparte a su proveedor. Si tienes dudas, responde a este correo.'
   ]).catch((e) => (console.error('Correo de la cuenta', e instanceof Error ? e.message : e), false))
   if (!enviada) throw new Rechazo(502, 'No pudimos mandarte el correo con tu clave. Prueba en un rato.')
   if (!porCorreo) throw new Rechazo(409, `Te mandamos tu clave a ${email}. Escríbela en Opciones de Hermit, en «Ya apoyo».`)
@@ -900,10 +900,14 @@ async function guardarEstado(env: Env, fila: Fila, l: Lectura): Promise<Fila> {
     autorizada: fila.autorizada ?? (estado === 'authorized' || estado === 'pagado' ? ahora : null),
     revisada: ahora
   }
-  // El primer pago: la clave por correo, una sola vez aunque el aviso y `/gracias` lleguen a la vez.
+  // El primer pago: la clave por correo, una sola vez aunque el aviso y `/gracias` lleguen a la vez. Si el correo no
+  // salió (Resend caído o sin llave), `autorizada` se suelta y el próximo chequeo la vuelve a intentar.
   if (!fila.autorizada && nueva.autorizada) {
     const r = await env.DB.prepare('UPDATE licencias SET autorizada = ? WHERE id = ? AND autorizada IS NULL').bind(ahora, fila.id).run()
-    if (r.meta.changes) await bienvenida(env, nueva).catch((e) => console.error('Correo con la clave', e instanceof Error ? e.message : e))
+    if (r.meta.changes) {
+      const mandada = await bienvenida(env, nueva).catch((e) => (console.error('Correo con la clave', e instanceof Error ? e.message : e), false))
+      if (!mandada) await env.DB.prepare('UPDATE licencias SET autorizada = NULL WHERE id = ?').bind(fila.id).run()
+    }
   }
   await env.DB.prepare('UPDATE licencias SET estado = ?, pagado_hasta = ?, autorizada = COALESCE(autorizada, ?), revisada = ? WHERE id = ?')
     .bind(estado, nueva.pagado_hasta, nueva.autorizada, ahora, fila.id)
@@ -918,7 +922,7 @@ function bienvenida(env: Env, f: Fila) {
     'PayPal confirmó tu pago: gracias por apoyar a Hermit. Guarda este correo, es donde queda tu clave.',
     `Tu clave: ${f.clave}`,
     `Pégala en Hermit, en Opciones, y deja de salirte el recordatorio. Si aún no la tienes, descárgala en ${env.ORIGEN}/descargar (Mac: ${env.ORIGEN}/descargar?so=mac; Linux: ${env.ORIGEN}/descargar?so=linux). La clave sirve en dos computadoras a la vez.`,
-    'Hermit trabaja con tu propia cuenta de Claude Pro o Max, que pagas aparte a Anthropic. Si tienes dudas, responde a este correo.'
+    'Hermit trabaja con tu propia cuenta de IA (Claude, ChatGPT, Gemini, Devin y más), que pagas aparte a su proveedor. Si tienes dudas, responde a este correo.'
   ])
 }
 
@@ -1112,7 +1116,7 @@ async function correo(env: Env, para: string, asunto: string, parrafos: string[]
     return false
   }
   const pie = `${PROVEEDOR} · ${env.CORREO_RESPUESTA}`
-  const html = `<div style="font:15px/1.6 system-ui,sans-serif;color:#1b1408;max-width:560px">${parrafos.map((p) => `<p>${escapar(p)}</p>`).join('')}<p style="color:#9a907f;font-size:12px">${escapar(pie)}</p></div>`
+  const html = `<div style="font:15px/1.6 system-ui,sans-serif;color:#0f172a;max-width:560px">${parrafos.map((p) => `<p>${escapar(p)}</p>`).join('')}<p style="color:#64748b;font-size:12px">${escapar(pie)}</p></div>`
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     // Resend pide un User-Agent, y el fetch de un Worker no manda ninguno.
@@ -1222,15 +1226,15 @@ function correoAviso(para: string): string {
 function pagina(titulo: string, cuerpo: string, recargar?: number): Response {
   return new Response(
     `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">${recargar ? `<meta http-equiv="refresh" content="${recargar}">` : ''}<title>${titulo} · Hermit</title>
-<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0f0e0c;color:#ede6d6;font:16px/1.55 system-ui,sans-serif}
-main{max-width:460px;padding:32px}h1{font-size:22px;margin:0 0 10px}p,li{color:#9a907f}p{margin:0 0 16px}b{color:#ede6d6}a{color:#e8a33d}ol{margin:20px 0 0;padding-left:20px}li{margin:6px 0}
-.clave{display:flex;gap:10px;align-items:center;margin:0 0 16px;padding:12px 14px;border:1px solid #2e2a24;border-radius:10px;background:#171512}
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0a0e14;color:#e6edf7;font:16px/1.55 system-ui,sans-serif}
+main{max-width:460px;padding:32px}h1{font-size:22px;margin:0 0 10px}p,li{color:#94a3b8}p{margin:0 0 16px}b{color:#e6edf7}a{color:#6ea8fe}ol{margin:20px 0 0;padding-left:20px}li{margin:6px 0}
+.clave{display:flex;gap:10px;align-items:center;margin:0 0 16px;padding:12px 14px;border:1px solid #263244;border-radius:10px;background:#111722}
 .clave code{flex:1;font:600 17px/1.3 ui-monospace,Consolas,monospace;letter-spacing:.04em}
-.clave button{padding:6px 12px;border:1px solid #2e2a24;border-radius:8px;background:#221f1b;color:#ede6d6;font:inherit;font-size:14px;cursor:pointer}
-.correo{display:flex;gap:12px;align-items:flex-start;margin:0 0 16px;padding:14px 16px;border:1px solid #e8a33d;border-radius:10px;background:rgba(232,163,61,.13);color:#ede6d6;font-size:15px}
-.correo svg{flex:none;width:22px;height:22px;margin-top:1px;color:#e8a33d}.correo b{color:#e8a33d}
-.boton{display:block;padding:14px;border-radius:10px;background:#e8a33d;color:#1b1408;font-weight:800;text-align:center;text-decoration:none}
-.boton.otro{margin-top:10px;background:none;border:1px solid #e8a33d;color:#e8a33d}
+.clave button{padding:6px 12px;border:1px solid #263244;border-radius:8px;background:#18212f;color:#e6edf7;font:inherit;font-size:14px;cursor:pointer}
+.correo{display:flex;gap:12px;align-items:flex-start;margin:0 0 16px;padding:14px 16px;border:1px solid rgba(79,140,255,.45);border-radius:10px;background:rgba(79,140,255,.13);color:#e6edf7;font-size:15px}
+.correo svg{flex:none;width:22px;height:22px;margin-top:1px;color:#6ea8fe}.correo b{color:#6ea8fe}
+.boton{display:block;padding:14px;border-radius:10px;background:#4f8cff;color:#07101f;font-weight:800;text-align:center;text-decoration:none}
+.boton.otro{margin-top:10px;background:none;border:1px solid #4f8cff;color:#6ea8fe}
 .otros{margin:10px 0 0;font-size:14px;text-align:center}</style></head>
 <body><main><h1>${titulo}</h1>${cuerpo}</main></body></html>`,
     // Con la clave a la vista: que no se guarde en ninguna caché.

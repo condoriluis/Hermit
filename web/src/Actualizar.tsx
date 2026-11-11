@@ -12,7 +12,7 @@ const BAJANDO = 1000
 const CADA = 60_000
 
 /**
- * Abajo de la barra lateral de la app que se vende: si hay una versión nueva de Hermit, el botón que la pone. Lo sabe la
+ * En el header de la app que se vende: si hay una versión nueva de Hermit, el botón que la pone. Lo sabe la
  * ventana de Hermit (electron/main.ts): al confirmar baja solo lo que cambió, cierra Hermit y la vuelve a abrir actualizada.
  */
 export function ActualizarHermit() {

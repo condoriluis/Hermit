@@ -98,13 +98,13 @@
 }
 .modal.acerca .acerca-cerrar:hover { background: var(--panel-2); color: var(--text); }
 
-/* La actualización de Hermit en la cabecera: una píldora con el punto de aviso, como los créditos de Flow. */
+/* La actualización de Hermit en la cabecera: una píldora con el color de la app, como los créditos de Flow. */
 .topbar-update {
   display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px;
-  border-radius: 999px; background: var(--warn-soft); border: 1px solid var(--warn-border);
-  color: var(--warn); font-size: 11.5px; font-weight: 600; white-space: nowrap;
+  border-radius: 999px; background: var(--accent-soft); border: 1px solid var(--accent-border);
+  color: var(--accent); font-size: 11.5px; font-weight: 600; white-space: nowrap;
   font-variant-numeric: tabular-nums; transition: background 0.15s, border-color 0.15s;
 }
 .topbar-update svg { width: 12px; height: 12px; flex: none; }
-.topbar-update:hover { background: var(--warn-border); border-color: var(--warn); }
+.topbar-update:hover { background: var(--accent-border); border-color: var(--accent); }
 .topbar .pie-nota { font-size: 11.5px; }

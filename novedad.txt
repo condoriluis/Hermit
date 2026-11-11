@@ -1,1 +1,1 @@
-La versión del pie abre un «Acerca de», el aviso de actualización pasa a la cabecera como píldora y el pie queda más limpio
+Sidebar más limpio, «Mis videos» separa verticales de horizontales y las galerías se acomodan a cualquier pantalla

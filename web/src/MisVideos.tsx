@@ -70,6 +70,20 @@ export function MisVideos({ cards, sessions, estilo, onEstilo }: { cards: Card[]
       }
       acciones={
         <>
+          {videos.length > 0 && (
+            <div className="mis-formas" role="group" aria-label="Forma del video">
+              {(
+                [
+                  ['vertical', 'Verticales', 'vertical', 'TikTok, Reels y Shorts'],
+                  ['horizontal', 'Horizontales', 'horizontal', 'YouTube y videos largos']
+                ] as const
+              ).map(([f, nombre, icono, donde]) => (
+                <button key={f} className={forma === f ? 'on' : ''} aria-pressed={forma === f} title={`${nombre} · ${donde}`} onClick={() => setForma(f)}>
+                  <Icono de={icono} />
+                </button>
+              ))}
+            </div>
+          )}
           <button className={`mis-ritmo${ritmo ? ' on' : ''}`} aria-expanded={ritmo} title="Cuántos videos salen y cada cuántos días, en TikTok, Instagram y YouTube" onClick={() => setRitmo(!ritmo)}>
             <Icono de="calendario" /> Ritmo de publicación
           </button>
@@ -90,20 +104,6 @@ export function MisVideos({ cards, sessions, estilo, onEstilo }: { cards: Card[]
           {conVideos.map((c) => (
             <button key={c.id} className={filtro === c.id ? 'on' : ''} onClick={() => onEstilo(c.id)}>
               <Icon icon={c.icon ?? '✦'} /> {c.title} <span className="cuantos">{cuantos.get(c.id)}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      {videos.length > 0 && (
-        <div className="mis-formas" role="group" aria-label="Forma del video">
-          {(
-            [
-              ['vertical', 'Verticales', 'vertical', 'TikTok, Reels y Shorts'],
-              ['horizontal', 'Horizontales', 'horizontal', 'YouTube y videos largos']
-            ] as const
-          ).map(([f, nombre, icono, donde]) => (
-            <button key={f} className={forma === f ? 'on' : ''} aria-pressed={forma === f} title={`${nombre} · ${donde}`} onClick={() => setForma(f)}>
-              <Icono de={icono} />
             </button>
           ))}
         </div>

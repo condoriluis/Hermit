@@ -75,7 +75,7 @@ export function Galeria({ titulo, cuenta, acciones, children }: { titulo: string
  * dibuja pide su primer cuadro en pequeño; las de más abajo no piden nada hasta que bajas. Mientras se desplaza, no
  * responden al ratón (`useDesplazando`): las que pasan bajo el cursor no empiezan a bajarse.
  */
-export function Rejilla<T>({ items, children }: { items: T[]; children(item: T): ReactNode }) {
+export function Rejilla<T>({ items, children, clase }: { items: T[]; children(item: T): ReactNode; clase?: string }) {
   const [hasta, setHasta] = useState(TANDA)
   const rejilla = useRef<HTMLDivElement>(null)
   const fin = useRef<HTMLDivElement>(null)
@@ -89,7 +89,7 @@ export function Rejilla<T>({ items, children }: { items: T[]; children(item: T):
     return () => io.disconnect()
   }, [quedan, hasta])
   return (
-    <div className="videos" ref={rejilla}>
+    <div className={clase ?? 'videos'} ref={rejilla}>
       {items.slice(0, hasta).map((item) => children(item))}
       {quedan && <div className="galeria-fin" ref={fin} />}
     </div>

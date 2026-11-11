@@ -5,7 +5,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { esDeVideo, type Card, type Previa } from '../shared/types.ts'
-import { articulosDe, imagenesDe, servir, ultimoVideo } from './etapas.ts'
+import { articulosDe, imagenesDe, presentacionesDe, servir, ultimoVideo } from './etapas.ts'
 import type { Sessions } from './sessions.ts'
 
 /**
@@ -97,8 +97,8 @@ export function previas(dir: string, cards: () => Card[], sessions: Sessions) {
       if (c.produce === 'imagen') {
         const ultima = imagenesDe(c, sessions)[0]
         if (ultima) todas[c.id] = { tipo: 'imagen', imagen: `/api/piezas/archivo?ruta=${encodeURIComponent(ultima.ruta)}&t=${Math.round(ultima.t)}` }
-      } else if (c.produce === 'articulo') {
-        const ultimo = articulosDe(c, sessions)[0]
+      } else if (c.produce === 'articulo' || c.produce === 'presentacion') {
+        const ultimo = c.produce === 'articulo' ? articulosDe(c, sessions)[0] : presentacionesDe(c, sessions)[0]
         if (ultimo?.portada) todas[c.id] = { tipo: 'imagen', imagen: `/api/piezas/archivo?ruta=${encodeURIComponent(ultimo.portada)}&t=${Math.round(ultimo.t)}` }
       }
     }

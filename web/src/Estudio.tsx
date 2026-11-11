@@ -5,6 +5,7 @@ import { Editor } from './Editor'
 import { useEscritos, useEventos } from './eventos'
 import { CarpetaDelHilo, EtapaCuerpo, useAvance, usePasos, type Pasos } from './Etapas'
 import { Final } from './Final'
+import { EntregaPieza } from './EntregaPieza'
 import { Icono } from './Iconos'
 import type { PropsDeVideo } from './Monitor'
 import { abrirNavegador, PanelNavegador, useNavegadorAbierto } from './Navegador' // navegador de cada hilo
@@ -56,6 +57,8 @@ export function Estudio({ session, card, head, chat }: { session: SessionMeta; c
   const deFase = p.etapas.map((e) => e.fase ?? 'idea')
   // Los videos terminados: con ellos, la fase Entrega deja bajarlos, guardarlos en otra carpeta y pedir un cambio.
   const finales = avance?.finales ?? []
+  // Los archivos de la entrega de una pieza que no es video (una presentación): el PowerPoint, el PDF y la vista previa.
+  const entrega = card.produce === 'presentacion' ? p.etapas.filter((e) => e.fase === 'entrega').flatMap((e) => e.archivos) : []
   const fases = resumir(p, deFase, finales.length > 0)
   const deVideo = fases.find((f) => f.id === 'video')!.etapas
 
@@ -174,7 +177,14 @@ export function Estudio({ session, card, head, chat }: { session: SessionMeta; c
             p={p}
             fase={fases.find((f) => f.id === vista)!}
             siguiendo={!elegida}
-            arriba={vista === 'entrega' && <Final session={session} card={card} carpeta={avance.carpeta} finales={finales} />}
+            arriba={
+              vista === 'entrega' &&
+              (card.produce === 'presentacion' ? (
+                <EntregaPieza session={session} card={card} carpeta={avance.carpeta} archivos={entrega} />
+              ) : (
+                <Final session={session} card={card} carpeta={avance.carpeta} finales={finales} />
+              ))
+            }
           />
         )
       )}

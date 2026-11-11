@@ -1,1 +1,1 @@
-Sidebar más limpio, «Mis videos» separa verticales de horizontales y las galerías se acomodan a cualquier pantalla
+Nueva card «Presentaciones» con PowerPoint y PDF, artículos para cualquier blog y exportación de video con la aceleración de tu equipo

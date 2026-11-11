@@ -763,7 +763,42 @@
       {
         "nombre": "Publicado",
         "listo": "publicado.json",
-        "muestra": "vista-previa.html",
+        "muestra": "{vista-previa.html,publicado.json}",
+        "fase": "entrega"
+      }
+    ],
+    "voz": false
+  },
+  {
+    "id": "presentaciones",
+    "title": "Presentaciones",
+    "description": "Investiga un tema, crea las diapositivas, diseña sus imágenes y redacta el contenido, y lo exporta a PowerPoint y PDF listos para presentar o compartir.",
+    "skill": "presentaciones",
+    "produce": "presentacion",
+    "icon": "diapositivas",
+    "etapas": [
+      {
+        "nombre": "Enfoque",
+        "listo": "{tema.md,fuentes/tema.md}",
+        "muestra": "{tema.md,fuentes/tema.md}",
+        "fase": "idea"
+      },
+      {
+        "nombre": "Guion",
+        "listo": "{diapositivas.md,presentacion.json}",
+        "muestra": "{diapositivas.md,presentacion.json}",
+        "fase": "guion"
+      },
+      {
+        "nombre": "Diseño",
+        "listo": "diapositivas/*.png",
+        "muestra": "diapositivas/*.png",
+        "fase": "guion"
+      },
+      {
+        "nombre": "Exportado",
+        "listo": "{presentacion.pptx,presentacion.pdf}",
+        "muestra": "{vista-previa.html,presentacion.pptx,presentacion.pdf}",
         "fase": "entrega"
       }
     ],

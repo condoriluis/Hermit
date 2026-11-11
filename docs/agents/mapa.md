@@ -72,13 +72,13 @@ Este es el mapa:
   (`server/claude.ts`), que va en Opus. Una card sin medir
   usa lo último que eligió el usuario a mano. En «Avanzado» se elige cada uno.
 - Las galerías: `Piezas.tsx` pide todas las piezas terminadas (`GET /api/piezas`) y cada una enseña las de su tipo
-  (`deTipo`): «Mis videos» (`MisVideos.tsx`), «Mis imágenes» (`MisImagenes.tsx`) y «Mis artículos» (`MisArticulos.tsx`),
-  una por cada `produce`. El estante de inicio (`Carteles` en `App.tsx`) enseña un grupo a la vez en una fila de pestañas
-  por su `produce` (`GRUPOS`: Videos, Artículos, Imágenes y, sin `produce`, Herramientas; los grupos vacíos no se dibujan y
-  el último elegido se recuerda).
+  (`deTipo`): «Mis videos» (`MisVideos.tsx`), «Mis imágenes» (`MisImagenes.tsx`), «Mis artículos» (`MisArticulos.tsx`)
+  y «Mis presentaciones» (`MisPresentaciones.tsx`), una por cada `produce`. El estante de inicio (`Carteles` en
+  `App.tsx`) enseña un grupo a la vez en una fila de pestañas por su `produce` (`GRUPOS`: Videos, Artículos, Imágenes,
+  Presentaciones y, sin `produce`, Herramientas; los grupos vacíos no se dibujan y el último elegido se recuerda).
   Al elegir un estilo, sus videos terminados ocupan el sitio de las cards (`/api/cards/<id>/videos` en `etapas.ts`).
-  Cada card de video enseña de fondo su video más nuevo, la de imágenes su última imagen y la de artículos la portada del
-  último (`server/previas.ts`).
+  Cada card de video enseña de fondo su video más nuevo, la de imágenes su última imagen y la de artículos y la de
+  presentaciones la portada del último (`server/previas.ts`).
 - `server/redes/` y `web/src/Redes.tsx`: los verticales terminados se programan al ritmo que eliges en «Mis videos» (`web/src/Ritmos.tsx`, las cuentas en `shared/ritmo.ts`; YouTube lleva el suyo).
   TikTok va por su página (ADR 0002), en la página `redes` del navegador integrado, con su propio perfil (sin la ventana
   de Hermit, en un Edge con `data/redes/perfil`);

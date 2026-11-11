@@ -2,7 +2,7 @@ import { closeSync, createReadStream, existsSync, fstatSync, globSync, mkdirSync
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { basename, extname, isAbsolute, join, matchesGlob, relative, resolve, sep } from 'node:path'
 import { enCurso } from '../shared/etapas.ts'
-import { deTipo, type Archivo, type ArticuloHecho, type Avance, type AvanceCorto, type Card, type CarpetaDeVideo, type ImagenHecha, type MarcasDeRedes, type Pieza, type PiezasDeTodos, type Produce, type Render, type ServerPush, type SessionMeta, type VideoFinal, type VideoHecho } from '../shared/types.ts'
+import { deTipo, type Archivo, type ArticuloHecho, type Avance, type AvanceCorto, type Card, type CarpetaDeVideo, type ImagenHecha, type MarcasDeRedes, type Pieza, type PiezasDeTodos, type PresentacionHecha, type Produce, type Render, type ServerPush, type SessionMeta, type VideoFinal, type VideoHecho } from '../shared/types.ts'
 import { cuerpo, json } from './http.ts'
 import { IMAGE_TYPES } from './agent.ts'
 import { aLaPapelera, huella } from './disco.ts'
@@ -306,7 +306,8 @@ export async function piezasApi(
 const LISTAS: Partial<Record<Produce, (card: Card, sessions: Sessions) => Pieza[]>> = {
   video: (card, sessions) => videosDe(card, sessions).map((v) => ({ ...v, tipo: 'video' })),
   articulo: (card, sessions) => articulosDe(card, sessions).map((a) => ({ ...a, tipo: 'articulo' })),
-  imagen: (card, sessions) => imagenesDe(card, sessions).map((i) => ({ ...i, tipo: 'imagen' }))
+  imagen: (card, sessions) => imagenesDe(card, sessions).map((i) => ({ ...i, tipo: 'imagen' })),
+  presentacion: (card, sessions) => presentacionesDe(card, sessions).map((p) => ({ ...p, tipo: 'presentacion' }))
 }
 
 /** Las piezas terminadas de una card, sea del tipo que sea. Una card sin `produce` es una herramienta: no enseña nada. */
@@ -404,6 +405,55 @@ export function articulosDe(card: Card, sessions: Sessions): ArticuloHecho[] {
     })
   }
   return articulos.sort((a, b) => b.t - a.t)
+}
+
+/** El título de una presentación, el de su `presentacion.json`; `undefined` si no está o no se pudo leer. */
+function tituloDePresentacion(file: string): string | undefined {
+  try {
+    const { titulo, title } = JSON.parse(readFileSync(file, 'utf8')) as { titulo?: string; title?: string }
+    return (titulo ?? title)?.trim() || undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Las presentaciones terminadas de una card que las hace, de la más nueva a la más vieja. Cada pieza es su carpeta
+ * (ahí viven el guion, las imágenes, el `presentacion.json` y los exportados): `archivo` es el guion en Markdown, que
+ * es lo que su hilo abre en el monitor; `pptx` y `pdf`, los archivos exportados. Sirve para «Mis presentaciones» y
+ * para el borrado, que manda la carpeta entera a la Papelera.
+ */
+export function presentacionesDe(card: Card, sessions: Sessions): PresentacionHecha[] {
+  // La carpeta de cada hilo sale de su meta, igual que en `videosDe` y `articulosDe`.
+  const hilos = new Map<string, SessionMeta>()
+  for (const meta of sessions.list().filter((s) => s.cardId === card.id && suyaDe(s))) {
+    const folder = resolve(folderOf(meta))
+    if ((hilos.get(folder)?.createdAt ?? Infinity) > meta.createdAt) hilos.set(folder, meta)
+  }
+  const presentaciones: PresentacionHecha[] = []
+  for (const folder of carpetasDe(card)) {
+    // La pieza existe cuando el agente ya escribió el contenido (`presentacion.json` o el guion) o exportó el archivo.
+    const datos = one(folder, 'presentacion.json')
+    const guion = one(folder, 'diapositivas.md')
+    const pptx = one(folder, 'presentacion.pptx')
+    const pdf = one(folder, 'presentacion.pdf')
+    if (!datos && !guion && !pptx && !pdf) continue
+    const articulo = guion ?? datos
+    if (!articulo) continue
+    const portada = one(folder, 'portada.png')
+    presentaciones.push({
+      titulo: (datos && tituloDePresentacion(join(folder, datos.ruta))) ?? hilos.get(folder)?.title ?? basename(folder),
+      archivo: articulo.ruta,
+      ruta: folder,
+      t: (pptx ?? pdf ?? articulo).t,
+      sessionId: hilos.get(folder)?.id,
+      cardId: card.id,
+      portada: portada ? join(folder, portada.ruta) : undefined,
+      pptx: pptx ? join(folder, pptx.ruta) : undefined,
+      pdf: pdf ? join(folder, pdf.ruta) : undefined
+    })
+  }
+  return presentaciones.sort((a, b) => b.t - a.t)
 }
 
 /** Los archivos que son una imagen terminada: PNG, JPEG o WebP. Las que empiezan por `_` son a medias, como los videos. */

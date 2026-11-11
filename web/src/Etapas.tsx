@@ -73,7 +73,7 @@ export function usePasos(avance: Avance | null, events: AgentEvent[], escritos: 
   // por el nombre de esa carpeta. Una herramienta que falló no deja nada.
   const folder = (avance?.carpeta ?? '').replaceAll('\\', '/').toLowerCase() + '/'
   const nombre = folder.split('/').at(-2) + '/'
-  const writing = etapas.map(() => undefined as string | undefined)
+  const writing = etapas.map(() => undefined as { text: string; json: boolean } | undefined)
   for (const d of escritos) {
     const path = d.path.replaceAll('\\', '/')
     const relativa = !/^([a-z]:)?\/|^~/i.test(path)
@@ -84,7 +84,7 @@ export function usePasos(avance: Avance | null, events: AgentEvent[], escritos: 
     if (items.some((i) => i.kind === 'tool' && i.key === `tool:${d.id.split('#')[0]}` && i.error)) continue
     const i = etapas.findIndex((e) => e.muestra && globRegex(e.muestra).test(ruta))
     if (i < 0 || etapas[i].archivos.some((a) => a.ruta === ruta && a.t >= d.at)) continue
-    writing[i] = d.text
+    writing[i] = { text: d.text, json: /\.json$/i.test(ruta) }
   }
   // Lo que el usuario ya entregó a una etapa que lo esperaba: el último archivo con su extensión que mandó por el chat
   // (o por su zona) desde que acabó la etapa anterior. La etapa no está hecha hasta que el agente lo procesa, pero ya no
@@ -314,24 +314,46 @@ const kind = (ruta: string) => {
   if (['.mp4', '.webm'].includes(ext)) return 'video'
   if (AUDIO.test(ext)) return 'audio'
   if (ext === '.html') return 'html'
+  // Los binarios que no se leen (un `.pptx`, un `.pdf`): no son texto ni imagen; la etapa los enseña por su vista previa.
+  if (['.pptx', '.pdf', '.docx', '.xlsx', '.zip'].includes(ext)) return 'otro'
   return 'texto'
 }
 
 /** Lo que dejó una etapa, según el tipo de archivo. Lo nuevo entra con un fundido. `writing` es el texto que se está escribiendo. */
-function Muestra({ sessionId, archivos, writing, copiar }: { sessionId: string; archivos: Avance['etapas'][number]['archivos']; writing?: string; copiar?: boolean }) {
+function Muestra({ sessionId, archivos, writing, copiar }: { sessionId: string; archivos: Avance['etapas'][number]['archivos']; writing?: { text: string; json: boolean }; copiar?: boolean }) {
   const src = (a: { ruta: string; t: number }) => `/api/sessions/${sessionId}/archivo?ruta=${encodeURIComponent(a.ruta)}&t=${Math.round(a.t)}`
   const images = archivos.filter((a) => kind(a.ruta) === 'imagen')
   const videos = archivos.filter((a) => kind(a.ruta) === 'video')
   const audios = archivos.filter((a) => kind(a.ruta) === 'audio')
   const html = archivos.filter((a) => kind(a.ruta) === 'html').at(-1)
-  const text = archivos.filter((a) => kind(a.ruta) === 'texto').at(-1)
+  // Los textos de la etapa: el legible (.md) por defecto; si hay más de uno, arriba sale para cambiar (p. ej. el
+  // `articulo.json` del blog, que se ve formateado).
+  const [elegido, setElegido] = useState('')
+  const textos = archivos.filter((a) => kind(a.ruta) === 'texto')
+  const text = textos.find((a) => a.ruta === elegido) ?? textos.filter((a) => !/\.json$/i.test(a.ruta)).at(-1) ?? textos.at(-1)
   return (
     <>
-      {writing !== undefined ? <Escribiendo text={writing} /> : text && <Texto url={src(text)} copiar={copiar} />}
+      {writing !== undefined ? <Escribiendo text={writing.text} esJson={writing.json} /> : text && (
+        <>
+          {textos.length > 1 && (
+            <div className="etapa-textos" role="group" aria-label="Qué texto de la etapa ver">
+              {textos.map((a) => {
+                const nombre = a.ruta.split('/').pop() ?? a.ruta
+                return (
+                  <button key={a.ruta} className={text?.ruta === a.ruta ? 'on' : ''} aria-pressed={text?.ruta === a.ruta} onClick={() => setElegido(a.ruta)}>
+                    {nombre}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          <Texto url={src(text)} esJson={/\.json$/i.test(text.ruta)} copiar={copiar} />
+        </>
+      )}
       {html && (
         <div className="etapa-html">
           <div className="etapa-html-barra">
-            <span className="etapa-html-titulo">Vista previa del artículo</span>
+            <span className="etapa-html-titulo">Vista previa</span>
             <a className="etapa-html-abrir" href={src(html)} target="_blank" rel="noreferrer">
               Abrir en pestaña nueva ↗
             </a>
@@ -367,7 +389,7 @@ function Muestra({ sessionId, archivos, writing, copiar }: { sessionId: string; 
  * Un texto de la etapa. Si se lee en voz alta (`copiar`), «Copiar» nace arriba a la derecha, acompaña la lectura
  * mientras bajas y copia el texto entero. No se parte en el primer `##`: en El Diff, antes va la intro, que también se lee.
  */
-function Texto({ url, copiar }: { url: string; copiar?: boolean }) {
+function Texto({ url, esJson, copiar }: { url: string; esJson?: boolean; copiar?: boolean }) {
   const [text, setText] = useState('')
   const [copied, setCopied] = useState(false)
   const body = useMemo(() => markdown(text), [text])
@@ -386,6 +408,16 @@ function Texto({ url, copiar }: { url: string; copiar?: boolean }) {
       setTimeout(() => setCopied(false), 1600)
     })
   }
+  // Un JSON se ve formateado, no como Markdown: es datos para la API, y así se revisa de un vistazo.
+  if (esJson) {
+    let bonito = text
+    try {
+      bonito = JSON.stringify(JSON.parse(text), null, 2)
+    } catch {
+      // Si no parsea (se está escribiendo a medias), se muestra tal cual.
+    }
+    return <pre className="etapa-json">{bonito}</pre>
+  }
   if (!copiar || !text) return <div className="md etapa-texto" dangerouslySetInnerHTML={{ __html: body }} />
   return (
     <div className="etapa-lectura">
@@ -401,7 +433,7 @@ function Texto({ url, copiar }: { url: string; copiar?: boolean }) {
 }
 
 /** Un texto que crece mientras el agente lo escribe. Si lo estabas siguiendo, la fase del estudio baja con él. */
-function Escribiendo({ text }: { text: string }) {
+function Escribiendo({ text, esJson }: { text: string; esJson?: boolean }) {
   const html = useMemo(() => markdown(text), [text])
   const cursor = useRef<HTMLSpanElement>(null)
   useLayoutEffect(() => {
@@ -411,6 +443,16 @@ function Escribiendo({ text }: { text: string }) {
     const below = el.getBoundingClientRect().bottom - box.getBoundingClientRect().bottom
     if (below > 0 && below < 240) box.scrollTop += below + 24
   }, [html])
+  // Un JSON en marcha se ve formateado en cuanto parsea; mientras está incompleto, tal cual llega.
+  if (esJson) {
+    let bonito = text
+    try {
+      bonito = JSON.stringify(JSON.parse(text), null, 2)
+    } catch {
+      // A medias: se muestra crudo hasta que cierre.
+    }
+    return <pre className="etapa-json">{bonito}</pre>
+  }
   return (
     <div>
       <div className="md etapa-texto" dangerouslySetInnerHTML={{ __html: html }} />

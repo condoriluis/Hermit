@@ -30,6 +30,7 @@ import { MisVideos, VideoDe } from './MisVideos'
 import { Rejilla } from './Piezas'
 import { MisArticulos } from './MisArticulos'
 import { MisImagenes } from './MisImagenes'
+import { MisPresentaciones } from './MisPresentaciones'
 import { Modelos3D } from './Modelos3D' // modelos 3D
 import { abrirPublicacion, Comunidad } from './Comunidad' // comunidad
 import { PedirMejora } from './PedirMejora' // comunidad
@@ -63,7 +64,7 @@ type View =
   | { kind: 'comunidad' } // comunidad
 
 /** La ruta de cada galería en el hash. Su `tipo` es el `produce` de las cards que la llenan. */
-const RUTA_GALERIA: Record<TipoPieza, string> = { video: 'mis-videos', imagen: 'mis-imagenes', articulo: 'mis-articulos' }
+const RUTA_GALERIA: Record<TipoPieza, string> = { video: 'mis-videos', imagen: 'mis-imagenes', articulo: 'mis-articulos', presentacion: 'mis-presentaciones' }
 
 /** Lo que se escribió en un hilo nuevo sin mandarlo. Vive en localStorage hasta que se manda o se borra. */
 type Saved = Draft & { cardId: string; at: number }
@@ -83,6 +84,7 @@ function readHash(): View {
   if (kind === 'mis-videos') return { kind: 'galeria', tipo: 'video', estilo: id || undefined }
   if (kind === 'mis-imagenes') return { kind: 'galeria', tipo: 'imagen' }
   if (kind === 'mis-articulos') return { kind: 'galeria', tipo: 'articulo' }
+  if (kind === 'mis-presentaciones') return { kind: 'galeria', tipo: 'presentacion' }
   if (kind === 'modelos-3d') return { kind: 'modelos3d' } // modelos 3D
   if (kind === 'comunidad' || kind === 'mejoras') return { kind: 'comunidad' } // comunidad (antes, Mejoras)
   return { kind: 'new', cardId: kind === 'new' ? id : undefined }
@@ -537,6 +539,16 @@ export function App() {
           </span>{' '}
           Mis artículos
         </button>
+        <button
+          className={`new-chat${view.kind === 'galeria' && view.tipo === 'presentacion' ? ' active' : ''}`}
+          onClick={() => go({ kind: 'galeria', tipo: 'presentacion' })}
+          title={plegada ? 'Mis presentaciones' : undefined}
+        >
+          <span className="new-chat-icon">
+            <Icono de="diapositivas" />
+          </span>{' '}
+          Mis presentaciones
+        </button>
         {/* modelos 3D */}
         <button className={`new-chat${view.kind === 'modelos3d' ? ' active' : ''}`} onClick={() => go({ kind: 'modelos3d' })} title={plegada ? 'Modelos 3D' : undefined}>
           <span className="new-chat-icon">
@@ -661,6 +673,7 @@ export function App() {
         )}
         {view.kind === 'galeria' && view.tipo === 'imagen' && <MisImagenes cards={cards} sessions={sessions} />}
         {view.kind === 'galeria' && view.tipo === 'articulo' && <MisArticulos cards={cards} sessions={sessions} />}
+        {view.kind === 'galeria' && view.tipo === 'presentacion' && <MisPresentaciones cards={cards} sessions={sessions} />}
         {newCard && draftId && (
           <NewSession
             key={draftId}
@@ -1092,6 +1105,7 @@ const GRUPOS: { titulo: string; produce?: Produce }[] = [
   { titulo: 'Videos', produce: 'video' },
   { titulo: 'Artículos', produce: 'articulo' },
   { titulo: 'Imágenes', produce: 'imagen' },
+  { titulo: 'Presentaciones', produce: 'presentacion' },
   { titulo: 'Herramientas' }
 ]
 

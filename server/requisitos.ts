@@ -27,7 +27,9 @@ import { correr } from './version.ts'
  * skills que lo importan. La card de cada estilo pide solo los de su skill; Opciones, todos.
  */
 const PAQUETES: Record<string, { pip: string; nombre: string; uso: string; skills: string[]; fueraDeWindows?: true }> = {
-  PIL: { pip: 'pillow', nombre: 'Pillow', uso: 'imágenes', skills: ['video-el-diff', 'video-explicativo', 'reel-collage', 'video-documental'] },
+  PIL: { pip: 'pillow', nombre: 'Pillow', uso: 'imágenes', skills: ['video-el-diff', 'video-explicativo', 'reel-collage', 'video-documental', 'presentaciones'] },
+  pptx: { pip: 'python-pptx', nombre: 'python-pptx', uso: 'PowerPoint', skills: ['presentaciones'] },
+  fpdf: { pip: 'fpdf2', nombre: 'fpdf2', uso: 'PDF', skills: ['presentaciones'] },
   numpy: { pip: 'numpy', nombre: 'NumPy', uso: 'sonido', skills: ['video-el-diff', 'video-explicativo', 'reel-collage', 'video-documental'] },
   cv2: { pip: 'opencv-python-headless', nombre: 'OpenCV', uso: 'el color de las imágenes', skills: ['video-documental'] },
   soundfile: { pip: 'soundfile', nombre: 'soundfile', uso: 'sonido', skills: ['video-documental'] },

@@ -1,7 +1,7 @@
 /** Lo que comparten el servidor y la interfaz. */
 
 /** Lo que produce una card. Sin `produce` no produce nada: es una herramienta («Nuevo estilo»). */
-export type Produce = 'video' | 'articulo' | 'imagen'
+export type Produce = 'video' | 'articulo' | 'imagen' | 'presentacion'
 
 /** Si esta card produce videos: su galería, sus redes y su formato son cosa de los videos, no de tener etapas. */
 export const esDeVideo = (card?: Card) => card?.produce === 'video'
@@ -103,10 +103,26 @@ export interface ImagenHecha {
 }
 
 /**
+ * Una presentación terminada de una card que las hace. `archivo` es lo que abre su hilo en el monitor (el guion en
+ * Markdown); `portada`, la imagen de su tarjeta; `pptx` y `pdf`, los archivos exportados que se pueden abrir.
+ */
+export interface PresentacionHecha {
+  titulo: string
+  archivo: string
+  ruta: string
+  t: number
+  sessionId?: string
+  cardId: string
+  portada?: string
+  pptx?: string
+  pdf?: string
+}
+
+/**
  * Una pieza terminada: lo que enseña la galería, sea del tipo que sea. El `tipo` sale del `produce` de su card y es lo
  * que elige cómo se dibuja su tarjeta.
  */
-export type Pieza = ({ tipo: 'video' } & VideoHecho) | ({ tipo: 'articulo' } & ArticuloHecho) | ({ tipo: 'imagen' } & ImagenHecha)
+export type Pieza = ({ tipo: 'video' } & VideoHecho) | ({ tipo: 'articulo' } & ArticuloHecho) | ({ tipo: 'imagen' } & ImagenHecha) | ({ tipo: 'presentacion' } & PresentacionHecha)
 
 /** El tipo de una pieza: lo que elige su tarjeta y la galería donde sale. */
 export type TipoPieza = Pieza['tipo']
@@ -1621,6 +1637,8 @@ export interface Equipo {
   voz?: { motor: MotorVoz; veces: number; carga: number; fecha: string }
   /** Lo medido del render final, a tamaño completo: cuadros por segundo. */
   render?: { cuadros: number; fecha: string }
+  /** El encoder con que se exporta el video aquí: el de hardware si ganó la medida, o `libx264`. */
+  encode?: { nombre: string; ms?: number; x264?: number; fecha?: string }
   /** Con qué dibuja el 3D el Chrome del render; `software`, sin la tarjeta (muy lento). */
   tresD?: { nombre: string; software: boolean }
   /** Cuántos videos de un lote trabajan a la vez. */

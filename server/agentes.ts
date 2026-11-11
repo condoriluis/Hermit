@@ -30,6 +30,12 @@ const APP = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const PIEZAS = join(process.env.APPDATA ?? '', 'hermit', 'piezas', process.platform === 'darwin' && process.arch === 'arm64' ? 'agentes-arm64' : 'agentes')
 const WINDOWS = process.platform === 'win32'
 const plataforma = `${process.platform}-${process.arch}`
+/** Los nombres de plataforma del manifiesto de Devin (`static.devin.ai/cli/current/manifest.json`). */
+const DEVIN_PLATAFORMA: Record<string, string> = {
+  'win32-x64': 'x86_64-pc-windows', 'win32-arm64': 'aarch64-pc-windows',
+  'darwin-x64': 'x86_64-apple-darwin', 'darwin-arm64': 'aarch64-apple-darwin',
+  'linux-x64': 'x86_64-unknown-linux-musl', 'linux-arm64': 'aarch64-unknown-linux-musl'
+}
 
 /**
  * La versión de un paquete que trae la app (el SDK de Claude, el lanzador de Codex, el cliente de OpenCode): la del
@@ -188,6 +194,37 @@ const AGENTES: Record<Programa, Agente> = {
     },
     exe: (r) => join(r, WINDOWS ? 'agy_acp_server.exe' : 'agy_acp_server.par'),
     pesa: '230 MB'
+  },
+  devin: {
+    nombre: 'Devin',
+    version: '3000.12.43',
+    // Como Antigravity: el manifiesto de static.devin.ai da el paquete del sistema con su sha256.
+    async instalar(dir) {
+      const triple = DEVIN_PLATAFORMA[plataforma]
+      if (!triple) throw new Error(`Devin no trae un programa para esta computadora (${plataforma}).`)
+      const res = await fetch(`https://static.devin.ai/cli/${AGENTES.devin.version}/manifest.json`)
+      if (!res.ok) throw new Error(`Devin respondió ${res.status} al pedir su manifiesto.`)
+      const info = (await res.json())?.platforms?.[triple]
+      if (!info?.url || !info?.sha256) throw new Error(`El manifiesto de Devin no trae paquete para ${triple}.`)
+      const paquete = await fetch(info.url)
+      if (!paquete.ok) throw new Error(`Devin respondió ${paquete.status} al pedir su programa.`)
+      const blob = Buffer.from(await paquete.arrayBuffer())
+      if (createHash('sha256').update(blob).digest('hex') !== info.sha256) throw new Error('El archivo de Devin no es el que publica Cognition. Vuelve a intentarlo.')
+      const archivo = join(dir, info.url.endsWith('.zip') ? 'devin.zip' : 'devin.tar.gz')
+      writeFileSync(archivo, blob)
+      mkdirSync(dir, { recursive: true })
+      const zip = info.url.endsWith('.zip')
+      // El `tar` de Windows y el de Mac abren los dos formatos; el de Linux, gzip.
+      const tar = WINDOWS ? `"${join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe')}"` : 'tar'
+      await correr(zip ? `${tar} -xf "${archivo}" -C "${dir}"` : `${tar} -xzf "${archivo}" -C "${dir}"`, dir)
+      rmSync(archivo, { force: true })
+      if (!WINDOWS) {
+        const bin = join(dir, 'bin', 'devin')
+        if (existsSync(bin)) chmodSync(bin, 0o755)
+      }
+    },
+    exe: (r) => join(r, 'bin', WINDOWS ? 'devin.exe' : 'devin'),
+    pesa: '70 MB'
   }
 }
 

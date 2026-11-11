@@ -27,7 +27,8 @@ const OPCIONES = [
     agentes: [
       ['opencode', 'OpenCode'],
       ['antigravity', 'Antigravity'],
-      ['grok', 'Grok']
+      ['grok', 'Grok'],
+      ['devin', 'Devin']
     ]
   }
 ]

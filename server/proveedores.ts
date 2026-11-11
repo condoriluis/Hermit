@@ -4,6 +4,7 @@ import type { AgentOptions, AgentRun } from './agent.ts'
 import { cancelarAntigravity, conectandoAntigravity, conectarAntigravity, cuentaAntigravity, modelosAntigravity, salirAntigravity, startAntigravity } from './antigravity.ts'
 import { startClaude } from './claude.ts'
 import { cancelarCursor, conectandoCursor, conectarCursor, cuentaCursor, modelosCursor, salirCursor, startCursor } from './cursor.ts'
+import { cancelarDevin, conectandoDevin, conectarDevin, cuentaDevin, modelosDevin, salirDevin, startDevin } from './devin.ts'
 import { cuentaDeepSeek, deepseekModels } from './deepseek.ts'
 import { cuentaGemini, modelosGemini, startGemini } from './gemini.ts'
 import { cuentaGrok, modelosGrok, startGrok } from './grok.ts'
@@ -39,7 +40,8 @@ export const OTROS: Partial<Record<Proveedor, Otro>> = {
   gemini: { como: 'llave', start: startGemini, cuenta: cuentaGemini, modelos: modelosGemini },
   cursor: { como: 'navegador', start: startCursor, cuenta: cuentaCursor, conectar: conectarCursor, cancelar: cancelarCursor, salir: salirCursor, conectando: conectandoCursor, modelos: modelosCursor },
   muse: { como: 'ventana', start: startMuse, ...cuentaMuse, modelos: modelosMuse },
-  pi: { como: 'ventana', start: startPi, ...cuentaPi, llaves: llavesPi, modelos: modelosPi }
+  pi: { como: 'ventana', start: startPi, ...cuentaPi, llaves: llavesPi, modelos: modelosPi },
+  devin: { como: 'navegador', start: startDevin, cuenta: cuentaDevin, conectar: conectarDevin, cancelar: cancelarDevin, salir: salirDevin, conectando: conectandoDevin, modelos: modelosDevin }
 }
 
 /** Ninguno de estos informa los límites de un plan a Hermit: se paga por uso o se ve en su página. */

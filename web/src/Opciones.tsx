@@ -722,7 +722,7 @@ export function CuentaOpenCode({ aviso = false, onFalta }: { aviso?: boolean; on
 }
 
 /** Los agentes que llegaron después de Claude, Codex y OpenCode (`server/proveedores.ts`), en el orden de Opciones. */
-export const OTROS_AGENTES = ['deepseek', 'grok', 'antigravity', 'gemini', 'cursor', 'muse', 'pi'] as const satisfies readonly Proveedor[]
+export const OTROS_AGENTES = ['deepseek', 'grok', 'antigravity', 'gemini', 'cursor', 'muse', 'pi', 'devin'] as const satisfies readonly Proveedor[]
 type OtroAgente = (typeof OTROS_AGENTES)[number]
 
 /**
@@ -804,6 +804,15 @@ const OTROS: Record<OtroAgente, { titulo: string; logo: string; como: 'ventana' 
         de tu usuario, pero no las que guardaste en Hermit, salvo que se lo elijas aquí.
       </>
     )
+  },
+  devin: {
+    titulo: 'Devin · Cognition',
+    logo: 'devin',
+    como: 'navegador',
+    beta: true,
+    texto: 'Hermit trabaja con tu cuenta de Devin (la de Cognition: la misma con la que entras en Devin o en Windsurf). La cuenta se autoriza en el navegador; si ya tienes sesión ahí, entra sola.',
+    uso: 'https://app.devin.ai',
+    salir: true
   }
 }
 

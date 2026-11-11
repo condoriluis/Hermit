@@ -60,6 +60,7 @@ export function gruposModelos(models: Model[], conectados?: Proveedor[]) {
     { id: 'muse', label: 'Muse Code (Meta)' },
     { id: 'pi', label: 'Pi · beta · gratis' },
     { id: 'pi', label: 'Pi · beta · de pago (por millón de tokens)', pago: true },
+    { id: 'devin', label: 'Devin · beta' },
   ]
 
   // Si se pasan proveedores conectados, priorizamos los que tienen cuenta activa primero

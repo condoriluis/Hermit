@@ -7,6 +7,7 @@ import {
   Users,
   Download
 } from 'lucide-react'
+import { Animar } from './Animar'
 
 const beneficios = [
   {
@@ -45,7 +46,7 @@ export default function Features() {
   return (
     <section id="beneficios" className="py-24 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-16">
+        <Animar className="text-center max-w-3xl mx-auto mb-16">
           <span className="text-xs uppercase font-mono tracking-widest text-accent font-bold">
             Por qué te va a gustar
           </span>
@@ -56,22 +57,21 @@ export default function Features() {
             Diseñado para que cualquier persona —desde creadores de contenido y emprendedores hasta
             desarrolladores— pueda crear contenido de calidad sin complicaciones.
           </p>
-        </div>
+        </Animar>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {beneficios.map((b, i) => {
             const Icon = b.icon
             return (
-              <div
-                key={i}
-                className="p-6 rounded-2xl bg-panel border border-line hover:border-line-strong hover:bg-panel-2 transition-all duration-200"
-              >
+              <Animar key={i} delay={(i % 3) * 90}>
+                <div className="h-full p-6 rounded-2xl bg-panel border border-line hover:border-line-strong hover:bg-panel-2 hover:-translate-y-1 transition-all duration-200">
                 <div className="w-12 h-12 rounded-xl bg-panel-2 border border-line flex items-center justify-center text-accent mb-5">
                   <Icon className="w-6 h-6" />
                 </div>
                 <h3 className="text-lg font-bold text-text font-heading mb-2">{b.title}</h3>
                 <p className="text-sm text-muted leading-relaxed">{b.desc}</p>
-              </div>
+                </div>
+              </Animar>
             )
           })}
         </div>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from 'react'
 import { ChevronLeft, ChevronRight, Volume2, VolumeX } from 'lucide-react'
+import { Animar } from './Animar'
 
 /**
  * Los videos de ejemplo, en una pila 3D simétrica: el que se ve va al frente, al centro, y los
@@ -109,7 +110,7 @@ export default function Ejemplos() {
   return (
     <section id="ejemplos" className="py-24 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-12">
+        <Animar className="text-center max-w-3xl mx-auto mb-12">
           <span className="text-xs uppercase font-mono tracking-widest text-accent font-bold">
             Hecho con Hermit
           </span>
@@ -119,8 +120,9 @@ export default function Ejemplos() {
           <p className="mt-4 text-base sm:text-lg text-muted">
             Estos videos los hizo Hermit solo, sin edición manual. Elige uno para verlo, o desliza a los lados.
           </p>
-        </div>
+        </Animar>
 
+        <Animar delay={120}>
         <div ref={caja} className="relative max-w-4xl mx-auto">
           <div
             className="relative mx-auto [perspective:1600px] [touch-action:pan-y]"
@@ -263,10 +265,13 @@ export default function Ejemplos() {
             </button>
           </div>
         </div>
+        </Animar>
 
+        <Animar delay={200}>
         <p className="text-center text-xs text-muted mt-8">
           Todos se generaron en una computadora normal y los archivos quedan en tu equipo.
         </p>
+        </Animar>
       </div>
     </section>
   )

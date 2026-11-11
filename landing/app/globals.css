@@ -59,3 +59,39 @@ body {
   background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(79, 140, 255, 0.08), transparent 40%);
 }
 
+
+/* Entrada animada del hero: sube y aparece una vez, con delay por elemento. */
+@keyframes subir {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.entrada {
+  animation: subir 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* El brillo del hero respira despacio. */
+@keyframes brillo {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.animate-brillo {
+  animation: brillo 7s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entrada,
+  .animate-brillo {
+    animation: none !important;
+  }
+}

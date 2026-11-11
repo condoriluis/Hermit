@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Monitor, Terminal } from 'lucide-react'
 import { AppleLogo } from '@/components/Icons'
 import { enlaceDescarga } from '@/lib/descargas'
+import { Animar } from './Animar'
 
 export default function CTA() {
   return (
@@ -14,10 +15,11 @@ export default function CTA() {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-accent/10 blur-[100px] pointer-events-none -z-10" />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-panel-2 border border-line flex items-center justify-center mx-auto mb-6 shadow-glow">
+        <Animar className="w-16 h-16 rounded-2xl bg-panel-2 border border-line flex items-center justify-center mx-auto mb-6 shadow-glow">
           <Image src="/icon.svg" width={36} height={36} alt="Hermit" />
-        </div>
+        </Animar>
 
+        <Animar delay={80}>
         <h2 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-text font-heading tracking-tight max-w-3xl mx-auto">
           Comienza a crear con agentes visuales hoy mismo
         </h2>
@@ -25,8 +27,10 @@ export default function CTA() {
         <p className="mt-5 text-base sm:text-xl text-muted max-w-2xl mx-auto">
           Descarga el instalador de Hermit gratis, directo desde la web. Sin registros forzados ni suscripciones obligatorias.
         </p>
+        </Animar>
 
         {/* Multi-OS Download Buttons */}
+        <Animar delay={180}>
         <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
           <a
             href={enlaceDescarga('windows')}
@@ -67,6 +71,7 @@ export default function CTA() {
             </div>
           </a>
         </div>
+        </Animar>
       </div>
     </section>
   )

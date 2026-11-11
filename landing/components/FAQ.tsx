@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
+import { Animar } from './Animar'
 
 const faqs = [
   {
@@ -32,7 +33,7 @@ export default function FAQ() {
   return (
     <section id="faq" className="py-24 relative">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
+        <Animar className="text-center mb-16">
           <span className="text-xs uppercase font-mono tracking-widest text-accent font-bold">
             Respuestas Rápidas
           </span>
@@ -42,14 +43,14 @@ export default function FAQ() {
           <p className="mt-4 text-base sm:text-lg text-muted">
             Todo directo y claro sobre cómo funciona Hermit en tu escritorio.
           </p>
-        </div>
+        </Animar>
 
         <div className="space-y-3">
           {faqs.map((faq, idx) => {
             const isOpen = openIdx === idx
             return (
+              <Animar key={idx} delay={idx * 70}>
               <div
-                key={idx}
                 className="rounded-2xl bg-panel border border-line overflow-hidden transition-all duration-200"
               >
                 <button
@@ -72,6 +73,7 @@ export default function FAQ() {
                   </div>
                 )}
               </div>
+              </Animar>
             )
           })}
         </div>

@@ -26,14 +26,14 @@ export default function Hero() {
   return (
     <section className="relative pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden">
       {/* Background radial gradient */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[550px] bg-gradient-to-b from-accent/15 via-accent/5 to-transparent blur-3xl pointer-events-none -z-10" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[550px] bg-gradient-to-b from-accent/15 via-accent/5 to-transparent blur-3xl pointer-events-none -z-10 animate-brillo" />
 
       {/* Subtle grid pattern */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#26324415_1px,transparent_1px),linear-gradient(to_bottom,#26324415_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none -z-10" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         {/* Main Title - Accessible & Clear for Everyone */}
-        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight font-heading text-text max-w-5xl mx-auto leading-[1.14]">
+        <h1 className="entrada text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight font-heading text-text max-w-5xl mx-auto leading-[1.14]">
           Crea videos, artículos, imágenes y presentaciones con Inteligencia Artificial{' '}
           <span className="bg-gradient-to-r from-accent via-accent-hover to-[#8db8ff] bg-clip-text text-transparent">
             directo en tu computadora
@@ -41,14 +41,14 @@ export default function Hero() {
         </h1>
 
         {/* Subtitle - Easy to understand */}
-        <p className="mt-6 text-lg sm:text-xl text-muted max-w-3xl mx-auto leading-relaxed font-normal">
+        <p className="entrada mt-6 text-lg sm:text-xl text-muted max-w-3xl mx-auto leading-relaxed font-normal" style={{ animationDelay: '120ms' }}>
           Elige qué quieres crear en una tarjeta visual —13 estilos de video, artículos para tu blog,
           imágenes y presentaciones—, escribe el tema y mira cómo el asistente lo produce paso a paso
           frente a ti.
         </p>
 
         {/* Action CTAs */}
-        <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto sm:max-w-none">
+        <div className="entrada mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto sm:max-w-none" style={{ animationDelay: '240ms' }}>
           <a
             href={enlaceDescarga(os.so)}
             target="_blank"
@@ -69,7 +69,7 @@ export default function Hero() {
         </div>
 
         {/* Systems compatibility note */}
-        <div className="mt-4 flex items-center justify-center gap-4 text-xs text-muted">
+        <div className="entrada mt-4 flex items-center justify-center gap-4 text-xs text-muted" style={{ animationDelay: '340ms' }}>
           <span>Disponible para:</span>
           <span className="flex items-center gap-1 text-text-2 font-mono">
             <Monitor className="w-3.5 h-3.5 text-accent" /> Windows
@@ -83,7 +83,7 @@ export default function Hero() {
         </div>
 
         {/* Real practical badges */}
-        <div className="mt-14 pt-10 border-t border-line/60 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto text-left">
+        <div className="entrada mt-14 pt-10 border-t border-line/60 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto text-left" style={{ animationDelay: '460ms' }}>
           <div className="flex items-start gap-3">
             <div className="p-2 rounded-lg bg-panel-2 border border-line text-accent">
               <HardDrive className="w-5 h-5" />

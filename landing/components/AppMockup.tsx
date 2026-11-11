@@ -16,6 +16,7 @@ import {
   Mic
 } from 'lucide-react'
 import { enlaceDescarga } from '@/lib/descargas'
+import { Animar } from './Animar'
 
 /**
  * «Cómo funciona» y la ventana de la app. Los datos son los del sistema real: los estilos, sus etapas y sus
@@ -86,7 +87,7 @@ export default function AppMockup() {
   return (
     <section id="demostracion" className="py-10 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-12">
+        <Animar className="text-center max-w-3xl mx-auto mb-12">
           <span className="text-xs uppercase font-mono tracking-widest text-accent font-bold">
             Cómo funciona
           </span>
@@ -97,11 +98,12 @@ export default function AppMockup() {
             Descargas la app, conectas tu cuenta y escribes de qué va. Hermit investiga, redacta y
             arma el archivo en tu computadora.
           </p>
-        </div>
+        </Animar>
 
         {/* Los tres pasos */}
         <div className="grid gap-5 md:grid-cols-3 max-w-6xl mx-auto">
-          <div className="rounded-2xl border border-line bg-panel/50 p-6 flex flex-col">
+          <Animar delay={0} className="h-full">
+          <div className="h-full rounded-2xl border border-line bg-panel/50 p-6 flex flex-col">
             <div className="flex items-center gap-3">
               <span className="font-mono text-xs font-bold text-accent">01</span>
               <span className="h-px flex-1 bg-line" />
@@ -137,8 +139,10 @@ export default function AppMockup() {
               <span>Descargar para {nombreSo}</span>
             </a>
           </div>
+          </Animar>
 
-          <div className="rounded-2xl border border-line bg-panel/50 p-6 flex flex-col">
+          <Animar delay={120} className="h-full">
+          <div className="h-full rounded-2xl border border-line bg-panel/50 p-6 flex flex-col">
             <div className="flex items-center gap-3">
               <span className="font-mono text-xs font-bold text-accent">02</span>
               <span className="h-px flex-1 bg-line" />
@@ -158,8 +162,10 @@ export default function AppMockup() {
               Si ya usas Claude Code o Codex en esta computadora, puede que ya estén conectados.
             </p>
           </div>
+          </Animar>
 
-          <div className="rounded-2xl border border-line bg-panel/50 p-6 flex flex-col">
+          <Animar delay={240} className="h-full">
+          <div className="h-full rounded-2xl border border-line bg-panel/50 p-6 flex flex-col">
             <div className="flex items-center gap-3">
               <span className="font-mono text-xs font-bold text-accent">03</span>
               <span className="h-px flex-1 bg-line" />
@@ -185,6 +191,7 @@ export default function AppMockup() {
               Cuando el estilo lo pide, solo grabas tu voz con el celular.
             </p>
           </div>
+          </Animar>
         </div>
 
         

@@ -10,6 +10,7 @@ import {
   Image as ImageIcon,
   Presentation
 } from 'lucide-react'
+import { Animar } from './Animar'
 
 const herramientas = [
   {
@@ -82,7 +83,7 @@ export default function SkillsShowcase() {
   return (
     <section id="herramientas" className="py-24 relative bg-panel/30 border-y border-line/60">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-16">
+        <Animar className="text-center max-w-3xl mx-auto mb-16">
           <span className="text-xs uppercase font-mono tracking-widest text-accent font-bold">
             Lo que puedes hacer
           </span>
@@ -93,15 +94,16 @@ export default function SkillsShowcase() {
             No necesitas ser un experto ni aprender comandos complicados. Eliges la tarjeta de lo que
             quieres hacer y la inteligencia artificial hace el trabajo a la vista.
           </p>
-        </div>
+        </Animar>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {herramientas.map((h, idx) => {
             const Icon = h.icon
             return (
+              <Animar key={idx} delay={(idx % 4) * 80}>
               <div
                 key={idx}
-                className="rounded-2xl bg-panel border border-line p-6 flex flex-col justify-between hover:border-accent/40 hover:bg-panel-2 transition-all duration-300 shadow-card group"
+                className="h-full rounded-2xl bg-panel border border-line p-6 flex flex-col justify-between hover:border-accent/40 hover:bg-panel-2 transition-all duration-300 shadow-card group"
               >
                 <div>
                   <div className="flex items-center justify-between mb-4">
@@ -138,6 +140,7 @@ export default function SkillsShowcase() {
                   </div>
                 </div>
               </div>
+              </Animar>
             )
           })}
         </div>

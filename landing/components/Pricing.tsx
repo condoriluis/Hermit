@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { Sparkles, Crown, Download, ShieldCheck, QrCode, Check, CreditCard } from 'lucide-react'
 import CheckoutModal from './CheckoutModal'
+import { Animar } from './Animar'
 import { enBolivianos, precios, RESPALDO_BOB, type Plan, type Precios } from '@/lib/cobro'
 
 export default function Pricing() {
@@ -25,7 +26,7 @@ export default function Pricing() {
   return (
     <section id="apoyo" className="py-24 relative bg-panel/30 border-y border-line/60">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-16">
+        <Animar className="text-center max-w-3xl mx-auto mb-16">
           <span className="text-xs uppercase font-mono tracking-widest text-accent font-semibold">
             Software Independiente & Accesible
           </span>
@@ -36,11 +37,12 @@ export default function Pricing() {
             Descarga y usa la aplicación completa gratis. Si valoras el proyecto y deseas que continúe mejorando con
             nuevas versiones, puedes apoyar al mes o al año por un precio accesible.
           </p>
-        </div>
+        </Animar>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto items-stretch">
           {/* 1. Gratis */}
-          <div className="rounded-2xl bg-panel border border-line p-6 flex flex-col justify-between shadow-card hover:border-line-strong transition-all">
+          <Animar delay={0} className="h-full">
+          <div className="h-full rounded-2xl bg-panel border border-line p-6 flex flex-col justify-between shadow-card hover:border-line-strong transition-all">
             <div>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-mono uppercase tracking-wider text-muted font-bold">Uso Libre</span>
@@ -86,9 +88,11 @@ export default function Pricing() {
               </a>
             </div>
           </div>
+          </Animar>
 
           {/* 2. Apoyo al mes */}
-          <div className="rounded-2xl bg-gradient-to-b from-panel via-panel-2 to-panel border-2 border-accent p-6 flex flex-col justify-between shadow-glow relative">
+          <Animar delay={110} className="h-full">
+          <div className="h-full rounded-2xl bg-gradient-to-b from-panel via-panel-2 to-panel border-2 border-accent p-6 flex flex-col justify-between shadow-glow relative">
             <div className="absolute -top-3 right-4 px-2.5 py-0.5 rounded-full bg-accent text-on-solid text-[10px] font-mono font-bold uppercase tracking-wider">
               Popular
             </div>
@@ -142,9 +146,11 @@ export default function Pricing() {
               </button>
             </div>
           </div>
+          </Animar>
 
           {/* 3. Apoyo al año */}
-          <div className="rounded-2xl bg-panel border border-line p-6 flex flex-col justify-between shadow-card hover:border-line-strong transition-all">
+          <Animar delay={220} className="h-full">
+          <div className="h-full rounded-2xl bg-panel border border-line p-6 flex flex-col justify-between shadow-card hover:border-line-strong transition-all">
             <div>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-mono uppercase tracking-wider text-text font-bold flex items-center gap-1">
@@ -194,9 +200,11 @@ export default function Pricing() {
               </button>
             </div>
           </div>
+          </Animar>
         </div>
 
         {/* Payment Methods Banner */}
+        <Animar delay={140}>
         <div className="mt-8 text-center flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs text-muted">
           <span className="flex items-center gap-1.5 font-semibold text-text">
             <ShieldCheck className="w-4 h-4 text-ok" /> Métodos de pago aceptados:
@@ -212,6 +220,7 @@ export default function Pricing() {
         <p className="mt-2 text-center text-[11px] font-mono text-muted">
           Los precios en bolivianos van al cambio del dólar del mercado de hoy: 1 USD ≈ {cambio.toLocaleString('es-MX')} Bs.
         </p>
+        </Animar>
       </div>
 
       <CheckoutModal

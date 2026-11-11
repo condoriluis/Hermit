@@ -2,6 +2,7 @@ import React from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Heart } from 'lucide-react'
+import Redes from './Redes'
 
 export default function Footer() {
   return (
@@ -49,7 +50,11 @@ export default function Footer() {
 
         </div>
 
-        <div className="mt-8 pt-6 border-t border-line/40 text-center text-[11px] text-muted/70">
+        <div className="mt-8 flex justify-center">
+          <Redes />
+        </div>
+
+        <div className="mt-6 pt-6 border-t border-line/40 text-center text-[11px] text-muted/70">
           Hermit es software libre para tu computadora. Los videos y textos generados son de tu total propiedad.
         </div>
       </div>

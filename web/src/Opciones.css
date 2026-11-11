@@ -126,3 +126,14 @@
 .limite-barra span { display: block; height: 100%; border-radius: inherit; background: var(--ok); }
 .limite-barra.alto span { background: var(--warn); }
 .limite-barra.lleno span { background: var(--bad); }
+
+/* Un campo secreto con su ojito para ver la llave sin exponerla. */
+.opcion-clave { position: relative; flex: 1; min-width: 0; display: flex; }
+.opcion-clave input { flex: 1; min-width: 0; padding-right: 36px; }
+.opcion-clave .ojo {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: 26px; height: 26px; display: grid; place-items: center; padding: 0;
+  border-radius: 6px; color: var(--muted); transition: color 0.15s, background 0.15s;
+}
+.opcion-clave .ojo:hover { color: var(--text); background: var(--panel-2); }
+.opcion-clave .ojo .ico { width: 15px; height: 15px; }

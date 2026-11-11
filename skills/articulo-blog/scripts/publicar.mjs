@@ -31,6 +31,7 @@ function cargarConfiguracion() {
   return {
     apiUrl: (env.ARTICULOS_API_URL || guardada.apiUrl || '').replace(/\/+$/, ''),
     apiKey: env.ARTICULOS_API_KEY || guardada.apiKey || '',
+    endpoint: env.ARTICULOS_ENDPOINT || guardada.endpoint || '/api/articles',
     cloudinary,
     categoryId: Number(guardada.categoryId) || 1,
     status: guardada.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT'
@@ -306,8 +307,8 @@ async function main() {
     process.exit(1)
   }
 
-  console.log(`Publicando en ${config.apiUrl}/api/articles (${payload.status})...`)
-  const res = await fetch(`${config.apiUrl}/api/articles`, {
+  console.log(`Publicando en ${config.apiUrl}${config.endpoint} (${payload.status})...`)
+  const res = await fetch(`${config.apiUrl}${config.endpoint}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

@@ -27,6 +27,8 @@ function limpiar(d: ArticulosConfig): ArticulosConfig {
   }
   const apiKey = vacio(d.apiKey, 500)
   if (apiKey) c.apiKey = apiKey
+  const endpoint = vacio(d.endpoint, 200)
+  if (endpoint) c.endpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
   const cl = d.cloudinary ?? {}
   const cloudinary = {
     cloudName: vacio(cl.cloudName, 100),

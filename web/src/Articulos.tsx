@@ -22,7 +22,8 @@ export function ArticulosOpciones() {
   const [abierto, setAbierto] = useState(false)
   const [ocupado, setOcupado] = useState(false)
   const [error, setError] = useState('')
-  const [d, setD] = useState({ apiUrl: '', apiKey: '', cloudName: '', cloudKey: '', cloudSecret: '', folder: '', categoryId: '1', status: 'DRAFT' as 'DRAFT' | 'PUBLISHED' })
+  const [d, setD] = useState({ apiUrl: '', apiKey: '', endpoint: '', cloudName: '', cloudKey: '', cloudSecret: '', folder: '', categoryId: '1', status: 'DRAFT' as 'DRAFT' | 'PUBLISHED' })
+  const [ver, setVer] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     api<ArticulosConfig>('/api/articulos/config').then((c) => {
@@ -30,6 +31,7 @@ export function ArticulosOpciones() {
       setD({
         apiUrl: c.apiUrl ?? '',
         apiKey: c.apiKey ?? '',
+        endpoint: c.endpoint ?? '',
         cloudName: c.cloudinary?.cloudName ?? '',
         cloudKey: c.cloudinary?.apiKey ?? '',
         cloudSecret: c.cloudinary?.apiSecret ?? '',
@@ -46,6 +48,7 @@ export function ArticulosOpciones() {
     const body: ArticulosConfig = {
       apiUrl: d.apiUrl,
       apiKey: d.apiKey,
+      endpoint: d.endpoint || '/api/articles',
       categoryId: Number(d.categoryId) || 1,
       status: d.status,
       cloudinary: d.cloudName || d.cloudKey || d.cloudSecret ? { cloudName: d.cloudName, apiKey: d.cloudKey, apiSecret: d.cloudSecret, folder: d.folder || 'articulos' } : undefined
@@ -57,10 +60,20 @@ export function ArticulosOpciones() {
   }
 
   const cl = d.cloudName || d.cloudKey || d.cloudSecret
-  const campo = (nombre: string, valor: string, cambiar: (v: string) => void, extra: InputHTMLAttributes<HTMLInputElement> = {}) => (
+  /** Un campo del formulario; con `secreta`, el input es de contraseña con el ojito para verla. */
+  const campo = (nombre: string, valor: string, cambiar: (v: string) => void, extra: InputHTMLAttributes<HTMLInputElement> = {}, clave?: string) => (
     <label className="opcion-fila">
       <span className="muted small" style={{ flex: '0 0 108px' }}>{nombre}</span>
-      <input value={valor} onChange={(e) => cambiar(e.target.value)} autoComplete="off" spellCheck={false} {...extra} />
+      {clave ? (
+        <span className="opcion-clave">
+          <input type={ver[clave] ? 'text' : 'password'} value={valor} onChange={(e) => cambiar(e.target.value)} autoComplete="off" spellCheck={false} {...extra} />
+          <button type="button" className="ojo" title={ver[clave] ? 'Ocultar' : 'Ver'} aria-label={ver[clave] ? 'Ocultar la llave' : 'Ver la llave'} onClick={() => setVer({ ...ver, [clave]: !ver[clave] })}>
+            <Icono de="ojo" />
+          </button>
+        </span>
+      ) : (
+        <input value={valor} onChange={(e) => cambiar(e.target.value)} autoComplete="off" spellCheck={false} {...extra} />
+      )}
     </label>
   )
 
@@ -95,14 +108,15 @@ export function ArticulosOpciones() {
           }}
         >
           {campo('URL de la API', d.apiUrl, (v) => setD({ ...d, apiUrl: v }), { placeholder: 'https://tu-blog.com', type: 'url', required: true })}
-          {campo('Llave de la API', d.apiKey, (v) => setD({ ...d, apiKey: v }), { type: 'password', placeholder: 'La que pide la API en x-api-key', required: true })}
-          <p className="muted small">La llave se guarda en tu usuario de esta computadora, no en la app.</p>
+          {campo('Llave de la API', d.apiKey, (v) => setD({ ...d, apiKey: v }), { placeholder: 'La que pide la API en x-api-key', required: true }, 'apiKey')}
+          {campo('Ruta del endpoint', d.endpoint, (v) => setD({ ...d, endpoint: v }), { placeholder: '/api/articles' })}
+          <p className="muted small">La llave se guarda en tu usuario de esta computadora, no en la app. El endpoint es opcional: casi todos usan <code>/api/articles</code>.</p>
           <p className="muted small" style={{ marginTop: 6 }}>
             Cloudinary <span className="muted">(opcional, para alojar la portada)</span>
           </p>
           {campo('Nube', d.cloudName, (v) => setD({ ...d, cloudName: v }), { placeholder: 'cloud-name' })}
           {campo('Llave', d.cloudKey, (v) => setD({ ...d, cloudKey: v }), { placeholder: 'API key' })}
-          {campo('Secreto', d.cloudSecret, (v) => setD({ ...d, cloudSecret: v }), { type: 'password', placeholder: 'API secret' })}
+          {campo('Secreto', d.cloudSecret, (v) => setD({ ...d, cloudSecret: v }), { placeholder: 'API secret' }, 'cloudSecret')}
           {campo('Carpeta', d.folder, (v) => setD({ ...d, folder: v }), { placeholder: 'articulos' })}
           <div className="opcion-fila">
             <span className="muted small" style={{ flex: '0 0 108px' }}>Categoría</span>
@@ -130,7 +144,7 @@ export function ArticulosOpciones() {
                 onClick={() => {
                   setOcupado(true)
                   api<ArticulosConfig>('/api/articulos/config', {})
-                    .then((c) => (setConfig(c), setAbierto(false), setD({ apiUrl: '', apiKey: '', cloudName: '', cloudKey: '', cloudSecret: '', folder: 'articulos', categoryId: '1', status: 'DRAFT' })))
+                    .then((c) => (setConfig(c), setAbierto(false), setD({ apiUrl: '', apiKey: '', endpoint: '', cloudName: '', cloudKey: '', cloudSecret: '', folder: 'articulos', categoryId: '1', status: 'DRAFT' })))
                     .catch((e) => setError(e.message))
                     .finally(() => setOcupado(false))
                 }}

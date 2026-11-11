@@ -397,6 +397,8 @@ export interface ArticulosConfig {
   apiUrl?: string
   /** La llave que la API pide en `x-api-key`. */
   apiKey?: string
+  /** La ruta donde la API recibe el artículo (POST con JSON). Por defecto `/api/articles`. */
+  endpoint?: string
   /** Cloudinary, para subir la portada; sin ella el artículo sale sin imagen alojada. */
   cloudinary?: { cloudName?: string; apiKey?: string; apiSecret?: string; folder?: string }
   /** La categoría que llevan los artículos por defecto (`categoryId` del `articulo.json`). */

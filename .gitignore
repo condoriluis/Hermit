@@ -28,6 +28,8 @@ dist
 
 # El notario Sloth↔Hermit: por ahora solo local, no se sube al repo (decisión del usuario, 2026-11-08).
 /docs/agents/sloth-y-hermit.md
+# La activación manual de apoyos por QR: solo local (tiene el comando y la llave implícita), no va al repo público.
+/docs/agents/apoyo-qr.md
 
 # La página de venta (landing/): su compilado y lo que no debe subir.
 .next/

@@ -29,8 +29,8 @@ export function MisVideos({ cards, sessions, estilo, onEstilo }: { cards: Card[]
   const [ritmo, setRitmo] = useState(false)
   // redes: con un estado elegido en el resumen (los que faltan, los que fallaron…), solo esos.
   const [porEstado, setPorEstado] = useState<EstadoRedes | null>(null)
-  // La forma del video: vertical (TikTok, Reels, Shorts) u horizontal (YouTube). Vertical es lo de todos los días.
-  const [forma, setForma] = useState<'vertical' | 'horizontal'>('vertical')
+  // La forma del video: vertical (TikTok, Reels, Shorts), horizontal (YouTube) o todas. Vertical es lo de todos los días.
+  const [forma, setForma] = useState<'todas' | 'vertical' | 'horizontal'>('vertical')
 
   const videos = datos ? deTipo(datos.piezas, 'video') : []
   const cuantos = new Map<string, number>()
@@ -43,7 +43,7 @@ export function MisVideos({ cards, sessions, estilo, onEstilo }: { cards: Card[]
   const enEstado = porEstado && datos?.redes ? vistos.filter((v) => estadoEnRedes(datos.redes!, v.ruta) === porEstado) : []
   const enRejilla = enEstado.length ? enEstado : vistos
   // Sin forma leída (`vertical` undefined) se cuenta como vertical: es lo que sale en TikTok, Reels y Shorts.
-  const enForma = enRejilla.filter((v) => (forma === 'horizontal' ? v.vertical === false : v.vertical !== false))
+  const enForma = enRejilla.filter((v) => (forma === 'todas' ? true : forma === 'horizontal' ? v.vertical === false : v.vertical !== false))
   // redes: los que se ven y ya están en todas las redes conectadas. Su archivo sobra en el disco.
   const programados = vistos.filter((v) => datos?.redes?.programados?.includes(v.ruta))
   // redes: mientras Hermit sube a TikTok, su navegador se ve a la derecha (`ConNavegadorRedes`); al acabar la cola, se
@@ -72,6 +72,9 @@ export function MisVideos({ cards, sessions, estilo, onEstilo }: { cards: Card[]
         <>
           {videos.length > 0 && (
             <div className="mis-formas" role="group" aria-label="Forma del video">
+              <button className={`todas${forma === 'todas' ? ' on' : ''}`} aria-pressed={forma === 'todas'} title="Todos los videos" onClick={() => setForma('todas')}>
+                Todas
+              </button>
               {(
                 [
                   ['vertical', 'Verticales', 'vertical', 'TikTok, Reels y Shorts'],
@@ -199,7 +202,11 @@ export function VideoDe({ video, onVer, insignia, estilo }: { video: VideoHecho;
       <button className="video-tile" title={sessionId ? 'Abrir su hilo' : 'Verlo'} onClick={() => (sessionId ? void (location.hash = `/s/${sessionId}/${encodeURIComponent(video.archivo)}`) : onVer())}>
         <span className={`video-marco${video.vertical === undefined ? '' : video.vertical ? ' vertical' : ' horizontal'}`}>
           {/* Su primer cuadro en pequeño (`&cuadro`) hasta que pasas el ratón: solo entonces se baja el video. */}
-          <video src={video.src} poster={`${video.src}&cuadro`} muted loop playsInline preload="none" onMouseEnter={(e) => e.currentTarget.play().catch(() => {})} onMouseLeave={(e) => e.currentTarget.pause()} />
+          <video src={video.src} poster={`${video.src}&cuadro`} muted loop playsInline preload="none" onMouseEnter={(e) => e.currentTarget.play().catch(() => {})} onMouseLeave={(e) => {
+            e.currentTarget.pause()
+            // Vuelve a su portada: el primer fotograma del video (el `&cuadro` del poster es ese mismo).
+            e.currentTarget.currentTime = 0
+          }} />
           {video.vertical !== undefined && <span className="video-forma">{video.vertical ? 'Vertical' : 'Horizontal'}</span>}
         </span>
         <span className="pieza-titulo">

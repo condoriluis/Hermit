@@ -97,8 +97,9 @@ button.barra-seccion:hover { color: var(--text); }
 .avance-barra { flex: 1; min-width: 20px; height: 3px; border-radius: 99px; background: var(--line); overflow: hidden; }
 .avance-barra span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width 0.4s ease; }
 .avance.espera { color: var(--warn); }
-/* Terminado: punto verde + la palabra, en el mismo tamaño discreto que las demás fases. */
-.avance.hecho { gap: 5px; }
+/* Terminado: una palomita verde + la palabra, en el mismo tamaño discreto que las demás fases. */
+.avance.hecho { gap: 4px; }
+.avance-hecho { width: 11px; height: 11px; flex: none; color: var(--ok); stroke-width: 2.6; }
 
 /*
  * Plegada: una columna de iconos, cada uno con su nombre al pasar el ratón. Los textos se esconden con `font-size: 0` (los

@@ -262,7 +262,9 @@ export function App() {
   }, [openId, openUpdated])
   const finished = (s: SessionMeta) => !s.running && !s.background?.length && s.id !== openId && s.updatedAt > (seen.at[s.id] ?? seen.since)
   // Avisos: la notificación y el tono cuando algo acaba mientras miras otra cosa, y en el título los del punto verde.
-  useAvisos({ sessions, cards, openId, sinVer: sessions.filter((s) => !s.archived && finished(s)).length, abrir: (id) => go({ kind: 'session', id }) })
+  // Lo que terminó (o espera) sin que lo miraras: alimenta el título de la ventana, los avisos y la campana de la barra.
+  const sinVer = sessions.filter((s) => !s.archived && finished(s))
+  useAvisos({ sessions, cards, openId, sinVer: sinVer.length, abrir: (id) => go({ kind: 'session', id }) })
 
   // Archivado automático: lo que hacías a mano con casi todos los hilos. Vive aquí y no en el servidor porque «ya lo
   // viste» es de este navegador (`seen`). Un hilo se archiva solo si cumple todo: su card no tiene estudio (Hermit, Ideas:
@@ -471,7 +473,10 @@ export function App() {
   const modeloActivo = (() => {
     const id = view.kind === 'session' ? sessions.find((s) => s.id === view.id)?.model : view.kind === 'new' || view.kind === 'draft' ? lastChoice(models)?.model : undefined
     if (!id) return ''
-    return `${NOMBRE_AGENTE[proveedorDe(id)]} · ${models.find((m) => m.id === id)?.label ?? id}`
+    // Los agentes ACP (Devin, Antigravity…) ya traen su nombre en la etiqueta del modelo: no se repite.
+    const etiqueta = models.find((m) => m.id === id)?.label ?? id
+    const agente = NOMBRE_AGENTE[proveedorDe(id)]
+    return etiqueta.startsWith(`${agente} · `) ? etiqueta : `${agente} · ${etiqueta}`
   })()
   const trabajando = sessions.filter((s) => !s.archived && (s.running || !!s.background?.length))
 
@@ -712,7 +717,23 @@ export function App() {
         )}
       </main>
       </div>
-      <BarraEstado connected={connected} fallo={falloEstado} trabajando={trabajando.length} nombres={trabajando.map((s) => s.title)} modelo={modeloActivo} version={version} />
+      <BarraEstado
+        connected={connected}
+        fallo={falloEstado}
+        trabajando={trabajando.length}
+        nombres={trabajando.map((s) => s.title)}
+        modelo={modeloActivo}
+        version={version}
+        terminadas={[...sinVer]
+          .sort((a, b) => b.updatedAt - a.updatedAt)
+          .map((s) => {
+            const card = cardOf(s.cardId)
+            return { id: s.id, titulo: s.title, tarjeta: card?.title, icono: card?.icon, error: s.acaboBien === false, espera: !!s.pendiente }
+          })}
+        avisosComunidad={avisosComunidad}
+        alAbrir={(id) => go({ kind: 'session', id })}
+        alComunidad={() => go({ kind: 'comunidad' })}
+      />
     </div>
     </>
   )

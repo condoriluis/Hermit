@@ -79,6 +79,28 @@
 .estado-modelo { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
 .estado-version { font-variant-numeric: tabular-nums; opacity: 0.8; }
 
+/* La campana de la barra de estado: lo que terminó o te espera sin que lo miraras, y los avisos de la comunidad. */
+.estado-campana { position: relative; display: flex; }
+.estado-notif { position: relative; display: flex; align-items: center; padding: 2px 6px; }
+.estado-notif .ico { width: 13px; height: 13px; }
+.estado-notif .topbar-cuenta { top: -5px; right: -6px; box-shadow: 0 0 0 2px var(--panel); }
+.notif-panel {
+  position: absolute; bottom: calc(100% + 8px); right: 0; z-index: 60;
+  width: 300px; max-height: min(420px, 70vh); overflow-y: auto; padding: 4px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 12px 32px var(--shadow); animation: rise 0.12s ease-out;
+}
+.notif-item { display: flex; align-items: flex-start; gap: 9px; width: 100%; padding: 8px 9px; border-radius: 8px; text-align: left; transition: background 0.12s; }
+.notif-item:hover { background: var(--panel-2); }
+.notif-icono { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; background: var(--bg); border: 1px solid var(--line); color: var(--muted); }
+.notif-icono .ico { width: 14px; height: 14px; }
+.notif-texto { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.notif-titulo { font-size: 12px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notif-detalle { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notif-detalle.mal { color: var(--warn); }
+.notif-mas { margin: 4px 9px 6px; font-size: 11px; color: var(--muted); }
+.notif-vacio { margin: 14px 10px; font-size: 12px; color: var(--muted); text-align: center; }
+
 @media (max-width: 900px) {
   .topbar-buscar { display: none; }
   .creditos-pill { display: none; }
@@ -86,12 +108,23 @@
 }
 
 /* Acerca de: el diálogo que abre la versión en la barra de estado. */
-.modal.acerca { position: relative; width: min(340px, calc(100vw - 32px)); text-align: center; padding: 30px 26px 22px; }
-.modal.acerca > img { width: 56px; height: 56px; }
-.modal.acerca h2 { margin: 12px 0 2px; font-size: 20px; }
-.modal.acerca .acerca-version { margin: 0 0 10px; font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
-.modal.acerca .acerca-texto { margin: 0 auto 14px; max-width: 280px; color: var(--muted); font-size: 13px; line-height: 1.55; }
-.modal.acerca .acerca-credito { margin: 0; font-size: 11.5px; color: var(--muted); opacity: 0.7; }
+.modal.acerca { position: relative; width: min(360px, calc(100vw - 32px)); text-align: center; padding: 34px 28px 24px; }
+.acerca-logo {
+  width: 68px; height: 68px; margin: 0 auto 16px; border-radius: 18px; overflow: hidden;
+  box-shadow: 0 8px 24px var(--shadow), 0 0 0 1px var(--line);
+}
+.acerca-logo img { width: 100%; height: 100%; display: block; }
+.modal.acerca h2 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+.modal.acerca .acerca-version {
+  display: inline-block; margin: 8px 0 14px; padding: 3px 10px; border-radius: 999px;
+  font-family: var(--mono); font-size: 11.5px; color: var(--accent);
+  background: var(--accent-soft); border: 1px solid var(--accent-border);
+}
+.modal.acerca .acerca-texto { margin: 0 auto 18px; max-width: 290px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.modal.acerca .acerca-credito {
+  margin: 0; padding-top: 14px; border-top: 1px solid var(--line);
+  font-size: 11.5px; color: var(--muted); opacity: 0.75; letter-spacing: 0.02em;
+}
 .modal.acerca .acerca-cerrar {
   position: absolute; top: 10px; right: 12px; width: 26px; height: 26px; border-radius: 6px;
   color: var(--muted); font-size: 17px; line-height: 1; transition: background 0.15s, color 0.15s;
@@ -106,5 +139,5 @@
   font-variant-numeric: tabular-nums; transition: background 0.15s, border-color 0.15s;
 }
 .topbar-update svg { width: 12px; height: 12px; flex: none; }
-.topbar-update:hover { background: var(--accent-border); border-color: var(--accent); }
+.topbar-update:hover { background: var(--accent); border-color: var(--accent); color: var(--on-solid); }
 .topbar .pie-nota { font-size: 11.5px; }

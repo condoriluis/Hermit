@@ -151,7 +151,7 @@ export function TooltipGlobal() {
   if (!estado.visible && !estado.texto) return null
 
   return (
-    <div ref={ref} role="tooltip" className={`hermit-tooltip ${estado.lado}${estado.visible ? ' visible' : ''}`} style={{ left: `${estado.x}px`, top: `${estado.y}px` }}>
+    <div ref={ref} role="tooltip" className={`hermit-tooltip ${estado.lado}${estado.texto.length < 26 ? ' corto' : ''}${estado.visible ? ' visible' : ''}`} style={{ left: `${estado.x}px`, top: `${estado.y}px` }}>
       {estado.texto}
     </div>
   )

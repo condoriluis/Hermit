@@ -49,7 +49,6 @@ input, textarea, select { font: inherit; color: inherit; }
 .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--muted); }
 .dot.running { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); animation: pulse 1.2s steps(5) infinite; }
 .dot.ok { background: var(--ok); opacity: 0.7; }
-.dot.done { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
 .dot.unread { background: var(--accent); box-shadow: 0 0 6px var(--accent-border); }
 .dot.error { background: var(--bad); }
 /* Lo que se anima sin parar va por pasos: suave, obliga a dibujar 60 cuadros por segundo mientras se vea (unos 0,2 núcleos
@@ -462,6 +461,8 @@ span.sub-avatar > .logo.chico svg { width: 13px; height: 13px; }
   transition: opacity 0.12s ease-out, transform 0.12s ease-out;
   opacity: 0;
 }
+/* Un tooltip de una línea muy corta («Hermit 0.3.44 — acerca de») no queda raquítico: ancho mínimo solo para esos. */
+.hermit-tooltip.corto { min-width: 120px; text-align: center; }
 .hermit-tooltip.arriba {
   transform: translate(-50%, calc(-100% - 6px)) scale(0.96);
 }

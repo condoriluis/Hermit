@@ -856,7 +856,11 @@ function Programar({ videos, redes, fijos = [], onClose, onHecho }: { videos: Vi
         <div className="programar-lista">
           {filas.map((f) => (
             <div className={`programar-fila ${f.incluir ? '' : 'fuera'}`} key={f.video.ruta}>
-              <video src={f.video.src} poster={`${f.video.src}&cuadro`} muted preload="none" onMouseEnter={(e) => e.currentTarget.play().catch(() => {})} onMouseLeave={(e) => e.currentTarget.pause()} />
+              <video src={f.video.src} poster={`${f.video.src}&cuadro`} muted preload="none" onMouseEnter={(e) => e.currentTarget.play().catch(() => {})} onMouseLeave={(e) => {
+                e.currentTarget.pause()
+                // Vuelve a su portada: el primer fotograma del video (el `&cuadro` del poster es ese mismo).
+                e.currentTarget.currentTime = 0
+              }} />
               <div className="programar-texto">
                 <label className="programar-nombre">
                   <input type="checkbox" checked={f.incluir} disabled={!!f.error} onChange={(e) => cambiar(f.video.ruta, { incluir: e.target.checked })} />

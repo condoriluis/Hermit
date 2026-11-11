@@ -18,6 +18,7 @@ import { ConNavegadorRedes, RedesOpciones } from './Redes' // redes
 import { YoutubeOpciones } from './Youtube'
 import { useVoz, VozOpciones } from './Voz' // voz
 import { FlowOpciones } from './Flow' // Google Flow
+import { ArticulosOpciones } from './Articulos' // el blog de los artículos
 import { VENTA } from '../../shared/venta'
 import './Opciones.css'
 
@@ -37,7 +38,7 @@ export function Opciones({ onDone }: { onDone(): void }) {
   )
 }
 
-type Seccion = 'redes' | 'agentes' | 'voz' | 'flow' | 'llaves' | 'radar' | 'avisos' | 'equipo' | 'herramientas' | 'apoyo' | 'ayuda'
+type Seccion = 'redes' | 'agentes' | 'voz' | 'flow' | 'articulos' | 'llaves' | 'radar' | 'avisos' | 'equipo' | 'herramientas' | 'apoyo' | 'ayuda'
 
 function Ajustes({ onDone, iniciando, onIniciando }: { onDone(): void; iniciando: boolean; onIniciando(si: boolean): void }) {
   const req = useRequisitos(true)
@@ -49,6 +50,7 @@ function Ajustes({ onDone, iniciando, onIniciando }: { onDone(): void; iniciando
     { id: 'agentes', nombre: 'Agentes', icono: 'usuario' },
     { id: 'voz', nombre: 'Voz', icono: 'microfono' },
     { id: 'flow', nombre: 'Google Flow', icono: 'play' },
+    { id: 'articulos', nombre: 'Artículos', icono: 'documento' },
     ...(!VENTA ? [{ id: 'llaves' as const, nombre: 'Llaves de API', icono: 'codigo' as const }] : []),
     { id: 'radar', nombre: 'Radar', icono: 'radar' },
     { id: 'avisos', nombre: 'Avisos', icono: 'campana' },
@@ -118,6 +120,11 @@ function Ajustes({ onDone, iniciando, onIniciando }: { onDone(): void; iniciando
               nota="Los agentes generan imágenes y videos con tus cuentas de Google: la de la Voz y las que agregues aquí, hasta 50. Las imágenes son gratis; los videos gastan créditos de Flow, y si una cuenta se queda sin ellos, Hermit sigue con otra. Agrega solo cuentas tuyas: Google puede limitar o bloquear las que usa de más."
             >
               <FlowOpciones voz={voz} />
+            </Grupo>
+          )}
+          {seccion === 'articulos' && (
+            <Grupo titulo="Artículos" nota="La card «Artículo para tu blog» escribe y publica en el blog que conectes aquí: su API y su llave, y su Cloudinary si quieres que la portada se suba sola. Las llaves se quedan en tu usuario de esta computadora.">
+              <ArticulosOpciones />
             </Grupo>
           )}
           {/* Solo sirven a Ideas: sin la de YouTube, las recomendaciones van con el canal conectado. */}

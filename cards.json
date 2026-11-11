@@ -733,8 +733,8 @@
   },
   {
     "id": "articulo-blog",
-    "title": "Artículo para Blogi",
-    "description": "Redacta artículos de alta calidad técnica y SEO para Blogi, con imagen de portada editorial generada con IA, categoría y tags, y los publica directo en producción (https://miblogi.vercel.app).",
+    "title": "Artículo para tu blog",
+    "description": "Redacta artículos de alta calidad técnica y SEO con imagen de portada editorial generada con IA, categoría y tags, y los publica en el blog que conectes en Opciones → Artículos.",
     "skill": "articulo-blog",
     "produce": "articulo",
     "icon": "lapiz",

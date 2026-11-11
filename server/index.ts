@@ -22,6 +22,7 @@ import { paraMandar, salidaDe, sinSalidasLargas } from '../shared/historial.ts'
 import { conectandoCodex, conectarCodex, cuentaCodex, limitesCodex } from './cuenta-codex.ts'
 import { conectando, conectarClaude, cuentaClaude, limitesClaude } from './cuenta.ts'
 import { cancelarOpenCode, conectandoOpenCode, conectarOpenCode, cuentaOpenCode, limitesOpenCode, quitarCuentaOpenCode, usarCuentaOpenCode } from './cuenta-opencode.ts'
+import { articulos } from './articulos.ts' // dónde publica la card de artículos
 import { enlacesApi } from './enlaces.ts' // tarjeta de los enlaces
 import { cerrarVigilantesOciosos, esperaDe, etapasApi, folderOf, mismaCwd, piezasApi, queFalta, videosDe } from './etapas.ts' // panel de etapas; `videosDe`, de comunidad
 import { cerrarMotoresOciosos } from './motor.ts'
@@ -205,6 +206,8 @@ const disco = espacio({ app: APP, sessions, cards, ocupado, python: () => python
 const maquina = equipo({ app: APP, ocupado }) // tu equipo
 // La voz de los videos, que los agentes piden a Hermit y Hermit genera en AI Studio con la cuenta de Google del usuario.
 const narrar = voz(APP) // voz de AI Studio
+// La card «Artículos»: la API del blog de cada quien y su Cloudinary, en `data/articulos.json`.
+const blog = articulos(APP)
 // Las imágenes y videos de Google Flow, con esa misma cuenta y en ese mismo Edge.
 const generarFlow = flow(APP, narrar.google) // Google Flow
 
@@ -375,6 +378,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
   if (await maquina.api(req, res, path)) return true // tu equipo
   if (await narrar.api(req, res, path)) return true // voz de AI Studio
   if (await generarFlow.api(req, res, path)) return true // Google Flow
+  if (await blog.api(req, res, path)) return true // artículos: la config del blog
 
   if (path === '/api/opciones' && method === 'GET') {
     send(res, 200, opciones())

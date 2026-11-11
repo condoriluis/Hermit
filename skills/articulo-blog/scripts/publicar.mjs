@@ -1,46 +1,43 @@
-// Publica un artículo en Blogi (https://miblogi.vercel.app): sube la portada local
-// a Cloudinary (carpeta miblogi), registra el medio en la base de datos de Blogi para
-// que aparezca en el panel /admin/media, crea una vista previa HTML local y envía el artículo a la API.
+// Publica un artículo en el blog del usuario (el que conectó en Hermit → Opciones → Artículos):
+// sube la portada a su Cloudinary si lo configuró, genera una vista previa HTML local y envía el
+// artículo a la API del blog. La config vive en <app>/data/articulos.json; también valen variables
+// de entorno (ARTICULOS_API_URL, ARTICULOS_API_KEY, CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY,
+// CLOUDINARY_API_SECRET, CLOUDINARY_FOLDER).
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { basename, extname, join, resolve } from 'node:path'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { basename, dirname, extname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const URL_PRODUCCION = 'https://miblogi.vercel.app'
-const RUTA_ENV_BLOGI = 'C:\\Users\\SALA-PC\\Documents\\github\\blogi\\.env'
+// <app>/skills/articulo-blog/scripts → <app> ; en desarrollo, la raíz del repo; en la app, la suya.
+const RAIZ_APP = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
+const ARCHIVO_CONFIG = process.env.ARTICULOS_CONFIG || join(RAIZ_APP, 'data', 'articulos.json')
 
-/** Lee las credenciales de Cloudinary y Blogi desde process.env o desde blogi/.env. */
+/** La config del blog: la del archivo de Hermit, con las variables de entorno por encima. */
 function cargarConfiguracion() {
-  const env = { ...process.env }
-  if (existsSync(RUTA_ENV_BLOGI)) {
-    try {
-      const lineas = readFileSync(RUTA_ENV_BLOGI, 'utf8').split('\n')
-      for (const l of lineas) {
-        const limpia = l.trim()
-        if (!limpia || limpia.startsWith('#')) continue
-        const eq = limpia.indexOf('=')
-        if (eq > 0) {
-          const k = limpia.slice(0, eq).trim()
-          let v = limpia.slice(eq + 1).trim()
-          if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
-            v = v.slice(1, -1)
-          }
-          env[k] ??= v
-        }
-      }
-    } catch {}
+  let guardada = {}
+  try {
+    guardada = JSON.parse(readFileSync(ARCHIVO_CONFIG, 'utf8'))
+  } catch {
+    // Sin archivo: el usuario aún no conecta su blog en Opciones → Artículos.
   }
-
+  const cl = guardada.cloudinary ?? {}
+  const env = process.env
+  const cloudinary =
+    env.CLOUDINARY_CLOUD_NAME && env.CLOUDINARY_API_KEY && env.CLOUDINARY_API_SECRET
+      ? { cloudName: env.CLOUDINARY_CLOUD_NAME, apiKey: env.CLOUDINARY_API_KEY, apiSecret: env.CLOUDINARY_API_SECRET, folder: env.CLOUDINARY_FOLDER || 'articulos' }
+      : cl.cloudName && cl.apiKey && cl.apiSecret
+        ? { cloudName: cl.cloudName, apiKey: cl.apiKey, apiSecret: cl.apiSecret, folder: cl.folder || 'articulos' }
+        : null
   return {
-    apiUrl: env.BLOGI_API_URL || URL_PRODUCCION,
-    apiKey: env.API_SECRET_KEY || 'OJUscW8F5tMhXAuPjOV4lbwjesH9dOWrwFZlqMJsvXLzP6G4PmrwVR3Zv41Y',
-    cloudName: env.CLOUDINARY_CLOUD_NAME || 'dvyvl6ukj',
-    cloudinaryApiKey: env.CLOUDINARY_API_KEY || '599786817477182',
-    cloudinaryApiSecret: env.CLOUDINARY_API_SECRET || 'krnp13cuh7AJO8Y4lu9K7Ux21WM',
-    databaseUrl: env.DATABASE_URL || 'postgresql://postgres.luwhetapdfwmipjdtmzp:X3omzUkH2UiEbmNs@aws-1-sa-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1'
+    apiUrl: (env.ARTICULOS_API_URL || guardada.apiUrl || '').replace(/\/+$/, ''),
+    apiKey: env.ARTICULOS_API_KEY || guardada.apiKey || '',
+    cloudinary,
+    categoryId: Number(guardada.categoryId) || 1,
+    status: guardada.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT'
   }
 }
 
-/** Sube una imagen a Cloudinary en la carpeta miblogi usando la API REST oficial sin dependencias. */
+/** Sube una imagen a Cloudinary con la API REST oficial, sin dependencias. */
 async function subirACloudinary(archivo, config) {
   const buf = readFileSync(archivo)
   const ext = extname(archivo).toLowerCase().replace('.', '') || 'png'
@@ -48,18 +45,18 @@ async function subirACloudinary(archivo, config) {
   const base64 = `data:${mime};base64,${buf.toString('base64')}`
 
   const timestamp = Math.floor(Date.now() / 1000)
-  const folder = 'miblogi'
-  const toSign = `folder=${folder}&timestamp=${timestamp}${config.cloudinaryApiSecret}`
+  const folder = config.cloudinary.folder
+  const toSign = `folder=${folder}&timestamp=${timestamp}${config.cloudinary.apiSecret}`
   const signature = createHash('sha1').update(toSign).digest('hex')
 
   const formData = new FormData()
   formData.append('file', base64)
   formData.append('folder', folder)
   formData.append('timestamp', timestamp.toString())
-  formData.append('api_key', config.cloudinaryApiKey)
+  formData.append('api_key', config.cloudinary.apiKey)
   formData.append('signature', signature)
 
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`, {
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${config.cloudinary.cloudName}/image/upload`, {
     method: 'POST',
     body: formData
   })
@@ -78,35 +75,8 @@ async function subirACloudinary(archivo, config) {
   }
 }
 
-/** Registra el medio en la tabla `media` de la base de datos de Blogi para que se vea en el gestor de archivos. */
-async function registrarMediaEnBaseDeDatos(info, config) {
-  try {
-    const { PrismaClient } = await import('c:/Users/SALA-PC/Documents/github/blogi/lib/generated/prisma/index.js')
-    const prisma = new PrismaClient({
-      datasources: { db: { url: config.databaseUrl } }
-    })
-
-    const creado = await prisma.media.create({
-      data: {
-        name: info.name,
-        provider: 'cloudinary',
-        extension: info.format || 'png',
-        type: info.format === 'jpg' || info.format === 'jpeg' ? 'image/jpeg' : 'image/png',
-        size: info.bytes || 0,
-        url: info.url,
-        externalId: info.publicId
-      }
-    })
-
-    await prisma.$disconnect()
-    console.log(`Medio registrado en Gestor de Archivos de Blogi (/admin/media) con ID: ${creado.id}`)
-  } catch (err) {
-    console.warn(`Aviso: No se pudo registrar en la tabla media de Blogi: ${err.message}`)
-  }
-}
-
 /** Genera una vista previa HTML elegante e independiente para revisar el artículo aunque esté en DRAFT. */
-function generarVistaPreviaHtml(payload, proyDir, respuesta) {
+function generarVistaPreviaHtml(payload, proyDir, respuesta, config) {
   const fecha = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })
   const tagsHtml = payload.tags.map((t) => `<span class="tag">#${t}</span>`).join(' ')
 
@@ -255,7 +225,7 @@ function generarVistaPreviaHtml(payload, proyDir, respuesta) {
 <body>
   <div class="contenedor">
     <div class="aviso" style="${payload.status === 'PUBLISHED' ? 'background:rgba(16,185,129,0.12); color:#10b981; border:1px solid rgba(16,185,129,0.25);' : ''}">
-      <span>●</span> Estado en Blogi: <strong>${payload.status}</strong> ${payload.status === 'PUBLISHED' ? '(En vivo en producción)' : '(Borrador pendiente de aprobación en el panel)'}
+      <span>●</span> Estado en el blog: <strong>${payload.status}</strong> ${payload.status === 'PUBLISHED' ? '(En vivo en producción)' : '(Borrador pendiente de aprobación en el panel)'}
     </div>
     <h1>${payload.title}</h1>
     <div class="extracto">${payload.excerpt}</div>
@@ -269,8 +239,8 @@ function generarVistaPreviaHtml(payload, proyDir, respuesta) {
     </div>
     <div class="acciones">
       <span style="color:var(--muted); font-size:13px;">Slug: <code>${respuesta.slug}</code></span>
-      <a class="btn" href="${payload.status === 'PUBLISHED' ? respuesta.url : 'https://miblogi.vercel.app/admin/articles'}" target="_blank" rel="noopener">
-        ${payload.status === 'PUBLISHED' ? 'Ver en Producción ↗' : 'Abrir en Panel de Blogi ↗'}
+      <a class="btn" href="${payload.status === 'PUBLISHED' ? respuesta.url : `${config.apiUrl}/admin/articles`}" target="_blank" rel="noopener">
+        ${payload.status === 'PUBLISHED' ? 'Ver en Producción ↗' : 'Abrir en el panel del blog ↗'}
       </a>
     </div>
   </div>
@@ -294,43 +264,40 @@ async function main() {
   }
 
   const config = cargarConfiguracion()
+  if (!config.apiUrl || !config.apiKey) {
+    console.error(`Falta la conexión con el blog: ponla en Hermit → Opciones → Artículos (se guarda en ${ARCHIVO_CONFIG}).`)
+    process.exit(1)
+  }
   const data = JSON.parse(readFileSync(jsonPath, 'utf8'))
 
-  // Determinar o subir la portada
-  let coverUrl = data.cover
-  let mediaInfo = null
-
-  if (!coverUrl || !coverUrl.startsWith('http')) {
+  // La portada: se sube a Cloudinary si el usuario lo configuró; si no, solo vale una que ya sea URL.
+  let coverUrl = typeof data.cover === 'string' && data.cover.startsWith('http') ? data.cover : ''
+  if (!coverUrl) {
     const portadaCandidata = ['portada.png', 'portada.jpg', 'portada.jpeg', 'portada.webp']
       .map((p) => join(proyDir, p))
       .find((p) => existsSync(p))
 
     if (portadaCandidata) {
-      console.log(`Subiendo portada ${basename(portadaCandidata)} a Cloudinary...`)
-      const resCloud = await subirACloudinary(portadaCandidata, config)
-      coverUrl = resCloud.url
-      mediaInfo = {
-        name: basename(portadaCandidata, extname(portadaCandidata)),
-        url: resCloud.url,
-        publicId: resCloud.publicId,
-        bytes: resCloud.bytes,
-        format: resCloud.format
+      if (config.cloudinary) {
+        console.log(`Subiendo portada ${basename(portadaCandidata)} a Cloudinary...`)
+        const resCloud = await subirACloudinary(portadaCandidata, config)
+        coverUrl = resCloud.url
+        console.log(`Portada subida: ${coverUrl}`)
+      } else {
+        console.warn('Aviso: sin Cloudinary en Opciones → Artículos, el artículo sale sin portada alojada.')
       }
-      console.log(`Portada subida: ${coverUrl}`)
-
-      // Registrar en la tabla media de Blogi
-      await registrarMediaEnBaseDeDatos(mediaInfo, config)
     }
   }
 
+  const status = forzarPublicar || data.status === 'PUBLISHED' || (!data.status && config.status === 'PUBLISHED') ? 'PUBLISHED' : 'DRAFT'
   const payload = {
     title: String(data.title || '').trim(),
     slug: data.slug ? String(data.slug).trim() : undefined,
     excerpt: String(data.excerpt || '').trim().slice(0, 500),
     content: String(data.content || '').trim(),
-    cover: coverUrl || '',
-    categoryId: Number(data.categoryId) || 1,
-    status: forzarPublicar || data.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
+    cover: coverUrl,
+    categoryId: Number(data.categoryId) || config.categoryId,
+    status,
     tags: Array.isArray(data.tags) ? data.tags.map((t) => String(t).trim()).filter(Boolean) : []
   }
 
@@ -356,7 +323,7 @@ async function main() {
   }
 
   // Generar vista previa HTML local
-  generarVistaPreviaHtml(payload, proyDir, respuesta)
+  generarVistaPreviaHtml(payload, proyDir, respuesta, config)
 
   const resultado = {
     id: respuesta.id,
@@ -376,7 +343,7 @@ async function main() {
   console.log(`ID: ${resultado.id}`)
   console.log(`Slug: ${resultado.slug}`)
   console.log(`Estado: ${resultado.status}`)
-  console.log(`Panel de control: ${resultado.adminUrl}`)
+  console.log(`Panel del blog: ${resultado.adminUrl}`)
   console.log(`Vista previa local: ${join(proyDir, 'vista-previa.html')}`)
 }
 

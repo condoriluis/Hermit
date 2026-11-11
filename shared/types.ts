@@ -388,6 +388,23 @@ export interface Opciones {
   meta: { final: string; caduca?: number } | null
 }
 
+/**
+ * Dónde publica la card «Artículos» (`server/articulos.ts`, `data/articulos.json`): la API del blog del usuario y, si la
+ * tiene, su Cloudinary para la portada. Cada quien pone la suya en Opciones → Artículos; los scripts de la skill la leen.
+ */
+export interface ArticulosConfig {
+  /** La dirección de la API del blog (la de Blogi o una compatible), sin diagonal final. */
+  apiUrl?: string
+  /** La llave que la API pide en `x-api-key`. */
+  apiKey?: string
+  /** Cloudinary, para subir la portada; sin ella el artículo sale sin imagen alojada. */
+  cloudinary?: { cloudName?: string; apiKey?: string; apiSecret?: string; folder?: string }
+  /** La categoría que llevan los artículos por defecto (`categoryId` del `articulo.json`). */
+  categoryId?: number
+  /** `DRAFT` (borrador) o `PUBLISHED` (en vivo), si el usuario no dice otra cosa. */
+  status?: 'DRAFT' | 'PUBLISHED'
+}
+
 /** La tarjeta de un enlace pegado en el inicio (`server/enlaces.ts`). Sin título, se enseña solo el sitio, o nada. */
 export interface Enlace {
   url: string

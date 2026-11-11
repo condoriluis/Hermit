@@ -6,13 +6,20 @@
 # de Apple, si está, va en los secretos CSC_LINK, CSC_KEY_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD y APPLE_TEAM_ID
 # (docs/adr/0006-mac-y-linux.md); la de Windows, en WIN_CSC_LINK y WIN_CSC_KEY_PASSWORD (docs/adr/0017-firma-de-windows.md);
 # sin ellos, esos instaladores salen sin firma. Siempre el mismo certificado: macOS solo se actualiza a una versión firmada
-# por el mismo equipo de Apple que la instalada.
+# por el mismo equipo de Apple que la instalada. Quien apoya recibe cada versión 7 días
+# antes (`ANTICIPO` del Worker); un arreglo urgente sale para todos de inmediato con `[para todos]` en el mensaje del
+# commit, o con esa opción a mano en «Run workflow».
 name: Publicar Hermit
 
 on:
   push:
     branches: [venta]
   workflow_dispatch:
+    inputs:
+      para_todos:
+        description: 'Para todos de inmediato (un arreglo urgente), sin los 7 días de quien apoya'
+        type: boolean
+        default: false
 
 # Una a la vez: dos publicaciones juntas se pisarían la versión.
 concurrency:
@@ -87,5 +94,6 @@ jobs:
       - run: npm run publicar
         env:
           PUBLICAR: ${{ secrets.PUBLICAR }}
+          PARA_TODOS: ${{ (inputs.para_todos || contains(github.event.head_commit.message, '[para todos]')) && '1' || '' }}
           # Para que el cobro sepa si la de Mac se abre a la primera.
           FIRMADA: ${{ secrets.CSC_LINK != '' && '1' || '' }}

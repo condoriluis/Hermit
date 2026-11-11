@@ -1196,6 +1196,13 @@ export interface AvisoComunidad {
   leido: boolean
 }
 
+/** `/api/comunidad/liberar`, solo del creador: la última versión de un sistema y, mientras es solo de quien apoya, desde cuándo será de todos. */
+export interface VersionLiberable {
+  so: 'windows' | 'mac' | 'mac-arm64' | 'linux'
+  version: string
+  todos?: string
+}
+
 /** `GET /api/comunidad`: quién eres, los números de la comunidad y una página del feed. */
 /** La votación de qué sigue en el roadmap: cada meta con sus votos (el de un Fundador vale dos) y la que votaste. */
 export interface RoadmapComunidad {

@@ -27,7 +27,7 @@
  *   segundos, que recorta `server/comunidad.ts`; el entero se enlaza en el texto). Da su llave.
  */
 import type { AdjuntoComunidad, Autor, AvisoComunidad, CategoriaComunidad, ComentarioComunidad, FeedComunidad, PublicacionComunidad, RoadmapComunidad } from '../../shared/types.ts'
-import { CLAVE, EQUIPO, cupo, esFundador, type Env, type Fila, Rechazo, cuerpo, iguales, json, letras, servir, vigencia } from './index.ts'
+import { CLAVE, EQUIPO, cupo, esFundador, liberar, type Env, type Fila, Rechazo, cuerpo, iguales, json, letras, servir, vigencia } from './index.ts'
 
 export const CATEGORIAS: CategoriaComunidad[] = ['general', 'hice', 'ayuda', 'mejoras', 'anuncios']
 
@@ -139,6 +139,10 @@ export async function comunidad(req: Request, env: Env, url: URL): Promise<Respo
     return json({ ok: true })
   }
   if (ruta === '/comunidad/archivo' && req.method === 'PUT') return json(await subir(req, env))
+  if (ruta === '/comunidad/liberar' && (req.method === 'GET' || req.method === 'POST')) {
+    if (!esCreador(yo)) throw new Rechazo(403, 'Eso solo lo hace el creador de Hermit.')
+    return json(await liberar(env, req.method === 'POST'))
+  }
 
   const p = /^\/comunidad\/p\/([a-z0-9]+)(?:\/(borrar|megusta|comentar|reportar|revisada))?$/.exec(ruta)
   if (p && req.method === 'GET' && !p[2]) return json(await abrir(env, yo, p[1]))

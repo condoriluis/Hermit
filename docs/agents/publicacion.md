@@ -36,7 +36,13 @@ ramas ni bloquea por sí solo un push a `venta`.
 3. Tras verificar la cuenta de GitHub indicada en `AGENTS.md`, `git push origin main:venta` inicia
    `.github/workflows/venta.yml`. Genera una versión común, compila los tres instaladores con `npm run compilar` y los
    sube al cobro con `npm run publicar`. No hace falta compilar localmente para publicar.
-   Cada versión sale para todos a la vez: la ven la app instalada, `/version` y `/descargar` en cuanto se publica.
+   Cada versión nueva es primero de quien apoya (`ANTICIPO`, 7 días, en `licencias/src/index.ts`): a los demás se les
+   sigue dando la anterior, guardada en `anterior/` del bucket. `/version` pedido sin llave es la que se le da a todos
+   (la anterior mientras dure el anticipo, con `nueva` diciendo cuál es la nueva); con la llave `PUBLICAR` es siempre la
+   última. `/descargar` igual: sin las cabeceras `x-hermit-*` baja la de todos. Para que salga para todos de inmediato:
+   `[para todos]` en el mensaje del commit de `venta`, la opción `para_todos` en «Run workflow», o el botón «Liberar para
+   todos» de la comunidad (solo el creador, `GET/POST /comunidad/liberar`), que además la suelta en las apps abiertas en
+   minutos sin recompilar.
 4. Comprueba los cuatro jobs y la versión que ofrece el cobro: `/version`, `/version?so=mac`, `/version?so=mac-arm64`
    y `/version?so=linux` en `https://hermit-licencias.myhermit.workers.dev`. Pedido sin llave, `/version` es la que se
    le da a todos. Qué arreglo le llegó a un cliente se mira ahí y en `git log origin/venta`, no en las fechas de los

@@ -3,6 +3,7 @@ import type { AdjuntoComunidad, Autor, AvisoComunidad, CategoriaComunidad, Comen
 import { api, ErrorApi } from './api'
 import { Confirm } from './Confirm'
 import { Escribir, type Escrito, subirImagen } from './Escribir'
+import { Liberar } from './Liberar'
 import { LINK } from './etiquetas'
 import { Unirse } from './Licencia'
 import { Icono as IconoBase, type NombreIcono } from './Iconos'
@@ -258,6 +259,8 @@ export function Comunidad() {
             </div>
             {feed && <Avisos sinLeer={feed.avisos} onAbrir={setAbierta} onLeidos={() => setFeed((f) => f && { ...f, avisos: 0 })} />}
           </header>
+
+          {yo?.creador && <Liberar onAnunciar={(v) => abrirCompositor('anuncios', `Hermit ${v} ya es para todos`)} />}
 
           {escribiendo && escribe ? (
             <div className="com-nueva">

@@ -5,7 +5,9 @@
 // latest-linux.yml), que es lo que mira la app instalada para ofrecer la versión nueva: cuando lo ve, lo demás ya está.
 // Va por partes de 64 MB: el instalador pesa más de lo que aceptan wrangler y un Worker de una vez. La llave está en
 // %APPDATA%\hermit\licencias\publicar.txt (es el secreto PUBLICAR del Worker); en GitHub, la rama `venta` la pasa en la
-// variable PUBLICAR (.github/workflows/venta.yml). Una versión nueva la reciben todos a la vez. FIRMADA=1: la de Mac va
+// variable PUBLICAR (.github/workflows/venta.yml). Cada versión nueva es primero de quien apoya (ANTICIPO del Worker)
+// y `ANTICIPO` después pasa a ser de todos; PARA_TODOS=1 la suelta ya (un arreglo urgente, o cuando una meta del
+// roadmap se cumple y el creador no quiere esperar). FIRMADA=1: la de Mac va
 // firmada por Apple, y el cobro deja de explicar cómo abrirla la primera vez.
 import { closeSync, existsSync, openSync, readFileSync, readSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -59,7 +61,7 @@ async function subir(archivo) {
   } finally {
     closeSync(fd)
   }
-  return cobro(`fin?${q(`&upload=${encodeURIComponent(upload)}`)}`, 'POST', JSON.stringify({ partes, version: VERSION, firmada: process.platform === 'darwin' && process.env.FIRMADA === '1' }))
+  return cobro(`fin?${q(`&upload=${encodeURIComponent(upload)}`)}`, 'POST', JSON.stringify({ partes, version: VERSION, paraTodos: process.env.PARA_TODOS === '1', firmada: process.platform === 'darwin' && process.env.FIRMADA === '1' }))
 }
 
 const u = await subir(instalador)

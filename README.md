@@ -73,7 +73,8 @@ Las reglas del proyecto y el mapa del código están en [`AGENTS.md`](AGENTS.md)
 
 ## Roadmap
 
-Las metas se cuentan con las personas que apoyan hoy. Cada versión nueva la reciben todos a la vez.
+Las metas se cuentan con las personas que apoyan hoy. Quien apoya recibe cada versión nueva 7 días antes que el resto;
+si una meta se cumple antes, el creador la libera para todos desde la comunidad.
 
 | Personas que apoyan | Qué sale |
 | --- | --- |

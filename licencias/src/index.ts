@@ -42,6 +42,7 @@
  *
  * Y la comunidad (`/comunidad/*`, en `comunidad.ts`), de quien tiene una licencia activa.
  */
+import type { VersionLiberable } from '../../shared/types.ts'
 import { comunidad, creditos } from './comunidad.ts'
 
 export interface Env {
@@ -223,19 +224,31 @@ export function instaladorDe(archivo: string): Sistema | undefined {
   if (tipo?.endsWith('.dmg')) return tipo.includes('arm64') ? 'mac-arm64' : 'mac'
   return tipo === '.exe' ? 'windows' : tipo?.endsWith('.AppImage') ? 'linux' : undefined
 }
+/** El sistema de un instalador, del .zip de Mac o de su mapa de bloques; `undefined` si no es uno. */
+export function sistemaDelBinario(archivo: string): Sistema | undefined {
+  const tipo = BINARIO.exec(archivo.replace(/\.blockmap$/, ''))?.groups?.tipo
+  if (!tipo) return
+  if (tipo === '.exe') return 'windows'
+  if (tipo.endsWith('.AppImage')) return 'linux'
+  return tipo.includes('arm64') ? 'mac-arm64' : 'mac'
+}
+/** La versión en el nombre de un archivo publicado (`0.3.4`). */
+export const versionDe = (archivo: string) => /\d+\.\d+\.\d+/.exec(archivo)?.[0]
 /** El sistema de un `latest*.yml`. */
 export const sistemaDelYml = (archivo: string): Sistema => (Object.entries(YML).find(([, y]) => y === archivo)?.[0] as Sistema | undefined) ?? 'windows'
 /** De cada tipo de archivo (el .exe, el .dmg y el .zip de Mac, el AppImage) se quedan el último y el de antes en R2, por si alguien lo está bajando al publicar. */
 const INSTALADORES = 3
 
 /**
- * De los instaladores de un tipo en R2, los que sobran: los que pasan de los `INSTALADORES` más nuevos.
+ * De los instaladores de un tipo en R2, los que sobran: los que pasan de los `INSTALADORES` más nuevos, salvo los de
+ * `guardar` (las versiones de `anterior/`, que aún se dan a quien no apoya, aunque detrás hayan salido varias).
  */
-export function sobran(objetos: { key: string; uploaded: Date }[]): string[] {
+export function sobran(objetos: { key: string; uploaded: Date }[], guardar: string[]): string[] {
   return [...objetos]
     .sort((a, b) => b.uploaded.getTime() - a.uploaded.getTime())
     .slice(INSTALADORES)
     .map((o) => o.key)
+    .filter((key) => !guardar.includes(/\d+\.\d+\.\d+/.exec(key)?.[0] ?? ''))
 }
 /** La versión de los términos que acepta el cliente: la fecha de su «Última actualización» (myhermit.vercel.app/terminos). */
 const TERMINOS = /^\d{4}-\d{2}-\d{2}$/
@@ -248,6 +261,13 @@ export function esFundador(t: string) {
 }
 /** Se avisa del cobro cuando faltan esto o menos días: el cron corre cada mañana, así que el aviso llega con 6 o 7. */
 const AVISO = 7 * DIA
+/**
+ * Cada versión nueva es primero de quien apoya (un apoyo pagado o un lugar gratis de por vida, en esa computadora), y
+ * `ANTICIPO` después pasa a ser de todos. Antes de eso, a los demás se les sigue dando la anterior, que se guarda en
+ * `anterior/` al publicar; el creador la da a todos antes, desde la comunidad (`/comunidad/liberar`), cuando una meta
+ * del roadmap se cumple. Sin él, un arreglo urgente sale para todos de inmediato (`paraTodos` al publicar).
+ */
+const ANTICIPO = 7 * DIA
 /** Lo que la página de Hermit llama desde el navegador. */
 const PUBLICAS = new Set(['/precio', '/version', '/suscribir', '/suscripcion', '/paypal', '/creditos'])
 /** Quién vende, al pie de cada correo (Ley N.º 453, de Bolivia): su nombre, domicilio y contacto están en los términos de la página, no aquí. */
@@ -259,6 +279,8 @@ interface Ultima {
   version: string
   bytes: number
   publicado: string
+  /** Desde cuándo la recibe todo el mundo; antes, solo quien apoya. Sin él (las de antes), ya es de todos. */
+  todos?: string
   /** La de Mac, firmada y notarizada por Apple: abre a la primera, sin «Abrir de todos modos». */
   firmada?: boolean
 }
@@ -296,15 +318,15 @@ async function atender(req: Request, env: Env, ctx: ExecutionContext, url: URL):
     if (req.method === 'GET' && url.pathname === '/precio') return json(await precios(env))
     // Los Fundadores que pidieron salir en los créditos de la página.
     if (req.method === 'GET' && url.pathname === '/creditos') return json({ fundadores: await creditos(env) })
-    if (req.method === 'GET' && url.pathname === '/version') return json(await ultima(env, sistema(url.searchParams.get('so'))))
+    if (req.method === 'GET' && url.pathname === '/version') return json(await ultimaPara(req, env, sistema(url.searchParams.get('so'))))
     if (req.method === 'GET' && url.pathname === '/ultima') return await ultimaLigera(req, env, ctx, sistema(url.searchParams.get('so')))
     if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname === '/descargar') {
       const so = sistema(url.searchParams.get('so'))
-      const u = await ultima(env, so)
+      const u = await ultimaPara(req, env, so)
       // `?so=mac` (el enlace de la página y de los correos) deja elegir entre la de Apple Silicon y la de Intel; la que
       // aún no va firmada por Apple dice antes cómo se abre la primera vez.
       if ((so === 'mac' || so === 'mac-arm64') && !url.searchParams.has('visto')) {
-        const arm = so === 'mac-arm64' ? u : await ultima(env, 'mac-arm64').catch(() => undefined)
+        const arm = so === 'mac-arm64' ? u : await ultimaPara(req, env, 'mac-arm64').catch(() => undefined)
         const intel = so === 'mac' ? u : undefined
         if ([intel, arm].some((m) => m && !m.firmada) || (intel && arm)) return avisoMac(intel, arm)
       }
@@ -350,18 +372,95 @@ async function ultimaLigera(req: Request, env: Env, ctx: ExecutionContext, so: S
   const guardada = await cache?.match(llave)
   if (guardada) return guardada
   const u = await (await env.DESCARGAS.get(ULTIMAS[so]))?.json<Ultima>()
-  const r = json(u ? { version: u.version } : {}, 200, { 'cache-control': `public, max-age=${ULTIMA_EN_CACHE}` })
+  const r = json(u ? { version: u.version, ...(u.todos ? { todos: u.todos } : {}) } : {}, 200, { 'cache-control': `public, max-age=${ULTIMA_EN_CACHE}` })
   if (cache) ctx.waitUntil(cache.put(llave, r.clone()))
   return r
 }
 
-/** Lo que pide electron-updater: `latest.yml`, que nunca se guarda en caché, y los instaladores y sus mapas por pedazos. */
+/** Si `u` ya es de todos (`todos` pasó o no lo tiene). */
+export const deTodos = (u: Pick<Ultima, 'todos'>, ahora = Date.now()) => !u.todos || ahora >= Date.parse(u.todos)
+
+/** `u`, de todos desde `ahora` si aún era solo de quien apoya; si ya lo era, igual. */
+export const liberada = <U extends Pick<Ultima, 'todos'>>(u: U, ahora: string): U => (deTodos(u, Date.parse(ahora)) ? u : { ...u, todos: ahora })
+
+/**
+ * Para el creador (`/comunidad/liberar`): la última versión de cada sistema y, si aún es solo de quien apoya, desde
+ * cuándo será de todos. Con `liberar`, lo es ya: cuando una meta del roadmap se cumple. No hay que compilar nada; las
+ * apps abiertas lo ven en su siguiente vistazo a `/ultima`.
+ */
+export async function liberar(env: Env, liberar: boolean): Promise<VersionLiberable[]> {
+  const ahora = new Date().toISOString()
+  const sistemas = await Promise.all(
+    (Object.keys(ULTIMAS) as Sistema[]).map(async (so) => {
+      const u = await (await env.DESCARGAS.get(ULTIMAS[so]))?.json<Ultima>()
+      if (!u) return
+      const nueva = liberar ? liberada(u, ahora) : u
+      if (nueva !== u) await env.DESCARGAS.put(ULTIMAS[so], JSON.stringify(nueva), { httpMetadata: { contentType: 'application/json' } })
+      return { so, version: nueva.version, ...(deTodos(nueva) ? {} : { todos: nueva.todos }) }
+    })
+  )
+  return sistemas.filter((s) => s !== undefined)
+}
+
+/**
+ * Si quien pregunta apoya hoy: la app manda su clave y su computadora (`x-hermit-clave`, `x-hermit-equipo`), y la clave
+ * es de un apoyo vigente (mensual, anual o un lugar gratis de por vida), en esa computadora.
+ */
+async function apoya(req: Request, env: Env): Promise<boolean> {
+  const clave = (req.headers.get('x-hermit-clave') ?? '').replace(/\s+/g, '').toUpperCase()
+  const equipo = req.headers.get('x-hermit-equipo') ?? ''
+  if (!CLAVE.test(clave) || !EQUIPO.test(equipo)) return false
+  const f = await env.DB.prepare("SELECT l.estado, l.pagado_hasta FROM licencias l JOIN equipos e ON e.clave = l.clave WHERE l.clave = ? AND e.equipo = ? AND l.plan IN ('mensual', 'anual', 'gratis')")
+    .bind(clave, equipo)
+    .first<Pick<Fila, 'estado' | 'pagado_hasta'>>()
+  return !!f && vigencia(f, Date.now()).activa
+}
+
+/** La llave de publicar: la del creador. Con ella, siempre la última versión. */
+const conLlave = (req: Request, env: Env) => !!env.PUBLICAR && iguales(req.headers.get('authorization') ?? '', `Bearer ${env.PUBLICAR}`)
+const delCreador = (req: Request, env: Env) => conLlave(req, env)
+
+/**
+ * La versión que le toca a quien pregunta: la última, o la anterior si la última todavía es solo de quien apoya; entonces
+ * `nueva` dice cuál es esa, para que la página la enseñe. Con la llave de publicar, siempre la última: de ella
+ * sale el número de la siguiente (scripts/version-venta.mjs).
+ */
+async function ultimaPara(req: Request, env: Env, so: Sistema): Promise<Ultima & { nueva?: string }> {
+  const u = await ultima(env, so)
+  if (deTodos(u) || delCreador(req, env) || (await apoya(req, env))) return u
+  const anterior = await anteriorDe(env, so)
+  if (anterior) return { ...anterior, nueva: u.version }
+  // Sin el instalador de la anterior, la última ya se le da a todos: sin `todos`, que diría que aún no.
+  const { todos: _, ...deTodas } = u
+  return deTodas
+}
+
+/** La versión de antes de `so`, la que se da a quien no apoya, si su instalador sigue en R2; si no, a todos la última. */
+async function anteriorDe(env: Env, so: Sistema): Promise<Ultima | undefined> {
+  const a = await (await env.DESCARGAS.get(`anterior/${ULTIMAS[so]}`))?.json<Ultima>()
+  return a && (await env.DESCARGAS.head(a.archivo)) ? a : undefined
+}
+
+/**
+ * Lo que pide electron-updater: `latest.yml`, que nunca se guarda en caché, y los instaladores y sus mapas por pedazos.
+ * Mientras la última sea solo de quien apoya, a los demás se les da el `latest.yml` de la anterior, y los archivos de la
+ * última no: con el número de `/ultima`, que es público, cualquiera armaría su nombre.
+ */
 async function actualizaciones(req: Request, env: Env, url: URL): Promise<Response> {
   const archivo = decodeURIComponent(url.pathname.slice('/actualizaciones/'.length))
   if (!publicable(archivo)) throw new Rechazo(404, 'No existe')
-  const cabeza = await env.DESCARGAS.head(archivo)
+  const yml = AL_DIA.test(archivo)
+  let llave = archivo
+  const so = yml ? sistemaDelYml(archivo) : sistemaDelBinario(archivo)
+  const u = so && (await (await env.DESCARGAS.get(ULTIMAS[so]))?.json<Ultima>())
+  const deQuienApoya = !!u && !deTodos(u) && (yml || versionDe(archivo) === u.version)
+  if (so && deQuienApoya && !delCreador(req, env) && !(await apoya(req, env)) && (await anteriorDe(env, so))) {
+    if (!yml) throw new Rechazo(404, 'No existe')
+    if (await env.DESCARGAS.head(`anterior/${archivo}`)) llave = `anterior/${archivo}`
+  }
+  const cabeza = await env.DESCARGAS.head(llave)
   if (!cabeza) throw new Rechazo(404, 'No existe')
-  return servir(req, env, archivo, cabeza.size, AL_DIA.test(archivo) ? { 'content-type': 'text/yaml; charset=utf-8', 'cache-control': 'no-store' } : {})
+  return servir(req, env, llave, cabeza.size, yml ? { 'content-type': 'text/yaml; charset=utf-8', 'cache-control': 'no-store' } : {})
 }
 
 /** Un archivo de `DESCARGAS`, entero o el pedazo que pide `Range`. */
@@ -399,7 +498,7 @@ export function rangoDe(cabecera: string | null, bytes: number): { offset: numbe
  * Las subidas que no terminan, R2 las borra solas a la semana.
  */
 async function publicar(req: Request, env: Env, url: URL): Promise<Response> {
-  if (!env.PUBLICAR || !iguales(req.headers.get('authorization') ?? '', `Bearer ${env.PUBLICAR}`)) throw new Rechazo(401, 'No autorizado.')
+  if (!conLlave(req, env)) throw new Rechazo(401, 'No autorizado.')
   const archivo = url.searchParams.get('archivo') ?? ''
   if (!publicable(archivo)) throw new Rechazo(400, 'El archivo debe ser un instalador de Hermit (.exe, .dmg, .zip de Mac o .AppImage), su .blockmap o latest.yml.')
   if (req.method === 'POST' && url.pathname === '/publicar/inicio')
@@ -411,23 +510,33 @@ async function publicar(req: Request, env: Env, url: URL): Promise<Response> {
     return json(await subida.uploadPart(n, req.body))
   }
   if (req.method === 'POST' && url.pathname === '/publicar/fin') {
-    const { partes, version, firmada } = (await cuerpo(req)) as { partes: R2UploadedPart[]; version: string; firmada?: boolean }
+    const { partes, version, paraTodos, firmada } = (await cuerpo(req)) as { partes: R2UploadedPart[]; version: string; paraTodos?: boolean; firmada?: boolean }
     const so = instaladorDe(archivo)
     const previa = so ? await (await env.DESCARGAS.get(ULTIMAS[so]))?.json<Ultima>() : undefined
     // macOS solo pone encima una versión firmada por el mismo equipo de Apple: una sin firma dejaría a todos sin actualizar.
     if (previa?.firmada && !firmada) throw new Rechazo(409, `La última de ${NOMBRES[so!]} va firmada por Apple: una sin firma no se podría poner encima. Faltan los secretos de Apple en GitHub.`)
+    if (so && previa && previa.version !== String(version) && (deTodos(previa) || !(await anteriorDe(env, so)))) {
+      const yml = YML[so]
+      const actual = await env.DESCARGAS.get(yml)
+      // Sin `todos`: la anterior ya es de todos, aunque su fecha no hubiera llegado.
+      const { todos: _, ...anterior } = previa
+      await env.DESCARGAS.put(`anterior/${ULTIMAS[so]}`, JSON.stringify(anterior), { httpMetadata: { contentType: 'application/json' } })
+      if (actual) await env.DESCARGAS.put(`anterior/${yml}`, await actual.arrayBuffer(), { httpMetadata: { contentType: 'text/yaml; charset=utf-8' } })
+    }
     const obj = await subida.complete(partes)
     const tipo = BINARIO.exec(archivo)?.groups?.tipo
     if (tipo) {
       const iguales = (await env.DESCARGAS.list({ prefix: 'Hermit-' })).objects.filter((o) => BINARIO.exec(o.key)?.groups?.tipo === tipo)
-      const viejos = sobran(iguales)
+      const anteriores = await Promise.all(Object.values(ULTIMAS).map(async (n) => (await (await env.DESCARGAS.get(`anterior/${n}`))?.json<Ultima>())?.version))
+      const viejos = sobran(iguales, anteriores.filter((v) => v !== undefined))
       if (viejos.length) await env.DESCARGAS.delete(viejos)
     }
     if (!so) return json({ archivo, bytes: obj.size })
-    // La misma versión otra vez (se volvió a publicar) conserva cuándo salió.
+    // La misma versión otra vez (se volvió a publicar) conserva cuándo salió; una nueva es de quien apoya `ANTICIPO`.
     const misma = previa?.version === String(version)
     const publicado = misma ? previa.publicado : new Date().toISOString()
-    const u: Ultima = { archivo, version: String(version), bytes: obj.size, publicado, ...(firmada ? { firmada: true } : {}) }
+    const todos = paraTodos ? undefined : misma ? previa.todos : new Date(Date.parse(publicado) + ANTICIPO).toISOString()
+    const u: Ultima = { archivo, version: String(version), bytes: obj.size, publicado, ...(todos ? { todos } : {}), ...(firmada ? { firmada: true } : {}) }
     await env.DESCARGAS.put(ULTIMAS[so], JSON.stringify(u), { httpMetadata: { contentType: 'application/json' } })
     return json(u)
   }

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
-import { CUPO, esFundador, faltaAvisar, instaladorDe, leerPagos, leerPaypal, rangoDe, sistema, sistemaDelYml, sobran, tarifa, vigencia } from './index.ts'
+import { CUPO, deTodos, esFundador, faltaAvisar, instaladorDe, leerPagos, leerPaypal, liberada, rangoDe, sistema, sistemaDelBinario, sistemaDelYml, sobran, tarifa, vigencia } from './index.ts'
 
 test('autorizada abre una semana sin conexión; cancelada, hasta el fin de lo pagado; pendiente, no', () => {
   const ahora = Date.parse('2026-10-21T12:00:00Z')
@@ -132,10 +132,41 @@ test('cada Mac tiene su sistema: la de Apple Silicon, su última y su latest.yml
   assert.equal(sistemaDelYml('latest-linux.yml'), 'linux')
 })
 
-test('al publicar se borran los instaladores de más: quedan los últimos de cada tipo', () => {
+test('al publicar se borran los instaladores de más, pero no el de la versión que aún se da a quien no apoya', () => {
   const de = (v: string, dia: number) => ({ key: `Hermit-Setup-${v}.exe`, uploaded: new Date(2026, 9, dia) })
   const r2 = [de('0.3.31', 28), de('0.3.30', 27), de('0.3.29', 26), de('0.3.28', 25), de('0.3.27', 24)]
-  assert.deepEqual(sobran(r2), ['Hermit-Setup-0.3.28.exe', 'Hermit-Setup-0.3.27.exe'])
+  assert.deepEqual(sobran(r2, []), ['Hermit-Setup-0.3.28.exe', 'Hermit-Setup-0.3.27.exe'])
+  assert.deepEqual(sobran(r2, ['0.3.28']), ['Hermit-Setup-0.3.27.exe'])
+  assert.deepEqual(sobran(r2, ['0.3.2']), ['Hermit-Setup-0.3.28.exe', 'Hermit-Setup-0.3.27.exe'])
+})
+
+test('el sistema de un instalador, su .zip de Mac o su mapa de bloques', () => {
+  assert.equal(sistemaDelBinario('Hermit-Setup-0.3.4.exe'), 'windows')
+  assert.equal(sistemaDelBinario('Hermit-Setup-0.3.4.exe.blockmap'), 'windows')
+  assert.equal(sistemaDelBinario('Hermit-0.3.4-mac-x64.dmg'), 'mac')
+  assert.equal(sistemaDelBinario('Hermit-0.3.4-mac-x64.zip'), 'mac')
+  assert.equal(sistemaDelBinario('Hermit-0.3.4-mac-arm64.dmg'), 'mac-arm64')
+  assert.equal(sistemaDelBinario('Hermit-0.3.4-mac-arm64.zip.blockmap'), 'mac-arm64')
+  assert.equal(sistemaDelBinario('Hermit-0.3.4-linux-x86_64.AppImage'), 'linux')
+  assert.equal(sistemaDelBinario('latest-mac.yml'), undefined)
+})
+
+test('una versión nueva es de quien apoya hasta su fecha `todos`; las de antes, sin ella, ya son de todos', () => {
+  const ahora = Date.parse('2026-11-05T12:00:00Z')
+  assert.equal(deTodos({}, ahora), true)
+  assert.equal(deTodos({ todos: '2026-11-10T12:00:00Z' }, ahora), false)
+  assert.equal(deTodos({ todos: '2026-11-01T12:00:00Z' }, ahora), true)
+})
+
+test('liberar da a todos ya la versión que aún era de quien apoya; la que ya era de todos no cambia', () => {
+  const ahora = '2026-11-05T12:00:00Z'
+  const pendiente = { version: '0.3.20', todos: '2026-11-12T12:00:00Z' }
+  assert.deepEqual(liberada(pendiente, ahora), { version: '0.3.20', todos: ahora })
+  assert.equal(deTodos(liberada(pendiente, ahora)), true)
+  const yaDeTodos = { version: '0.3.19' }
+  assert.equal(liberada(yaDeTodos, ahora), yaDeTodos)
+  const deAntes = { version: '0.3.18', todos: '2026-11-01T12:00:00Z' }
+  assert.equal(liberada(deAntes, ahora), deAntes)
 })
 
 test('el cupo del día no deja pasar de su máximo, y cada quien tiene el suyo', () => {

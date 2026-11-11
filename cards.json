@@ -763,7 +763,7 @@
       {
         "nombre": "Publicado",
         "listo": "publicado.json",
-        "muestra": "{vista-previa.html,publicado.json}",
+        "muestra": "vista-previa.html",
         "fase": "entrega"
       }
     ],

@@ -20,7 +20,7 @@ El rey de la retención y monetización por su estructura intrínseca de recompe
 
 - **Datos comprobables:** Los datos deben ser ciertos, de fuentes confiables (anotadas en `fuentes/investigacion.md`).
 - **El número 1 debe ser el más impactante:** La lista se ordena de menor a mayor sorpresa para evitar abandono prematuro.
-- El proyecto va en `trabajo/video-top/<nombre>` (la línea `Carpeta: <nombre>` del mensaje). Sin ella, `top-<tema>`.
+- El proyecto va en `<nombre>` (la línea `Carpeta:` del mensaje), dentro del directorio donde Hermit te lanzó. Sin ella, `top-<tema>`.
 
 ## Formato
 

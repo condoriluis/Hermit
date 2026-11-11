@@ -24,7 +24,7 @@ Un formato episódico de ficción dramática inspirado en los k-dramas coreanos 
 
 - **Gasta créditos de Flow del usuario:** Antes de pedir los clips de Veo, infórmale cuántos clips son y qué modelo se usará (Veo 3.1 - Lite, 10 créditos por clip de 8 s). Las imágenes previas (personajes, lugares y cuadros) se hacen con Nano Banana y son **gratis**, no gastan créditos. Hermit pide la autorización antes del primer clip: si la herramienta dice que espera permiso, pídeselo y espera con `estado_flow`.
 - **Sin narrador ni texto en el render crudo:** Veo genera la voz de los personajes limpia. Los subtítulos dinámicos de alto impacto los coloca después `unir.py`.
-- El proyecto va en `trabajo/minidrama/<nombre>` (la línea `Carpeta: <nombre>` del mensaje). Sin ella, `minidrama-<tema>`.
+- El proyecto va en `<nombre>` (la línea `Carpeta:` del mensaje), dentro del directorio donde Hermit te lanzó. Sin ella, `minidrama-<tema>`.
 
 ## Formato
 

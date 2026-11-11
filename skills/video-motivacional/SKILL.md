@@ -21,7 +21,7 @@ Un formato centrado en la emoción pura, la pausa dramática y la estética cine
 
 - **Cero clichés vacíos:** El mensaje debe transmitir peso emocional y psicológico real, inspirado en estoicismo, disciplina o superación genuina.
 - **Audio cinematográfico:** Mezcla impecable donde la voz se sienta profunda y presente por encima de la música.
-- El proyecto va en `trabajo/video-motivacional/<nombre>` (la línea `Carpeta: <nombre>` del mensaje). Sin ella, `motivacional-<tema>`.
+- El proyecto va en `<nombre>` (la línea `Carpeta:` del mensaje), dentro del directorio donde Hermit te lanzó. Sin ella, `motivacional-<tema>`.
 
 ## Formato
 

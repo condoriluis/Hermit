@@ -21,7 +21,7 @@ Uno de los géneros con mayor tiempo promedio de reproducción y comunidad recur
 
 - **Respeto y rigor:** Cero morbo gratuito; los hechos, nombres y fechas deben corresponder a registros periodísticos o judiciales reales, anotados en `fuentes/caso.md`.
 - **Efecto cliffhanger:** Termina planteando las preguntas o teorías que siguen abiertas, invitando al debate en los comentarios.
-- El proyecto va en `trabajo/video-crimen/<nombre>` (la línea `Carpeta: <nombre>` del mensaje). Sin ella, `crimen-<tema>`.
+- El proyecto va en `<nombre>` (la línea `Carpeta:` del mensaje), dentro del directorio donde Hermit te lanzó. Sin ella, `crimen-<tema>`.
 
 ## Formato
 

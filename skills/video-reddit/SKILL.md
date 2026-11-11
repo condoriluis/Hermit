@@ -20,7 +20,7 @@ Un formato faceless de retención masiva y altamente monetizable. Tres elementos
 
 - **Autónomo y en lote:** Todo se genera y ensambla de principio a fin. La voz sale de AI Studio (o TTS) y el fondo de la biblioteca de clips sin copyright.
 - **El gancho no se salta:** La primera frase debe plantear el dilema ("¿Hice mal al cancelar la boda de mi hermana?", "Descubrí el secreto de mi jefe").
-- El proyecto va en la carpeta de la línea `Carpeta: <nombre>` del mensaje (`trabajo/video-reddit/<nombre>`). Sin ella, `reddit-<tema>`.
+- El proyecto va en la carpeta de la línea `Carpeta: <nombre>` del mensaje (`<nombre>`), dentro del directorio donde Hermit te lanzó. Sin ella, `reddit-<tema>`.
 
 ## Formato
 

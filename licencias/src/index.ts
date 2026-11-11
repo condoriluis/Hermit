@@ -321,6 +321,7 @@ async function atender(req: Request, env: Env, ctx: ExecutionContext, url: URL):
     if (req.method === 'POST' && url.pathname === '/licencia') return await licencia(env, await cuerpo(req))
     if (req.method === 'POST' && url.pathname === '/cancelar') return await cancelar(env, await cuerpo(req))
     if (req.method === 'POST' && url.pathname === '/pago') return await pago(env, await cuerpo(req))
+    if (req.method === 'POST' && url.pathname === '/admin/apoyo') return await apoyoManual(req, env)
     if (url.pathname === '/comunidad' || url.pathname.startsWith('/comunidad/')) return await comunidad(req, env, url)
     return json({ error: 'No existe' }, 404)
   } catch (error) {
@@ -772,6 +773,79 @@ async function pago(env: Env, c: Record<string, unknown>): Promise<Response> {
 }
 
 /**
+ * Un apoyo cobrado a mano —el QR de Bolivia, tras ver el comprobante en la banca— con la llave `PUBLICAR`
+ * (`scripts/apoyo.mjs`). Queda como pagado de una vez (`pagado` hasta `pagado_hasta`, sin cobro solo); si el correo ya
+ * tiene uno, se le suma el periodo. La clave sale por el correo de siempre y también en la respuesta, por si hay que
+ * dársela a mano.
+ */
+async function apoyoManual(req: Request, env: Env): Promise<Response> {
+  if (!env.PUBLICAR || !iguales(req.headers.get('authorization') ?? '', `Bearer ${env.PUBLICAR}`)) throw new Rechazo(401, 'No autorizado.')
+  const c = await cuerpo(req)
+  const email = String(c.email ?? '').trim().toLowerCase()
+  if (!EMAIL.test(email) || email.length > 254) throw new Rechazo(400, 'Falta un correo válido.')
+  if (c.plan !== 'mensual' && c.plan !== 'anual') throw new Rechazo(400, 'El plan es «mensual» o «anual».')
+  const plan = c.plan as 'mensual' | 'anual'
+  const meses = plan === 'anual' ? 12 : 1
+  const suma = (base: Date) => {
+    const d = new Date(base)
+    d.setMonth(d.getMonth() + meses)
+    return d.toISOString()
+  }
+  const ahora = new Date()
+  const { results } = await env.DB.prepare('SELECT * FROM licencias WHERE email = ?').bind(email).all<Fila>()
+  const pagado = results.find((f) => f.estado === 'pagado')
+  const vivo = results.find((f) => f.estado === 'authorized')
+  if (vivo && !pagado) throw new Rechazo(409, 'Ese correo ya tiene un apoyo de PayPal que se renueva solo: no se le suma otro pago a mano.')
+  const terminos = TERMINOS.test(String(c.terminos ?? '')) ? String(c.terminos) : '2026-11-07'
+
+  // Renovar el que ya tiene: el periodo se suma desde donde quedó (o desde hoy si ya venció).
+  if (pagado) {
+    const base = pagado.pagado_hasta && Date.parse(pagado.pagado_hasta) > ahora.getTime() ? new Date(pagado.pagado_hasta) : ahora
+    const hasta = suma(base)
+    const p = await precios(env)
+    const fila = { ...pagado, plan, monto: plan === 'anual' ? p.anual : p.mensual, moneda: p.moneda, pagado_hasta: hasta, revisada: ahora.toISOString() }
+    await env.DB.prepare("UPDATE licencias SET plan = ?, monto = ?, moneda = ?, pagado_hasta = ?, revisada = ? WHERE id = ?")
+      .bind(plan, fila.monto, fila.moneda, hasta, fila.revisada, pagado.id)
+      .run()
+    const correoOk = await bienvenida(env, fila, 'manual').catch((e) => (console.error('Correo con la clave', e instanceof Error ? e.message : e), false))
+    return json({ clave: fila.clave, email, plan, pagadaHasta: hasta, correo: correoOk })
+  }
+
+  await sinOtra(env, email, true)
+  const p = await precios(env)
+  const fila: Fila = {
+    id: crypto.randomUUID(),
+    clave: nuevaClave(),
+    email,
+    plan,
+    monto: plan === 'anual' ? p.anual : p.mensual,
+    moneda: p.moneda,
+    fundador: p.quedan > 0 ? 1 : 0,
+    enlace: null,
+    estado: 'pagado',
+    pagado_hasta: suma(ahora),
+    autorizada: ahora.toISOString(),
+    creada: ahora.toISOString(),
+    revisada: ahora.toISOString(),
+    acepto: ahora.toISOString(),
+    terminos,
+    folio: null,
+    cancelada: null,
+    avisado_para: null,
+    modo: env.PAYPAL_MODO,
+    paypal: null,
+    orden: null
+  }
+  await env.DB.prepare(
+    'INSERT INTO licencias (id, clave, email, plan, monto, moneda, fundador, estado, pagado_hasta, autorizada, creada, revisada, acepto, terminos, modo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  )
+    .bind(fila.id, fila.clave, email, plan, fila.monto, fila.moneda, fila.fundador, fila.estado, fila.pagado_hasta, fila.autorizada, fila.creada, fila.revisada, fila.acepto, fila.terminos, fila.modo)
+    .run()
+  const correoOk = await bienvenida(env, fila, 'manual').catch((e) => (console.error('Correo con la clave', e instanceof Error ? e.message : e), false))
+  return json({ clave: fila.clave, email, plan, pagadaHasta: fila.pagado_hasta, correo: correoOk })
+}
+
+/**
  * Un aviso de PayPal. Se comprueba con PayPal que es suyo, se contesta enseguida y luego se lee de su API lo que cambió:
  * la suscripción (sus cambios, y sus cobros con `billing_agreement_id`) o la orden del año (aprobada, que falta cobrar,
  * o su cobro, que trae la orden; uno sin ella, como un reembolso, vuelve a leer todas las de su fila).
@@ -915,11 +989,13 @@ async function guardarEstado(env: Env, fila: Fila, l: Lectura): Promise<Fila> {
   return nueva
 }
 
-/** La clave y cómo empezar, al confirmarse el primer pago. */
-function bienvenida(env: Env, f: Fila) {
+/** La clave y cómo empezar, al confirmarse el primer pago. `manual`: cobrado a mano (QR), no por PayPal. */
+function bienvenida(env: Env, f: Fila, medio: 'paypal' | 'manual' = 'paypal') {
   return correo(env, f.email, `Tu clave de Hermit: ${f.clave}`, [
     'Hola:',
-    'PayPal confirmó tu pago: gracias por apoyar a Hermit. Guarda este correo, es donde queda tu clave.',
+    medio === 'paypal'
+      ? 'PayPal confirmó tu pago: gracias por apoyar a Hermit. Guarda este correo, es donde queda tu clave.'
+      : 'Confirmamos tu pago: gracias por apoyar a Hermit. Guarda este correo, es donde queda tu clave.',
     `Tu clave: ${f.clave}`,
     `Pégala en Hermit, en Opciones, y deja de salirte el recordatorio. Si aún no la tienes, descárgala en ${env.ORIGEN}/descargar (Mac: ${env.ORIGEN}/descargar?so=mac; Linux: ${env.ORIGEN}/descargar?so=linux). La clave sirve en dos computadoras a la vez.`,
     'Hermit trabaja con tu propia cuenta de IA (Claude, ChatGPT, Gemini, Devin y más), que pagas aparte a su proveedor. Si tienes dudas, responde a este correo.'

@@ -119,7 +119,7 @@ def main() -> None:
     print(f"Duración de la voz: {dur_total:.1f} s")
 
     # 2. Transcripción acústica con Whisper de Hermit
-    from hermit import transcribir
+    from hermit import encoder_video, transcribir
     resultado_tx = transcribir(voz)
     segmentos = resultado_tx.get("segmentos", [])
     (revision / "transcripcion.json").write_text(json.dumps(segmentos, ensure_ascii=False, indent=1), encoding="utf-8", newline="\n")
@@ -179,7 +179,7 @@ def main() -> None:
 
     subprocess.run(
         ["ffmpeg", "-nostdin", "-y", "-v", "error", "-i", video_crudo.name, "-i", audio_master.name, "-map", "0:v", "-map", "1:a", *sub_filtros,
-         "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p", "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
+         *encoder_video(18), "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
          "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(final)],
         cwd=revision, check=True
     )

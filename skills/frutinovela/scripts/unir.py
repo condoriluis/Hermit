@@ -146,7 +146,7 @@ def main() -> None:
     revision = PROYECTO / "revision"
     revision.mkdir(exist_ok=True)
     (PROYECTO / "out").mkdir(exist_ok=True)
-    from hermit import transcribir  # el Python de Hermit y Whisper, de video-base
+    from hermit import encoder_video, transcribir  # el Python de Hermit y Whisper, y el encoder de video, de video-base
 
     # Clip por clip: de todo junto, Whisper puede dar un solo segmento largo y los subtítulos caerían donde no se habla.
     # Con lo que oye en cada uno se corta su final muerto (`corte`), salvo `--sin-recortar`.
@@ -191,7 +191,7 @@ def main() -> None:
     # Desde revision/: la ruta del filtro `subtitles` en Windows (C:\…) rompe su sintaxis.
     subprocess.run(
         ["ffmpeg", "-nostdin", "-y", "-v", "error", "-i", crudo.name, "-i", audio.name, "-map", "0:v", "-map", "1:a", *video,
-         "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p", "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
+         *encoder_video(18), "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
          "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(final)],
         cwd=revision, check=True,
     )

@@ -9,10 +9,14 @@ el mismo archivo. La imagen se ajusta al tamaño del vídeo cubriéndolo: lo que
 ya tenía portada (lo marca en sus metadatos) cambia la suya: correrlo dos veces no suma dos.
 `
 import { mkdtempSync, openSync, readSync, closeSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { ffmpeg, opciones, probar, uso } from './ffmpeg.mjs'
+
+// El encoder de video de esta computadora (el de hardware si ganó la medida): `encoderArgs` de equipo.cjs.
+const equipo = createRequire(import.meta.url)('./equipo.cjs')
 
 const MARCA = 'hermit-portada'
 // Los presets de x264, del más usado al menos: el que da las mismas cabeceras que el vídeo es el suyo.
@@ -99,8 +103,8 @@ function sinRecodificar(salida, dir) {
   return Number(hecho.nb_frames) === Number(v.nb_frames) + (yaTenia ? 0 : 1)
 }
 
-/** Recodifica el vídeo entero con la portada delante (x264 crf 16): lo de siempre, cuando no se puede sin recodificar. */
-function recodificar(salida) {
+/** Recodifica el vídeo entero con la portada delante (crf 16): lo de siempre, cuando no se puede sin recodificar. */
+async function recodificar(salida) {
   // La portada, en bt709 de rango limitado como el vídeo: con la matriz por defecto (bt601) los colores salen corridos.
   const filtros = [
     `[1:v]scale=${W}:${H}:force_original_aspect_ratio=increase:out_color_matrix=bt709:out_range=tv,crop=${W}:${H},setsar=1,format=yuv420p,trim=end_frame=1[p]`,
@@ -114,7 +118,7 @@ function recodificar(salida) {
     '-framerate', fps, '-i', imagen,
     '-filter_complex', filtros.join(';'),
     '-map', '[vo]', ...(a ? ['-map', '[ao]'] : []),
-    '-c:v', 'libx264', '-crf', '16', '-preset', 'medium', '-pix_fmt', 'yuv420p', '-r', fps,
+    ...(await equipo.encoderArgs(16)), '-r', fps,
     '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv',
     ...(a ? ['-c:a', 'aac', '-b:a', '320k', '-ar', a.sample_rate, '-ac', String(a.channels)] : []),
     '-metadata', `comment=${MARCA}`,
@@ -135,7 +139,7 @@ try {
   }
   if (!ok) {
     como = 'recodificando el vídeo'
-    recodificar(tmp)
+    await recodificar(tmp)
   }
   try {
     renameSync(tmp, video)

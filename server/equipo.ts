@@ -51,10 +51,10 @@ function tarjetaDeVideo(): Promise<string | undefined> {
   return tarjeta
 }
 
-function medido(): Pick<Equipo, 'voz' | 'render' | 'tresD'> {
+function medido(): Pick<Equipo, 'voz' | 'render' | 'tresD' | 'encode'> {
   try {
     const d = JSON.parse(readFileSync(rutaEquipo(), 'utf8'))
-    return { voz: d.voz, render: d.render?.final, tresD: d.render?.tarjeta }
+    return { voz: d.voz, render: d.render?.final, tresD: d.render?.tarjeta, encode: d.encode }
   } catch {
     return {}
   }
@@ -62,6 +62,9 @@ function medido(): Pick<Equipo, 'voz' | 'render' | 'tresD'> {
 
 export function equipo(o: { app: string; ocupado: () => string | null }) {
   let midiendo = false
+  let midiendoEncoder = false
+  // La última vez que se intentó medir el encoder: sin FFmpeg no hay medida y no se reintenta cada consulta.
+  let encodeIntentado = 0
   let error: string | undefined
   let probado = false
   // Mirar la mejora es lanzar el Python de Hermit (~1 s) y el hilo nuevo la pide cada vez: se recuerda un minuto, y se
@@ -111,6 +114,20 @@ export function equipo(o: { app: string; ocupado: () => string | null }) {
     if (!probado && !lo.voz && motor?.startsWith('parakeet') && !o.ocupado()) {
       probado = true
       medir()
+    }
+    // El encoder del video (el de hardware si esta computadora lo tiene y gana) se mide una vez con
+    // `medirEncoder()` de equipo.cjs y queda en `equipo.json`; los scripts de las skills lo leen al exportar.
+    if (!lo.encode && !midiendoEncoder && !o.ocupado() && Date.now() - encodeIntentado > 60_000) {
+      encodeIntentado = Date.now()
+      midiendoEncoder = true
+      const equipoCjs = join(o.app, 'skills', 'video-base', 'scripts', 'equipo.cjs')
+      const p = spawn(process.execPath, ['-e', `require(${JSON.stringify(equipoCjs)}).medirEncoder()`], {
+        env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+        windowsHide: true,
+        stdio: 'ignore'
+      })
+      p.on('exit', () => (midiendoEncoder = false))
+      p.on('error', () => (midiendoEncoder = false))
     }
     return {
       procesador: nombreProcesador(cpus()[0]?.model ?? ''),

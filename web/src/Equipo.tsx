@@ -7,6 +7,14 @@ import { Icono, type NombreIcono } from './Iconos'
 /** «unos 40 s», «unos 3 min». */
 const tiempo = (s: number) => (s < 90 ? `unos ${Math.max(5, Math.round(s / 5) * 5)} s` : `unos ${Math.round(s / 60)} min`)
 
+/** Cómo se llama cada encoder de video en palabras: el de hardware que midió `equipo.cjs`, o el procesador. */
+const CODIFICADOR: Record<string, string> = {
+  h264_nvenc: 'tu tarjeta NVIDIA',
+  h264_qsv: 'Intel Quick Sync',
+  h264_videotoolbox: 'VideoToolbox de Apple',
+  h264_mf: 'la aceleración de video de Windows'
+}
+
 const motor = (e: Equipo) =>
   e.motor === 'whisper'
     ? e.nvidia
@@ -113,7 +121,11 @@ export function TuEquipo() {
               nombre="El render"
               detalle={[
                 e.tresD?.software && 'El 3D se dibuja sin tu tarjeta de video, por software, y va muy lento: actualiza su controlador.',
-                e.render ? `Un minuto de video sale en ${tiempo(1800 / e.render.cuadros)}.` : 'Se mide en el primer video que termines.'
+                e.render ? `Un minuto de video sale en ${tiempo(1800 / e.render.cuadros)}.` : 'Se mide en el primer video que termines.',
+                e.encode &&
+                  (e.encode.nombre === 'libx264'
+                    ? 'El video se exporta por el procesador.'
+                    : `El video se exporta por ${CODIFICADOR[e.encode.nombre] ?? e.encode.nombre}${e.encode.x264 && e.encode.ms ? `, ${Math.round(e.encode.x264 / e.encode.ms)}× más rápido que el procesador` : ''}.`)
               ]
                 .filter(Boolean)
                 .join(' ')}

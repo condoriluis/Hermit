@@ -25,9 +25,10 @@ BASE = SKILL.parent / "video-base" / "scripts"
 sys.path.insert(0, str(BASE))
 
 try:
-    from hermit import MODELOS, proceso, wav16k
+    from hermit import MODELOS, encoder_video, proceso, wav16k
 except ImportError:
     MODELOS = None
+    encoder_video = None
     proceso = None
     wav16k = None
 
@@ -224,10 +225,7 @@ def main() -> None:
 
     cmd.extend([
         "-t", f"{dur:.2f}",
-        "-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "18",
-        "-pix_fmt", "yuv420p",
+        *(encoder_video(18) if encoder_video else ["-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p"]),
         "-c:a", "aac",
         "-b:a", "192k",
         "-ar", "48000",

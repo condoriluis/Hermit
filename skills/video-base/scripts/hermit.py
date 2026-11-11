@@ -419,6 +419,32 @@ def ffmpeg(*args: str) -> None:
     subprocess.run(["ffmpeg", "-nostdin", "-y", "-v", "error", *args], check=True)
 
 
+# El encoder de video de esta computadora: el de hardware que midió `equipo.cjs` de video-base y dejó en
+# `equipo.json` (junto a MODELOS), o libx264 si no hay medida o si el hardware no ganó. Solo cambia quién
+# codifica; la calidad va por el mismo camino (un CRV ~18) en todos.
+
+_ENCODERS = {
+    # NVIDIA (en cualquier sistema): VBR con CQ, como un CRF.
+    "h264_nvenc": lambda c: ["-c:v", "h264_nvenc", "-rc", "vbr", "-cq", str(min(51, c)), "-preset", "p4", "-pix_fmt", "yuv420p"],
+    # Intel Quick Sync: calidad por ICQ (`global_quality`, 1-51, menor = mejor).
+    "h264_qsv": lambda c: ["-c:v", "h264_qsv", "-preset", "medium", "-global_quality", str(min(51, c + 4)), "-pix_fmt", "yuv420p"],
+    # Apple (todo Mac): VideoToolbox, `-q:v` de 1 a 100.
+    "h264_videotoolbox": lambda c: ["-c:v", "h264_videotoolbox", "-q:v", "65"],
+    # Windows sin más: Media Foundation.
+    "h264_mf": lambda c: ["-c:v", "h264_mf", "-rate_control", "quality", "-quality", "85"],
+}
+
+
+def encoder_video(calidad: int = 18) -> list[str]:
+    """Los argumentos de ffmpeg para codificar el video H.264 de esta computadora (va tras `-c:v` incluido)."""
+    try:
+        nombre = json.loads((MODELOS.parent / "equipo.json").read_text(encoding="utf-8")).get("encode", {}).get("nombre", "")
+    except Exception:
+        nombre = ""
+    hacer = _ENCODERS.get(nombre)
+    return hacer(calidad) if hacer else ["-c:v", "libx264", "-crf", str(calidad), "-preset", "medium", "-pix_fmt", "yuv420p"]
+
+
 def wav16k(origen: Path, destino: Path) -> None:
     ffmpeg("-i", str(origen), "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", str(destino))
 

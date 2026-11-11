@@ -29,7 +29,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 BASE = Path(__file__).resolve().parent
 PROYECTO = Path.cwd()
 sys.path.insert(0, str(BASE))
-from hermit import transcribir  # el Python de Hermit y Whisper, de video-base
+from hermit import encoder_video, transcribir  # el Python de Hermit y Whisper, y el encoder de video, de video-base
 
 FORMATOS = {"vertical": (1080, 1920), "horizontal": (1920, 1080)}
 # Palabras por línea y color de la palabra activa (ASS: &HAABBGGRR). `minimal` apenas calienta el blanco.
@@ -183,7 +183,7 @@ def main() -> None:
     subprocess.run(
         ["ffmpeg", "-nostdin", "-y", "-v", "error", *entradas, *maps,
          "-vf", f"subtitles={ass_path.name}:charenc=UTF-8",
-         "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p",
+         *encoder_video(18),
          "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", salida.name],
         cwd=salida.parent, check=True,
     )

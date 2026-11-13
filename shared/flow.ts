@@ -236,14 +236,35 @@ export function motivoDeDescanso(tipo: 'imagen' | 'video', sesion: boolean, sald
 
 /**
  * Si Flow rechazó un pedido por lo que se le pidió (derechos, política de contenido) y no por una frenada de Google: no
- * gastó créditos. Eso no es cosa de la cuenta —cae igual en todas— así que no se pasa a otra: se cambia el pedido una vez
- * y, si vuelve a caer, se deja esa escena (ver `RECHAZOS_PARA_BLOQUEAR`). Es lo que evita el bucle de reintentos con lo
- * que Flow no va a aceptar nunca, como los personajes de una película.
+ * gastó créditos. Eso no es cosa de la cuenta —cae igual en todas— así que no se pasa a otra: se cambia el pedido y, si
+ * vuelve a caer, se intenta una versión libre de derechos, y solo a la tercera la escena queda fuera (ver
+ * `RECHAZOS_PARA_BLOQUEAR`). Es lo que evita el bucle de reintentos con lo que Flow no va a aceptar nunca, como los
+ * personajes de una película, sin dejar un hueco por un prompt mal escrito.
  */
 export const esRechazoDeContenido = (frenada: boolean, gasto: number | null) => !frenada && gasto === 0
 
-/** Cuántas veces Flow puede rechazar por contenido la misma escena (su `salida`) antes de que Hermit la deje por perdida. */
-export const RECHAZOS_PARA_BLOQUEAR = 2
+/**
+ * Fallos técnicos de la generación en Flow —no pudo producir el audio o el vídeo—, que no son ni un rechazo por
+ * contenido ni una frenada de la cuenta: no gastan créditos y la escena no pierde vidas; se reintenta con el mismo
+ * pedido o más corto. Los de la política de Google hablan de políticas o contenido, no de «no se pudo generar».
+ */
+export const FALLO_TECNICO = /no se pudo generar|couldn'?t generate|failed to generate|something went wrong|error (al|durante) gener/i
+export const PALABRAS_POLITICA = /pol[ií]tica|policy|contenido|derechos|inapropiad|prohibid|violat|guideline/i
+export const esFalloTecnico = (mensaje: string) => FALLO_TECNICO.test(mensaje) && !PALABRAS_POLITICA.test(mensaje)
+
+/**
+ * El pedido cuesta más que su `tope` de créditos («Cuesta 100 créditos y el tope es 20»): es cosa del pedido, no de la
+ * cuenta — todas fallarían igual—, así que no se marca ninguna como frenada ni se pasa a otra: se devuelve el error.
+ */
+export const PASA_TOPE = /cuesta\s+\d[\d.,]*\s*cr[eé]ditos?\s+y\s+el\s+tope\s+es/i
+export const esPasaTope = (mensaje: string) => PASA_TOPE.test(mensaje)
+
+/**
+ * Cuántas veces Flow puede rechazar por contenido la misma escena antes de que Hermit la deje por perdida. Son tres
+ * vidas: el pedido original, el cambio de verdad y la versión 100 % original (sin personajes, marcas ni personas con
+ * derechos). Los rechazos no gastan créditos: solo cuestan el minuto de cada intento.
+ */
+export const RECHAZOS_PARA_BLOQUEAR = 3
 
 /** Lo que se recuerda un rechazo por contenido: pasado eso, la escena se puede volver a pedir (quizá ya cambió el pedido). */
 export const RECUERDA_RECHAZO = 6 * 60 * 60_000

@@ -162,15 +162,35 @@ test('un fallo de la página no se confunde con una frenada de Google', () => {
   assert.ok(!esFalloDeNavegador('Flow dijo que cuesta 600 créditos y el tope es 100.'))
 })
 
-test('un rechazo por contenido no es de la cuenta: no gasta y se deja tras dos', () => {
+test('un rechazo por contenido no es de la cuenta: no gasta y se deja tras tres', () => {
   // Sin gastar y sin frenada: es de lo que se le pide (derechos, política), y no se pasa a otra cuenta.
   assert.ok(esRechazoDeContenido(false, 0))
   // Con frenada, si gastó, o si no se supo: eso no es del clip, lo decide la cuenta o el usuario.
   assert.ok(!esRechazoDeContenido(true, 0))
   assert.ok(!esRechazoDeContenido(false, 10))
   assert.ok(!esRechazoDeContenido(false, null))
-  assert.equal(RECHAZOS_PARA_BLOQUEAR, 2)
+  assert.equal(RECHAZOS_PARA_BLOQUEAR, 3)
   assert.equal(RECUERDA_RECHAZO, 6 * 60 * 60_000)
+})
+
+test('un fallo técnico de la generación no es un rechazo por contenido', async () => {
+  const { esFalloTecnico } = await import('./flow.ts')
+  // Los de Veo que no pudo producir: audio, vídeo, imagen.
+  assert.ok(esFalloTecnico('Flow no lo generó: No se pudo generar el audio. Prueba con otra imagen.'))
+  assert.ok(esFalloTecnico('Flow no lo generó: No se pudo generar el vídeo.'))
+  assert.ok(esFalloTecnico("Flow no lo generó: Couldn't generate the video."))
+  // Una política de contenido habla de políticas o contenido, no de «no se pudo generar».
+  assert.ok(!esFalloTecnico('Flow no lo generó: Este contenido infringe nuestras políticas.'))
+  assert.ok(!esFalloTecnico('Flow rechazó el pedido: solicitud no permitida por derechos de autor'))
+  assert.ok(!esFalloTecnico('locator.click: Timeout 10000ms exceeded.'))
+})
+
+test('un pedido que pasa de su tope de créditos es cosa del pedido, no de la cuenta', async () => {
+  const { esPasaTope } = await import('./flow.ts')
+  assert.ok(esPasaTope('Flow no preparó el pedido (Cuesta 100 créditos y el tope es 20. No se generó nada.).'))
+  assert.ok(esPasaTope('Cuesta 24 créditos y el tope es 20'))
+  assert.ok(!esPasaTope('Flow no preparó el pedido (notamos actividad inusual).'))
+  assert.ok(!esPasaTope('Flow no lo generó: No se pudo generar el audio.'))
 })
 
 test('un fallo del navegador descansa unos minutos y no escala como una frenada', () => {

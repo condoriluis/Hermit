@@ -1,11 +1,11 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { dirname, basename, isAbsolute, join, resolve } from 'node:path'
+import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { McpStdioServerConfig } from '@anthropic-ai/claude-agent-sdk'
 import type { Browser } from 'playwright-core'
-import { A_LA_VEZ, AVISO_FRENADA, CALMA, type Descanso, descansoNuevo, elegirCuenta, esFalloDeNavegador, esOmni, esRechazoDeContenido, espacioEntrePedidos, FORMATOS_IMAGEN, FORMATOS_VIDEO, type Motivo, MODELOS_IMAGEN, MODELOS_VIDEO, motivoDeDescanso, PAUSA_CUENTA, PERMISO_CREDITOS, PERMISO_MS, puede, RECHAZOS_PARA_BLOQUEAR, RECUERDA_RECHAZO, RESOLUCIONES_OMNI, type Saldo, saldoVigente as vigente, tipoDeArchivo, TOPE_CREDITOS, VIDEO_MAS_BARATO } from '../../shared/flow.ts'
+import { A_LA_VEZ, AVISO_FRENADA, CALMA, type Descanso, descansoNuevo, elegirCuenta, esFalloDeNavegador, esFalloTecnico, esOmni, esPasaTope, esRechazoDeContenido, espacioEntrePedidos, FORMATOS_IMAGEN, FORMATOS_VIDEO, type Motivo, MODELOS_IMAGEN, MODELOS_VIDEO, motivoDeDescanso, OPCIONES_CLIPS, PAUSA_CUENTA, PERMISO_CREDITOS, PERMISO_MS, puede, RECHAZOS_PARA_BLOQUEAR, RECUERDA_RECHAZO, RESOLUCIONES_OMNI, type Saldo, saldoVigente as vigente, tipoDeArchivo, TOPE_CREDITOS, VIDEO_MAS_BARATO } from '../../shared/flow.ts'
 import type { EstadoFlow, GastoFlow, SaldoFlow, TrabajoFlow } from '../../shared/types.ts'
 import { VENTA } from '../../shared/venta.ts'
 import { guardar } from '../disco.ts'
@@ -27,9 +27,11 @@ import { FalloNavegador, generarEnFlow, leerSaldo, paginaFlow, ponerAportar, Rec
  * (`proyectos`, uno por cuenta), y lo que dura cada pedido está en `pagina.ts`.
  *
  * Si Flow rechaza el pedido por su contenido (derechos, política de Google) no gasta y no es cosa de la cuenta: se apunta
- * por escena (su `salida`) y, a la segunda vez, la escena queda bloqueada (`bloqueado`) y no se vuelve a pedir ni con otro
- * prompt. Eso es lo que corta el bucle: un agente puede reformular un prompt de derechos cien veces y ninguna va a
- * funcionar, así que quién para lo decide Hermit, no el modelo.
+ * por escena (su `escena`, o su `salida` si no la mandan) y, a las `RECHAZOS_PARA_BLOQUEAR` veces, la escena queda
+ * bloqueada (`bloqueado`) y no se vuelve a pedir ni con otro prompt ni con otro nombre de archivo. Son tres vidas:
+ * el pedido original, el cambio de verdad y la versión libre de derechos. Eso es lo que corta el bucle: un agente puede
+ * reformular un prompt de derechos cien veces y ninguna va a funcionar, así que quién para lo decide Hermit, no el
+ * modelo — y por escena, no por ruta, porque la ruta la elige el agente.
  *
  * Gasta los créditos del usuario, y por eso: cada pedido lee el costo antes de generar y no pasa de `tope`; si no cambió
  * nada desde el último archivo de esa ruta (`.huella`), no pide nada, y uno igual que ya está en fila no se repite.
@@ -52,6 +54,8 @@ import { FalloNavegador, generarEnFlow, leerSaldo, paginaFlow, ponerAportar, Rec
 type Trabajo = TrabajoFlow & {
   prompt: string
   salida: string
+  /** La escena que esto representa (p. ej. `esc-03`), si el agente la manda: los rechazos por contenido se cuentan por ella. */
+  escena?: string
   huella: string
   tope: number
   formato: string
@@ -73,7 +77,7 @@ interface Ajustes {
   saldos?: Record<string, SaldoFlow>
   /** Por día (AAAA-MM-DD, del equipo) y por cuenta, los videos hechos y sus créditos. */
   uso?: Record<string, Record<string, GastoFlow>>
-  /** Por escena (su `salida`, ruta absoluta), los rechazos de Flow por su contenido: cuándo fue el último y cuántos. */
+  /** Por escena (su `escena`, o su `salida` si no la mandan), los rechazos de Flow por su contenido: cuándo y cuántos. */
   rechazos?: Record<string, { veces: number; ultimo: number }>
   prioritaria?: string
 }
@@ -175,17 +179,20 @@ export function flow(app: string, google: Google) {
     guardarAjustes()
   }
 
-  /** Las veces que Flow rechazó por contenido esta escena (su `salida`), de los rechazos que aún se recuerdan. */
-  const rechazosDe = (salida: string, ahora: number) => {
-    const r = ajustes.rechazos?.[salida]
+  /** La clave de la escena para contar sus rechazos: la `escena` que mandó el agente, o su `salida` si no la mandó. */
+  const claveDe = (t: { escena?: string; salida: string }) => t.escena?.trim() || t.salida
+
+  /** Las veces que Flow rechazó por contenido esta escena, de los rechazos que aún se recuerdan. */
+  const rechazosDe = (clave: string, ahora: number) => {
+    const r = ajustes.rechazos?.[clave]
     return r && ahora - r.ultimo < RECUERDA_RECHAZO ? r.veces : 0
   }
 
   /** Apunta un rechazo por contenido de esa escena y dice cuántos van. Los viejos se olvidan: esto no crece sin fin. */
-  function apuntarRechazo(salida: string, ahora: number): number {
+  function apuntarRechazo(clave: string, ahora: number): number {
     const deAntes = Object.fromEntries(Object.entries(ajustes.rechazos ?? {}).filter(([, r]) => ahora - r.ultimo < RECUERDA_RECHAZO))
-    const veces = (deAntes[salida]?.veces ?? 0) + 1
-    ajustes.rechazos = { ...deAntes, [salida]: { veces, ultimo: ahora } }
+    const veces = (deAntes[clave]?.veces ?? 0) + 1
+    ajustes.rechazos = { ...deAntes, [clave]: { veces, ultimo: ahora } }
     guardarAjustes()
     return veces
   }
@@ -314,26 +321,38 @@ export function flow(app: string, google: Google) {
       const falloNavegador = !t.creditos && !frenada && (e instanceof FalloNavegador || (!(e instanceof Rechazado) && esFalloDeNavegador(mensaje(e))))
       if (falloNavegador) {
         descansar(c.correo, 'navegador', mensaje(e))
-      } else if (e instanceof SinEmpezar) {
-        // No gastó: la cuenta descansa y el pedido vuelve al frente de la fila, para otra.
+      } else if (e instanceof SinEmpezar && !esPasaTope(mensaje(e))) {
+        // No gastó: la cuenta descansa y el pedido vuelve al frente de la fila, para otra. Si el pedido pasa de su
+        // tope de créditos no es de la cuenta: todas fallarían igual, así que no se descansa ninguna.
         const motivo = frenada ? 'frenada' : motivoDeDescanso(t.tipo, !!e.sesion, saldoVigente(c.correo, Date.now()))
         descansar(c.correo, motivo, mensaje(e))
       }
       // Si no empezó, si falló el navegador antes de generar, o si fue frenada sin gasto confirmado de créditos: se
-      // reencola limpiamente para que continúe con la siguiente cuenta.
-      const sinGastoConfirmado = e instanceof SinEmpezar || falloNavegador || (frenada && e instanceof Rechazado && (e.gasto === 0 || e.gasto === null))
-      if (sinGastoConfirmado) {
+      // reencola limpiamente para que continúe con la siguiente cuenta. Si pasa de su tope de créditos es del pedido:
+      // ninguna cuenta lo salvaría, así que no se reencola ni se descansa a nadie.
+      const pasaTope = esPasaTope(mensaje(e))
+      const sinGastoConfirmado = !pasaTope && (e instanceof SinEmpezar || falloNavegador || (frenada && e instanceof Rechazado && (e.gasto === 0 || e.gasto === null)))
+      // Un fallo técnico de la generación (Flow no pudo hacer el audio o el vídeo) no es un rechazo por contenido ni
+      // de la cuenta: no gasta créditos, la escena no pierde vidas y se reintenta con el mismo pedido.
+      const falloTecnico = e instanceof Rechazado && e.gasto === 0 && !frenada && esFalloTecnico(mensaje(e))
+      if (pasaTope) {
+        t.estado = 'error'
+        t.error = `${mensaje(e)} El pedido no cabe en su tope de créditos: no es cosa de la cuenta ni se reintenta en otra. Súbelo con \`tope\` si el usuario lo permite, o pide un modelo más barato.`
+      } else if (falloTecnico) {
+        t.estado = 'error'
+        t.error = `${mensaje(e)} Flow no pudo generarlo (falla técnica, no de contenido) y no cobró: reinténtalo; si vuelve a caer, pide el clip más corto o con menos diálogo.`
+      } else if (sinGastoConfirmado) {
         t.probadas.push(c.correo)
         t.ultimo = `${c.correo}: ${mensaje(e)}`
         t.estado = 'en-fila'
         t.cuenta = undefined
         fila.unshift(t)
-      } else if (e instanceof Rechazado && esRechazoDeContenido(frenada, e.gasto) && apuntarRechazo(t.salida, Date.now()) >= RECHAZOS_PARA_BLOQUEAR) {
-        // Flow le dijo que no dos veces a esta escena por su contenido: es cosa de lo que se le pide, no de la cuenta.
+      } else if (e instanceof Rechazado && esRechazoDeContenido(frenada, e.gasto) && apuntarRechazo(claveDe(t), Date.now()) >= RECHAZOS_PARA_BLOQUEAR) {
+        // Flow le dijo que no a esta escena por su contenido: es cosa de lo que se le pide, no de la cuenta.
         // Hermit la deja, y el agente sigue con las demás: reintentarla solo daría vueltas (es lo que pasaba con una
         // premisa con derechos de autor, que se reformulaba sin fin).
         t.estado = 'bloqueado'
-        t.aviso = `Flow rechazó dos veces esta escena por su contenido (derechos o política de Google): ${mensaje(e)} Hermit no la vuelve a pedir; cambia la escena u omítela y sigue con las demás.`
+        t.aviso = `Flow rechazó esta escena ${RECHAZOS_PARA_BLOQUEAR} veces por su contenido (derechos o política de Google): ${mensaje(e)} Hermit no la vuelve a pedir, ni con otro prompt ni con otro archivo; déjala fuera, sigue con las demás y avisa al final cuál faltó.`
       } else {
         t.estado = 'error'
         t.error = e instanceof Rechazado ? `${mensaje(e)} ${cuantoGasto(e, frenada)}` : mensaje(e)
@@ -347,7 +366,7 @@ export function flow(app: string, google: Google) {
   /** Lo que se le dice al agente de un pedido rechazado: si gastó y si puede pedirlo otra vez. */
   function cuantoGasto(e: Rechazado, frenada: boolean): string {
     const descanso = frenada ? ' Flow frenó esa cuenta: descansa un rato y los pedidos siguientes van más despacio.' : ''
-    if (e.gasto === 0) return `Flow no aceptó lo que se le pidió (derechos, política de contenido) y no gastó créditos: cámbialo de verdad y pídelo una última vez; si vuelve a caer, Hermit deja esa escena y sigue con las demás.${descanso}`
+    if (e.gasto === 0) return `Flow no aceptó lo que se le pidió (derechos, política de contenido) y no gastó créditos: cámbialo de verdad y pídelo otra vez —si vuelve a caer, una versión 100 % original (sin personajes, marcas ni personas con derechos) es su último intento—; si cae la tercera, Hermit deja esa escena y sigue con las demás.${descanso}`
     if (e.gasto) return `Flow cobró ${e.gasto} créditos aunque no lo hizo. No lo pidas otra vez sin decírselo al usuario.${descanso}`
     return `No se pudo comprobar si gastó créditos. No lo pidas otra vez sin decírselo al usuario.${descanso}`
   }
@@ -472,7 +491,7 @@ export function flow(app: string, google: Google) {
     repartirEn(5000)
   }
 
-  function pedir(d: Pick<Trabajo, 'tipo' | 'prompt' | 'formato' | 'modelo' | 'resolucion' | 'salida' | 'tope' | 'referencias' | 'cuadros' | 'hilo' | 'cuentaPreferida'>, esperaPermiso = false): Trabajo {
+  function pedir(d: Pick<Trabajo, 'tipo' | 'prompt' | 'formato' | 'modelo' | 'resolucion' | 'salida' | 'tope' | 'referencias' | 'cuadros' | 'hilo' | 'cuentaPreferida' | 'escena'>, esperaPermiso = false): Trabajo {
     // Sin resolución (Veo), la huella de siempre: lo ya hecho no se repite.
     const suma = createHash('sha1').update(`${d.tipo}\n${d.modelo}${d.resolucion ? ` ${d.resolucion}` : ''}\n${d.formato}\n${d.prompt}`)
     // Lo que importa de una imagen es lo que tiene, no dónde está. Los fotogramas, aparte: no son referencias.
@@ -487,10 +506,19 @@ export function flow(app: string, google: Google) {
     // Los de hace rato ya los recogió su agente.
     for (const id of [...trabajos.keys()].slice(0, -100)) trabajos.delete(id)
     if (existsSync(d.salida) && existsSync(`${d.salida}.huella`) && readFileSync(`${d.salida}.huella`, 'utf8') === huella) return Object.assign(t, { estado: 'lista', archivo: d.salida, creditos: 0 })
-    // Una escena que Flow ya rechazó por su contenido dos veces no se vuelve a pedir, aunque el agente mande otro prompt:
-    // así un rechazo de derechos no se convierte en horas de reintentos. Se contesta al momento y sin tocar Flow.
-    if (rechazosDe(d.salida, Date.now()) >= RECHAZOS_PARA_BLOQUEAR)
-      return Object.assign(t, { estado: 'bloqueado' as const, aviso: `Flow ya rechazó dos veces lo que se pide para ${basename(d.salida)}: no lo pidas otra vez. Cambia de escena o déjala fuera y sigue con las demás.` })
+    // Lo que cuesta el modelo se sabe antes de gastar un intento: si pasa del tope del pedido, ninguna cuenta lo
+    // salvaría —se rechaza aquí, sin tocar Flow ni descansar a nadie—.
+    if (d.tipo === 'video') {
+      const opcion = Object.values(OPCIONES_CLIPS).find((o) => o.modelo === d.modelo && (o.resolucion ?? '') === (d.resolucion ?? ''))
+      if (opcion && opcion.creditos > d.tope)
+        return Object.assign(t, { estado: 'error' as const, error: `${d.modelo}${d.resolucion ? ` ${d.resolucion}` : ''} cuesta ${opcion.creditos} créditos y el tope es ${d.tope}: no se pidió nada. Sube \`tope\` si el usuario lo permite, o usa un modelo más barato.` })
+    }
+    // Una escena que Flow ya rechazó por su contenido las veces que toca no se vuelve a pedir, aunque el agente mande
+    // otro prompt ni otro nombre de archivo: así un rechazo de derechos no se convierte en horas de reintentos.
+    // Se contesta al momento y sin tocar Flow.
+    const clave = d.escena?.trim() || d.salida
+    if (rechazosDe(clave, Date.now()) >= RECHAZOS_PARA_BLOQUEAR)
+      return Object.assign(t, { estado: 'bloqueado' as const, aviso: `Flow ya rechazó esta escena ${RECHAZOS_PARA_BLOQUEAR} veces por su contenido (derechos o política de Google): no la pidas otra vez, ni con otro prompt ni con otro archivo. Déjala fuera, sigue con las demás y avisa al final cuál faltó.` })
     if (esperaPermiso) {
       t.permiso = 'pendiente'
       return t
@@ -607,7 +635,7 @@ export function flow(app: string, google: Google) {
       return json(res, 200, estado())
     }
     if (path === '/api/flow/generar' && metodo === 'POST') {
-      const d = await cuerpo<{ tipo?: string; prompt?: string; formato?: string; modelo?: string; resolucion?: string; salida?: string; tope?: number; referencias?: string[]; primerCuadro?: string; ultimoCuadro?: string; hilo?: string; cuenta?: string }>(req)
+      const d = await cuerpo<{ tipo?: string; prompt?: string; formato?: string; modelo?: string; resolucion?: string; salida?: string; tope?: number; referencias?: string[]; primerCuadro?: string; ultimoCuadro?: string; hilo?: string; cuenta?: string; escena?: string }>(req)
       if (d.tipo !== 'imagen' && d.tipo !== 'video') return json(res, 400, { error: 'El tipo es imagen o video.' })
       const video = d.tipo === 'video'
       const modelos = video ? MODELOS_VIDEO : MODELOS_IMAGEN
@@ -632,8 +660,10 @@ export function flow(app: string, google: Google) {
       if ((referencias.length || cuadros.length) && !ajustes.derechos) return json(res, 409, { error: SIN_DERECHOS })
       const hilo = typeof d.hilo === 'string' && d.hilo.trim() ? d.hilo.trim() : undefined
       const cuentaPreferida = typeof d.cuenta === 'string' && d.cuenta.trim() ? d.cuenta.trim() : undefined
+      // La escena que esto representa: los rechazos por contenido se cuentan por ella, no por la ruta del archivo.
+      const escena = typeof d.escena === 'string' && d.escena.trim() ? d.escena.trim().slice(0, 120) : undefined
       // Los videos gastan: sin un permiso vigente del hilo, el pedido se queda esperando al usuario.
-      return json(res, 200, publico(pedir({ tipo: d.tipo, prompt: d.prompt.trim(), formato, modelo, resolucion, salida: resolve(d.salida), tope: d.tope ?? TOPE_CREDITOS, referencias, cuadros, hilo, cuentaPreferida }, video && !permisoDe(hilo))))
+      return json(res, 200, publico(pedir({ tipo: d.tipo, prompt: d.prompt.trim(), formato, modelo, resolucion, salida: resolve(d.salida), tope: d.tope ?? TOPE_CREDITOS, referencias, cuadros, hilo, cuentaPreferida, escena }, video && !permisoDe(hilo))))
     }
     const p = /^\/api\/flow\/permisos\/(\w+)$/.exec(path)
     if (p && metodo === 'POST') {

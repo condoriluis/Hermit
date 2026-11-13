@@ -12,7 +12,7 @@ import './Novedades.css'
  * «Ver novedades» en Opciones la abre de nuevo, también en el navegador de desarrollo.
  * Para la guía de otra versión: su página en `web/public/novedades/` y su número aquí.
  */
-const VERSION = '0.4.1'
+const VERSION = '0.5.0'
 const VISTA = 'hermit-novedades-vistas'
 const ABRIR = 'hermit-novedades-abrir'
 export const NOVEDADES_CERRADAS = 'hermit-novedades-cerradas'

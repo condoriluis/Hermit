@@ -1,0 +1,820 @@
+<!doctype html>
+<!--
+  La guía de lo nuevo de la 0.5.0: sale una vez al abrir Hermit después de actualizar (web/src/Novedades.tsx, en un
+  iframe), y también se abre sola en un navegador. Una página suelta, sin dependencias: el logo (web/public/icon.svg)
+  va adentro, en #cara. Seis escenas (el concierto, tres novedades, los arreglos y el final, que es el mismo concierto);
+  cada una tiene su guion en `guiones`, y «Siguiente», las flechas o deslizar pasan de una a otra. Con ?escena=N abre
+  directo en una. Para la de otra versión: cambia sus escenas 1 a 4, el número (título, cabecera y el del escenario de
+  la escena 0; la pantalla del final lo toma del título) y el texto de la despedida.
+-->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hermit 0.5.0</title>
+<style>
+  /* Paleta de Hermit (web/src/tokens.css). */
+  :root {
+    --bg: #0a0e14; --panel: #111722; --panel-2: #18212f; --line: #263244; --text: #e6edf7; --muted: #94a3b8;
+    --acento: #4f8cff; --acento-2: #6ea8fe; --sobre-acento: #07101f; --ok: #4ade80; --bad: #f87171; --warn: #fbbf24;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); }
+  body { display: grid; place-items: center; overflow: hidden; color: var(--text); font-family: Inter, 'Segoe UI', system-ui, sans-serif; }
+  .escenario { position: relative; width: min(100vw, 100vh); max-width: 1080px; aspect-ratio: 1; user-select: none; -webkit-user-select: none; }
+  .escenario > svg, .escenario > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  canvas { pointer-events: none; }
+  .controles { position: absolute; left: 8.33%; right: 8.33%; bottom: 3.2%; display: flex; align-items: center; gap: 12px; font-size: clamp(12px, 1.85vmin, 20px); }
+  .controles button { font: inherit; font-weight: 700; border-radius: 12px; padding: .8em 1.25em; cursor: pointer; border: 2px solid var(--line); background: var(--panel); color: var(--text); display: inline-flex; align-items: center; gap: .55em; transition: transform .12s, background-color .2s, border-color .2s, opacity .3s; }
+  .controles button:hover { border-color: var(--muted); }
+  .controles button:active { transform: scale(.95); }
+  .controles button:focus-visible { outline: 3px solid var(--acento-2); outline-offset: 3px; }
+  .controles svg { width: 1.25em; height: 1.25em; }
+  #siguiente { margin-left: auto; background: var(--acento); border-color: var(--acento); color: var(--sobre-acento); }
+  #siguiente:hover { background: var(--acento-2); border-color: var(--acento-2); }
+  #anterior.oculto { opacity: 0; pointer-events: none; }
+  #cuenta { flex: 1; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 600; }
+
+  .a { transform-box: fill-box; transform-origin: center; }
+  .izq { transform-box: fill-box; transform-origin: 0 50%; }
+  .abajo { transform-box: fill-box; transform-origin: 50% 100%; }
+  .arriba { transform-box: fill-box; transform-origin: 50% 0; }
+  .escena { display: none; }
+  .escena.visible { display: inline; }
+  #rayos { transition: opacity .9s; }
+  #brillo stop { transition: stop-color 1s; }
+  .num { font-variant-numeric: tabular-nums; }
+  .gira3d, .gira-cubo { transform-box: fill-box; transform-origin: center; }
+
+  /* Lo que se mueve siempre: el cangrejo baila y los rayos giran. */
+  .gira { animation: girar 40s linear infinite; }
+  .baila { animation: bailar .96s cubic-bezier(.5,0,.5,1) infinite; }
+  @keyframes bailar {
+    0%, 100% { transform: translateY(0) rotate(-6deg) scale(1.04, .96); }
+    25% { transform: translateY(-40px) rotate(0) scale(1); }
+    50% { transform: translateY(0) rotate(6deg) scale(1.04, .96); }
+    75% { transform: translateY(-40px) rotate(0) scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce) { .gira, .baila { animation: none; } }
+</style>
+</head>
+<body>
+<div class="escenario" id="escenario">
+<svg id="lienzo" viewBox="0 0 1080 1080" xmlns="http://www.w3.org/2000/svg" font-family="Inter, 'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <radialGradient id="brillo" cx="50%" cy="40%" r="62%">
+      <stop offset="0" stop-color="#4f8cff" stop-opacity=".26"/>
+      <stop offset=".55" stop-color="#4f8cff" stop-opacity=".06"/>
+      <stop offset="1" stop-color="#4f8cff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="rayo" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#6ea8fe" stop-opacity=".20"/>
+      <stop offset="1" stop-color="#6ea8fe" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="telaB" cx="50%" cy="40%" r="70%">
+      <stop offset="0" stop-color="#4f8cff" stop-opacity=".32"/>
+      <stop offset="1" stop-color="#111722"/>
+    </radialGradient>
+    <clipPath id="clipPanel"><rect x="90" y="190" width="900" height="460" rx="28"/></clipPath>
+    <clipPath id="clipPantalla"><rect x="370" y="50" width="340" height="236" rx="14"/></clipPath>
+    <!-- Los puntos de la pantalla LED del escenario -->
+    <pattern id="led" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M8 0V8H0" fill="none" stroke="#050a12" stroke-width="2.5"/></pattern>
+    <clipPath id="telA"><rect width="158" height="280" rx="18"/></clipPath>
+
+    <!-- Iconos de trazo (Lucide, como web/src/Iconos.tsx) -->
+    <symbol id="i-flecha" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+    <symbol id="i-izq" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
+    <symbol id="i-reabrir" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></symbol>
+    <symbol id="i-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.8a1 1 0 0 1 1.5-.86l11.5 7.2a1 1 0 0 1 0 1.72l-11.5 7.2A1 1 0 0 1 6 18.2z"/></symbol>
+    <symbol id="i-palomita" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-llave" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
+    <symbol id="i-musica" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+    <symbol id="i-imagen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></symbol>
+    <symbol id="i-cubo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></symbol>
+    <symbol id="i-etiqueta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></symbol>
+
+    <!-- El cangrejo de Hermit (web/public/icon.svg), en sus coordenadas de 520 -->
+    <g id="cara">
+      <path fill="#e6edf7" fill-rule="evenodd" d="M295.00 478.01 C294.11 477.90 291.97 477.78 290.25 477.75 C283.79 477.63 283.63 476.89 289.16 472.69 C290.93 471.35 293.39 469.41 294.62 468.38 C295.86 467.36 298.56 465.18 300.62 463.55 C306.64 458.79 320.17 445.19 324.42 439.62 C325.37 438.39 327.22 436.02 328.53 434.38 C342.14 417.28 351.06 399.34 353.85 383.47 C355.85 372.07 354.90 357.11 351.54 347.25 C348.78 339.17 347.44 336.32 343.93 331.12 C338.35 322.88 327.22 311.63 321.42 308.39 C319.36 307.24 318.64 306.47 318.85 305.65 C319.00 305.03 320.75 303.59 328.06 298.06 C329.75 296.78 331.74 295.25 332.50 294.66 C333.86 293.60 338.92 290.23 343.50 287.34 C345.88 285.83 353.01 281.88 356.47 280.14 C377.24 269.71 397.44 269.42 414.84 279.29 C429.17 287.42 438.35 299.26 443.50 316.25 C444.02 317.98 444.53 319.94 444.64 320.63 C444.74 321.31 444.92 322.13 445.03 322.45 C446.32 325.91 446.91 347.58 445.93 355.50 C445.48 359.12 445.27 360.30 444.23 365.25 C442.77 372.24 440.21 380.80 437.74 387.02 C436.74 389.53 432.60 398.41 431.63 400.12 C431.32 400.68 430.07 402.87 428.87 405.00 C425.07 411.70 422.80 415.24 419.41 419.73 C409.01 433.53 399.28 442.74 385.12 452.23 C373.34 460.13 367.12 463.22 353.38 468.00 C352.27 468.38 350.25 469.09 348.88 469.57 C345.49 470.75 339.33 472.68 337.01 473.29 C332.82 474.39 331.31 474.75 329.88 474.99 C329.05 475.14 327.42 475.48 326.25 475.77 C325.08 476.05 323.17 476.39 322.00 476.53 C320.83 476.66 318.86 476.94 317.62 477.14 C313.62 477.81 298.14 478.40 295.00 478.01 Z M189.88 477.72 C187.68 477.63 185.03 477.43 184.00 477.28 C182.97 477.12 180.64 476.89 178.82 476.77 C177.00 476.64 175.43 476.49 175.32 476.42 C174.96 476.20 168.94 475.00 168.20 475.00 C167.79 475.00 165.35 474.48 162.79 473.85 C149.14 470.49 141.41 467.68 130.26 462.05 C120.02 456.87 113.15 452.64 105.51 446.79 C80.76 427.84 64.25 402.72 55.54 370.75 C52.74 360.48 51.08 343.55 51.97 334.38 C53.25 321.15 53.96 317.67 56.91 310.19 C61.16 299.40 67.54 290.66 75.50 284.72 C84.58 277.94 90.19 275.29 100.38 272.95 C103.79 272.17 116.13 272.09 120.00 272.83 C130.39 274.81 138.84 278.18 151.50 285.37 C153.96 286.77 165.68 294.62 168.62 296.84 C172.86 300.04 177.65 303.94 178.31 304.72 C179.57 306.21 179.26 306.74 175.70 309.20 C171.74 311.93 164.90 317.87 162.09 321.00 C154.59 329.37 147.77 342.07 145.28 352.33 C143.00 361.67 143.03 376.62 145.35 387.38 C146.31 391.80 151.03 403.95 153.93 409.46 C155.56 412.56 158.10 416.89 161.23 421.89 C167.91 432.58 180.38 447.50 189.88 456.19 C191.94 458.07 194.97 460.87 196.62 462.40 C200.51 466.02 203.79 468.76 208.11 472.00 C213.58 476.11 214.13 476.75 212.73 477.41 C212.01 477.75 195.98 477.97 189.88 477.72 Z M215.62 441.38 C215.26 440.77 214.42 439.00 213.76 437.45 C212.50 434.47 207.90 425.52 205.26 420.88 C202.67 416.32 196.13 406.77 193.20 403.26 C187.33 396.23 181.08 389.93 172.79 382.66 C170.78 380.90 165.21 376.53 163.08 375.03 C160.87 373.49 160.75 373.13 160.75 368.21 C160.75 363.63 161.44 358.66 162.64 354.62 C163.00 353.39 163.40 352.03 163.52 351.61 C164.04 349.83 166.81 343.81 168.25 341.32 C172.32 334.31 176.56 329.32 183.54 323.29 C189.33 318.30 190.32 317.93 192.35 320.00 C193.58 321.24 199.08 328.81 200.57 331.29 C201.09 332.16 202.77 334.96 204.31 337.50 C211.30 349.07 215.43 359.60 218.38 373.38 C218.62 374.48 218.97 376.02 219.15 376.82 C219.34 377.61 219.72 380.20 220.01 382.57 C220.29 384.94 220.69 388.17 220.90 389.75 C221.92 397.59 221.91 417.33 220.89 424.00 C220.68 425.31 220.34 427.61 220.11 429.12 C219.69 431.90 218.46 438.41 217.95 440.49 C217.41 442.73 216.59 443.04 215.62 441.38 Z M280.64 441.94 C279.63 440.39 279.53 439.85 278.63 431.71 C278.44 429.96 278.17 427.88 278.03 427.08 C277.89 426.28 277.71 424.89 277.62 424.00 C277.53 423.11 277.29 421.02 277.07 419.38 C276.51 415.07 276.51 396.56 277.08 391.75 C277.30 389.89 277.55 387.59 277.63 386.62 C277.72 385.66 277.90 384.20 278.04 383.38 C278.18 382.55 278.44 380.92 278.63 379.75 C278.81 378.58 279.20 376.56 279.50 375.25 C279.80 373.94 280.19 372.20 280.36 371.38 C280.54 370.55 281.14 368.30 281.71 366.38 C282.62 363.28 283.18 361.62 284.99 356.62 C285.86 354.21 286.96 351.60 288.19 349.00 C288.87 347.56 289.80 345.53 290.25 344.50 C293.11 337.96 302.89 322.94 306.27 319.88 C308.19 318.15 309.49 318.69 315.42 323.70 C326.15 332.75 333.57 345.31 336.74 359.75 C337.50 363.19 337.93 369.31 337.57 371.42 C337.24 373.35 336.80 374.04 335.14 375.25 C315.78 389.38 302.57 403.92 292.33 422.38 C288.51 429.24 285.88 434.43 284.75 437.26 C283.12 441.33 282.39 442.50 281.46 442.50 C281.21 442.50 280.85 442.25 280.64 441.94 Z M242.75 336.76 C238.84 336.15 236.64 335.64 233.25 334.58 C227.82 332.88 227.34 332.40 223.67 325.07 C220.09 317.92 217.37 313.67 211.56 306.09 C206.52 299.51 195.27 288.36 188.38 283.09 C187.28 282.25 185.36 280.69 184.12 279.62 C179.50 275.63 172.93 271.03 166.62 267.37 C165.25 266.57 163.72 265.67 163.23 265.36 C161.72 264.41 152.80 259.86 149.62 258.42 C145.14 256.38 140.37 254.66 134.62 253.02 C129.20 251.48 128.50 251.12 128.50 249.95 C128.50 247.39 136.06 238.78 143.13 233.30 C152.81 225.79 167.06 218.61 180.50 214.47 C191.78 210.99 196.59 210.08 198.43 211.07 C201.78 212.88 202.88 222.85 200.38 228.83 C199.89 230.00 199.89 231.40 200.37 231.59 C201.27 231.94 204.95 230.04 207.56 227.88 C210.61 225.36 212.56 222.30 213.78 218.12 C214.60 215.31 214.60 205.69 213.79 202.11 C210.52 187.79 202.54 175.84 190.49 167.25 C186.55 164.44 183.70 160.48 182.77 156.51 C182.13 153.80 182.13 153.40 182.75 150.21 C183.95 144.00 188.23 138.82 193.62 137.05 C196.67 136.05 202.73 136.16 205.53 137.26 C208.84 138.57 212.78 142.00 214.32 144.93 C215.91 147.95 216.02 148.76 216.02 156.75 C216.02 160.67 216.13 164.55 216.25 165.38 C217.14 171.18 217.41 172.32 219.47 178.88 C221.58 185.61 222.58 188.56 225.40 196.35 C225.75 197.30 226.29 199.04 226.61 200.23 C227.82 204.73 228.38 205.30 231.55 205.29 C257.94 205.19 268.94 205.05 269.38 204.81 C270.12 204.42 270.33 203.91 271.98 198.49 C272.80 195.81 273.71 193.05 274.01 192.37 C275.43 189.10 279.45 177.19 280.72 172.50 C282.18 167.07 282.11 167.74 282.14 158.12 C282.16 149.58 282.19 149.05 282.69 147.68 C283.57 145.30 284.68 143.44 286.28 141.67 C290.60 136.89 295.25 135.32 301.94 136.39 C304.89 136.86 306.53 137.58 308.98 139.45 C313.58 142.97 315.75 147.26 315.75 152.79 C315.73 159.45 313.46 163.14 305.84 168.90 C300.08 173.24 297.03 176.52 292.73 182.97 C288.26 189.67 286.15 195.13 284.40 204.50 C283.77 207.82 283.84 215.43 284.52 218.07 C285.91 223.53 289.93 228.24 295.37 230.78 C297.88 231.96 298.81 231.39 298.00 229.17 C296.37 224.71 296.00 219.17 297.08 215.69 C298.98 209.62 300.22 209.36 311.57 212.65 C319.67 215.01 328.34 218.21 334.12 220.99 C343.95 225.70 346.59 227.17 351.28 230.50 C360.50 237.06 366.71 243.27 369.46 248.68 C370.67 251.04 370.12 251.55 365.05 252.74 C355.76 254.91 345.60 259.29 334.12 266.06 C328.45 269.40 326.84 270.49 317.62 277.19 C311.05 281.97 301.57 289.86 298.89 292.78 C298.21 293.52 295.89 295.98 293.74 298.25 C285.50 306.93 281.03 313.39 274.18 326.49 C270.82 332.92 269.76 333.72 262.50 335.36 C261.47 335.59 260.01 335.94 259.25 336.13 C255.25 337.16 247.23 337.47 242.75 336.76 Z M30.29 312.19 C29.12 309.40 26.95 299.70 25.50 290.75 C25.22 289.03 24.88 286.98 24.74 286.19 C24.60 285.40 24.38 283.57 24.25 282.12 C24.12 280.67 23.96 279.39 23.89 279.28 C23.82 279.17 23.60 277.51 23.39 275.60 C23.18 273.69 22.90 271.11 22.77 269.88 C22.63 268.64 22.34 265.99 22.11 264.00 C21.22 255.98 21.08 234.81 21.87 226.62 C22.07 224.56 22.35 221.69 22.49 220.25 C22.83 216.72 23.44 212.18 23.72 211.05 C23.85 210.54 24.02 209.51 24.11 208.75 C24.19 207.99 24.43 206.59 24.63 205.62 C24.83 204.66 25.29 202.41 25.64 200.62 C27.57 190.74 31.59 176.67 34.91 168.19 C35.92 165.61 36.75 163.44 36.75 163.36 C36.75 163.28 37.53 161.51 38.48 159.42 C39.43 157.33 40.49 154.94 40.84 154.11 C43.19 148.46 49.32 136.57 53.47 129.62 C55.72 125.86 57.24 123.47 63.86 113.32 C74.50 96.99 87.58 82.63 103.92 69.30 C106.15 67.49 108.04 65.89 108.12 65.75 C108.21 65.62 109.42 64.70 110.83 63.71 C112.23 62.73 114.56 61.05 116.00 60.00 C131.28 48.81 150.34 38.17 166.25 31.95 C169.95 30.50 181.55 26.63 185.50 25.52 C186.53 25.24 188.39 24.71 189.62 24.36 C192.23 23.63 196.40 22.63 197.93 22.38 C200.66 21.94 201.24 23.45 200.26 28.51 C199.07 34.64 197.41 36.23 187.75 40.46 C179.21 44.21 176.56 45.43 172.25 47.66 C167.79 49.97 166.32 50.82 160.83 54.27 C143.88 64.93 125.64 81.95 116.19 95.92 C115.15 97.46 113.85 99.31 113.31 100.04 C112.77 100.78 111.68 102.56 110.88 104.00 C110.07 105.44 109.09 107.11 108.69 107.70 C104.66 113.63 96.04 134.65 94.00 143.50 C93.82 144.26 93.49 145.66 93.25 146.62 C91.80 152.46 90.66 158.63 90.12 163.62 C88.65 177.14 88.43 181.14 88.56 191.00 C88.68 199.10 89.18 208.74 89.72 213.00 C89.85 214.03 90.03 216.00 90.12 217.38 C90.21 218.75 90.40 220.55 90.54 221.37 C90.68 222.20 90.95 223.83 91.15 225.00 C91.34 226.17 91.72 228.25 91.99 229.62 C92.27 231.00 92.61 232.80 92.75 233.62 C92.89 234.45 93.17 235.86 93.37 236.75 C93.57 237.64 93.97 239.50 94.26 240.88 C94.56 242.25 94.91 243.73 95.04 244.17 C95.48 245.64 95.93 249.37 95.73 249.90 C95.45 250.68 94.33 251.47 93.29 251.63 C78.71 253.97 63.39 262.28 53.12 273.42 C45.32 281.87 40.09 289.87 36.54 298.78 C34.82 303.11 34.15 305.01 33.37 307.75 C32.02 312.55 31.75 313.25 31.22 313.25 C30.88 313.25 30.60 312.92 30.29 312.19 Z M466.63 312.67 C466.42 312.35 465.79 310.52 465.23 308.60 C461.76 296.69 456.32 286.33 448.85 277.38 C445.59 273.46 438.73 267.11 434.72 264.29 C433.98 263.77 432.45 262.66 431.31 261.82 C427.34 258.87 418.11 254.73 412.00 253.16 C410.69 252.83 409.01 252.38 408.25 252.17 C407.49 251.96 406.21 251.65 405.39 251.49 C404.35 251.28 403.70 250.98 403.20 250.49 C402.14 249.42 402.16 249.11 403.99 241.00 C404.26 239.83 404.66 237.97 404.88 236.88 C405.11 235.78 405.46 234.14 405.67 233.25 C406.16 231.17 406.35 230.20 406.85 227.12 C407.84 221.07 408.00 219.97 408.25 217.38 C408.40 215.86 408.62 213.95 408.74 213.12 C408.86 212.30 408.97 210.71 408.98 209.59 C408.99 208.48 409.18 205.89 409.40 203.84 C409.86 199.55 409.77 178.05 409.28 173.75 C409.13 172.44 408.89 170.14 408.75 168.62 C408.39 164.60 408.03 161.65 407.62 159.25 C407.42 158.08 407.19 156.68 407.11 156.12 C406.78 153.98 405.97 150.22 405.15 147.00 C403.46 140.41 403.00 138.74 402.23 136.57 C401.80 135.36 401.00 133.03 400.45 131.38 C397.89 123.73 393.27 113.76 389.14 107.00 C388.43 105.83 387.41 104.14 386.88 103.25 C385.49 100.89 381.96 95.62 380.57 93.83 C379.91 92.98 378.31 90.85 377.00 89.10 C372.13 82.57 361.00 71.49 353.88 66.08 C352.77 65.24 351.23 63.99 350.45 63.30 C347.30 60.53 337.47 54.13 328.88 49.28 C324.91 47.04 316.84 43.10 311.62 40.88 C302.47 36.97 300.74 35.64 298.97 31.12 C298.39 29.63 298.16 28.59 298.07 27.00 C297.82 22.45 298.99 22.00 306.25 23.92 C307.56 24.26 309.19 24.69 309.88 24.87 C312.21 25.47 314.12 26.05 317.72 27.27 C319.69 27.94 322.16 28.73 323.22 29.02 C333.55 31.91 355.53 42.07 366.87 49.21 C373.39 53.32 382.53 59.65 385.50 62.11 C387.36 63.66 390.34 66.09 392.12 67.51 C401.07 74.67 409.64 82.70 417.81 91.62 C420.53 94.59 428.28 104.09 430.14 106.75 C430.67 107.51 431.49 108.60 431.96 109.19 C433.08 110.58 437.11 116.44 439.55 120.20 C441.37 123.01 442.05 124.13 446.09 130.90 C452.04 140.87 458.25 153.76 461.75 163.38 C462.20 164.61 463.07 166.97 463.69 168.62 C464.88 171.81 465.15 172.62 467.33 179.50 C468.71 183.82 468.96 184.74 471.12 193.12 C472.68 199.18 473.67 204.48 474.50 211.25 C474.78 213.52 475.18 216.56 475.39 218.00 C477.08 229.75 477.41 256.75 475.99 267.62 C475.87 268.59 475.76 269.99 475.76 270.75 C475.76 271.51 475.59 273.48 475.39 275.12 C475.18 276.77 474.90 279.08 474.77 280.25 C474.48 282.65 473.91 285.94 473.54 287.40 C473.40 287.94 473.22 288.99 473.12 289.75 C473.03 290.51 472.67 292.19 472.33 293.50 C471.46 296.79 470.03 303.00 469.63 305.25 C468.66 310.65 467.90 313.25 467.27 313.25 C467.13 313.25 466.84 312.99 466.63 312.67 Z M302.08 158.94 C306.53 156.57 307.34 150.82 303.67 147.60 C300.28 144.61 294.97 145.45 292.75 149.33 C291.32 151.82 291.89 155.95 293.91 157.77 C296.58 160.18 299.08 160.53 302.08 158.94 Z M202.48 159.20 C205.18 157.89 206.51 155.61 206.49 152.27 C206.48 148.59 203.48 145.76 199.58 145.75 C196.82 145.75 193.58 147.86 192.99 150.05 C192.53 151.74 192.65 154.65 193.23 155.84 C194.82 159.13 199.28 160.75 202.48 159.20 Z"/>
+    </g>
+
+    <!-- El cangrejo de estrella: diadema, audífonos y micrófono de brazo -->
+    <g id="hermit-idol">
+      <use href="#cara"/>
+      <path d="M15 235 A235 240 0 0 1 495 235" fill="none" stroke="#050a12" stroke-width="30" stroke-linecap="round"/>
+      <path d="M15 235 A235 240 0 0 1 495 235" fill="none" stroke="#4f8cff" stroke-width="14" stroke-linecap="round"/>
+      <rect x="-6" y="185" width="64" height="108" rx="28" fill="#4f8cff" stroke="#050a12" stroke-width="9"/>
+      <rect x="466" y="185" width="64" height="108" rx="28" fill="#4f8cff" stroke="#050a12" stroke-width="9"/>
+      <path d="M8 285 Q24 375 150 358" fill="none" stroke="#050a12" stroke-width="15" stroke-linecap="round"/>
+      <path d="M8 285 Q24 375 150 358" fill="none" stroke="#94a3b8" stroke-width="6" stroke-linecap="round"/>
+      <rect x="142" y="340" width="48" height="34" rx="17" fill="#050a12"/>
+      <rect x="150" y="347" width="32" height="20" rx="10" fill="#263244"/>
+    </g>
+
+    <g id="puntero"><path d="M0 0 L0 30 L8 23 L13.5 35 L19 32.5 L13.5 21 L24 21 Z" fill="#e6edf7" stroke="#050a12" stroke-width="2.5" stroke-linejoin="round" transform="scale(1.5)"/></g>
+    <rect id="panel" x="90" y="190" width="900" height="460" rx="28" fill="#111722" stroke="#263244" stroke-width="3"/>
+    <!-- Un cubo de alambre para los modelos 3D, centrado en 0,0 -->
+    <g id="cubo3d">
+      <path d="M0 -50 L42 -25 V25 L0 50 L-42 25 V-25 Z" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/>
+      <path d="M0 -50 V50 M-42 25 L42 -25 M-42 -25 L42 25" fill="none" stroke="currentColor" stroke-width="3" stroke-opacity=".5"/>
+    </g>
+  </defs>
+
+  <!-- Fondo que comparten todas -->
+  <rect width="1080" height="1080" fill="#0a0e14"/>
+  <rect width="1080" height="1080" fill="url(#brillo)"/>
+  <g id="rayos" transform="translate(540 430)"><g class="gira a" fill="url(#rayo)" id="rayosG"></g></g>
+
+  <!-- Cabecera de la guía -->
+  <g id="cabecera" opacity="0">
+    <g transform="translate(90 50) scale(.15)"><use href="#cara"/></g>
+    <text x="180" y="112" font-size="46" font-weight="800" fill="#e6edf7">Lo nuevo de la <tspan fill="#4f8cff">0.5.0</tspan></text>
+    <g id="barras"></g>
+  </g>
+
+  <!-- 0 · El concierto: el cangrejo sale al escenario y el número cae al ritmo -->
+  <g class="escena" id="e0"><g class="cuerpo">
+    <g class="tablado"></g>
+    <rect class="destello" width="1080" height="1080" fill="#6ea8fe" opacity="0"/>
+    <g class="titulo"><text class="partir-letras" x="540" y="700" text-anchor="middle" font-size="64" font-weight="800" fill="#e6edf7" letter-spacing="1">Ya salió Hermit</text></g>
+    <g class="version-neon" style="transform-box: view-box; transform-origin: 540px 810px">
+      <text class="neon-glow" x="540" y="880" text-anchor="middle" font-size="210" font-weight="900" fill="none" stroke="#6ea8fe" stroke-width="44" stroke-opacity=".22" stroke-linejoin="round">0.5.0</text>
+      <text class="partir-letras" x="540" y="880" text-anchor="middle" font-size="210" font-weight="900" fill="#e6edf7" stroke="#4f8cff" stroke-width="16" stroke-linejoin="round" paint-order="stroke">0.5.0</text>
+    </g>
+    <g class="publico"></g>
+  </g></g>
+
+  <!-- 1 · El motor: un comando hace el video -->
+  <g class="escena" id="e1"><g class="cuerpo">
+    <use href="#panel"/>
+    <g clip-path="url(#clipPanel)">
+      <g class="motor-w"><g transform="translate(130 230)">
+        <g clip-path="url(#telA)">
+          <rect width="158" height="280" fill="url(#telaB)"/>
+          <g class="crab-v4"><g transform="translate(79 135) scale(.17) translate(-250 -250)"><use href="#cara"/></g></g>
+          <rect x="0" y="273" width="158" height="7" fill="#263244"/>
+          <rect class="izq prog-v4" x="0" y="273" width="158" height="7" fill="#4f8cff"/>
+        </g>
+        <rect width="158" height="280" rx="18" fill="none" stroke="#4f8cff" stroke-width="3"/>
+        <rect x="10" y="230" width="138" height="40" rx="9" fill="#050a12" fill-opacity=".82"/>
+        <text class="dur" x="79" y="256" text-anchor="middle" font-size="15" font-weight="800" fill="#e6edf7">0:00 / 0:30</text>
+      </g></g>
+      <text x="209" y="546" text-anchor="middle" font-size="19" font-weight="700" fill="#e6edf7">Tu video</text>
+      <g class="motor">
+        <rect x="320" y="214" width="640" height="412" rx="20" fill="#18212f" stroke="#263244" stroke-width="2"/>
+        <use href="#i-zap" x="344" y="238" width="26" height="26" style="color:#e6edf7"/>
+        <text x="382" y="260" font-size="23" font-weight="800" fill="#e6edf7">hacer.py</text>
+        <g class="pasos"></g>
+      </g>
+    </g>
+    <g class="kicker"><use href="#i-zap" x="150" y="693" width="32" height="32" style="color:#4f8cff"/><text x="194" y="720" font-size="30" font-weight="800" fill="#4f8cff" letter-spacing="4">EL MOTOR</text></g>
+    <text class="partir-palabras" x="150" y="795" font-size="60" font-weight="800" fill="#e6edf7">El video entero, un comando</text>
+    <g class="linea"><text x="150" y="850" font-size="32" font-weight="500" fill="#94a3b8">Escribes guion y momentos; hacer.py revisa, habla,</text></g>
+    <g class="linea"><text x="150" y="895" font-size="32" font-weight="500" fill="#94a3b8">renderiza, mide y saca la portada.</text></g>
+  </g></g>
+
+  <!-- 2 · Música de fondo y portada con IA, de regalo -->
+  <g class="escena" id="e2"><g class="cuerpo">
+    <use href="#panel"/>
+    <g clip-path="url(#clipPanel)">
+      <g class="regalo-w"><g transform="translate(130 230)">
+        <g clip-path="url(#telA)">
+          <rect width="158" height="280" fill="url(#telaB)"/>
+          <g class="crab-v5"><g transform="translate(79 140) scale(.17) translate(-250 -250)"><use href="#cara"/></g></g>
+          <g class="ondas-v"></g>
+          <rect x="0" y="273" width="158" height="7" fill="#263244"/>
+          <rect class="izq prog-v5" x="0" y="273" width="158" height="7" fill="#4f8cff"/>
+        </g>
+        <rect width="158" height="280" rx="18" fill="none" stroke="#4f8cff" stroke-width="3"/>
+      </g></g>
+      <text x="209" y="430" text-anchor="middle" font-size="19" font-weight="700" fill="#e6edf7">Música de fondo</text>
+      <text x="209" y="458" text-anchor="middle" font-size="16" font-weight="600" fill="#4ade80">baja sola bajo la voz</text>
+      <g class="regalo">
+        <rect x="320" y="214" width="640" height="412" rx="20" fill="#18212f" stroke="#263244" stroke-width="2"/>
+        <use href="#i-musica" x="344" y="238" width="26" height="26" style="color:#e6edf7"/>
+        <text x="382" y="260" font-size="23" font-weight="800" fill="#e6edf7">De regalo</text>
+        <g class="premios"></g>
+      </g>
+    </g>
+    <g class="kicker"><use href="#i-musica" x="150" y="693" width="32" height="32" style="color:#4f8cff"/><text x="194" y="720" font-size="30" font-weight="800" fill="#4f8cff" letter-spacing="4">SONIDO E IMAGEN</text></g>
+    <text class="partir-palabras" x="150" y="795" font-size="60" font-weight="800" fill="#e6edf7">Música y portada, de regalo</text>
+    <g class="linea"><text x="150" y="850" font-size="32" font-weight="500" fill="#94a3b8">Un interruptor en Voz pone una cama musical</text></g>
+    <g class="linea"><text x="150" y="895" font-size="32" font-weight="500" fill="#94a3b8">sintetizada que baja cuando hablas.</text></g>
+  </g></g>
+
+  <!-- 3 · Modelos 3D: tu biblioteca con visor -->
+  <g class="escena" id="e3"><g class="cuerpo">
+    <use href="#panel"/>
+    <g clip-path="url(#clipPanel)">
+      <g class="modelo-w"><g transform="translate(130 230)">
+        <g clip-path="url(#telA)">
+          <rect width="158" height="280" fill="url(#telaB)"/>
+          <rect x="0" y="273" width="158" height="7" fill="#263244"/>
+          <rect class="izq prog-v6" x="0" y="273" width="158" height="7" fill="#4f8cff"/>
+        </g>
+        <rect width="158" height="280" rx="18" fill="none" stroke="#4f8cff" stroke-width="3"/>
+        <g class="visor3d" transform="translate(79 140)">
+          <g class="gira3d">
+            <path d="M0 -52 L44 -26 V26 L0 52 L-44 26 V-26 Z" fill="none" stroke="#6ea8fe" stroke-width="4" stroke-linejoin="round"/>
+            <path d="M0 -52 V52 M-44 26 L44 -26 M-44 -26 L44 26" stroke="#4f8cff" stroke-width="2" stroke-opacity=".5"/>
+          </g>
+        </g>
+      </g></g>
+      <text x="209" y="430" text-anchor="middle" font-size="19" font-weight="700" fill="#e6edf7">Biblioteca de modelos</text>
+      <text x="209" y="458" text-anchor="middle" font-size="16" font-weight="600" fill="#94a3b8">los reusas en todos tus videos</text>
+      <g class="modelos">
+        <rect x="320" y="214" width="640" height="412" rx="20" fill="#18212f" stroke="#263244" stroke-width="2"/>
+        <use href="#i-cubo" x="344" y="238" width="26" height="26" style="color:#e6edf7"/>
+        <text x="382" y="260" font-size="23" font-weight="800" fill="#e6edf7">Modelos 3D</text>
+        <g class="lista3d"></g>
+      </g>
+    </g>
+    <g class="kicker"><use href="#i-cubo" x="150" y="693" width="32" height="32" style="color:#4f8cff"/><text x="194" y="720" font-size="30" font-weight="800" fill="#4f8cff" letter-spacing="4">3D</text></g>
+    <text class="partir-palabras" x="150" y="795" font-size="60" font-weight="800" fill="#e6edf7">Tus modelos, con visor</text>
+    <g class="linea"><text x="150" y="850" font-size="32" font-weight="500" fill="#94a3b8">Cada modelo que creas se guarda en tu</text></g>
+    <g class="linea"><text x="150" y="895" font-size="32" font-weight="500" fill="#94a3b8">biblioteca y lo giras antes de usarlo.</text></g>
+  </g></g>
+
+  <!-- 4 · Y también: multi-marca, codificación y más -->
+  <g class="escena" id="e4"><g class="cuerpo">
+    <use href="#panel"/>
+    <g clip-path="url(#clipPanel)">
+      <g class="arreglos"></g>
+    </g>
+    <g class="kicker"><use href="#i-llave" x="150" y="693" width="32" height="32" style="color:#4f8cff"/><text x="194" y="720" font-size="30" font-weight="800" fill="#4f8cff" letter-spacing="4">Y TAMBIÉN</text></g>
+    <text class="partir-palabras" x="150" y="795" font-size="60" font-weight="800" fill="#e6edf7">Y quedó mejorado</text>
+    <g class="linea"><text x="150" y="850" font-size="32" font-weight="500" fill="#94a3b8">Lo que no cabe en una escena también llegó.</text></g>
+  </g></g>
+
+  <!-- 5 · A crear: el mismo concierto, con el número en la pantalla -->
+  <g class="escena" id="e5"><g class="cuerpo">
+    <g class="tablado"></g>
+    <rect class="destello" width="1080" height="1080" fill="#6ea8fe" opacity="0"/>
+    <g class="neon" style="transform-box: view-box; transform-origin: 540px 724px">
+      <text class="neon-glow" x="540" y="772" text-anchor="middle" font-size="140" font-weight="900" fill="none" stroke="#6ea8fe" stroke-width="40" stroke-opacity=".22" stroke-linejoin="round">¡A crear!</text>
+      <text class="partir-letras" x="540" y="772" text-anchor="middle" font-size="140" font-weight="900" fill="#e6edf7" stroke="#4f8cff" stroke-width="14" stroke-linejoin="round" paint-order="stroke">¡A crear!</text>
+    </g>
+    <g class="linea"><text x="540" y="838" text-anchor="middle" font-size="32" font-weight="600" fill="#e6edf7">Todo esto ya está en tu Hermit.</text></g>
+    <g class="linea"><text x="540" y="882" text-anchor="middle" font-size="28" font-weight="500" fill="#94a3b8" class="despedida">Gracias por crear con Hermit.</text></g>
+    <g class="publico"></g>
+  </g></g>
+</svg>
+<canvas id="chispas"></canvas>
+<nav class="controles">
+  <button id="anterior" class="oculto" type="button"><svg><use href="#i-izq"/></svg>Anterior</button>
+  <span id="cuenta"></span>
+  <button id="siguiente" type="button"><span id="sig-texto">Ver lo nuevo</span><svg><use id="sig-icono" href="#i-flecha"/></svg></button>
+</nav>
+</div>
+
+<script>
+'use strict';
+const NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('lienzo');
+const quieto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+// Dentro de Hermit (web/src/Novedades.tsx, en un iframe): el final cierra la guía en vez de volver a empezar.
+const enHermit = window.parent !== window;
+const cerrarGuia = () => parent.postMessage('hermit-novedades-cerrar', location.origin);
+const escenas = [...svg.querySelectorAll('.escena')];
+
+/* ---------- Ir de una a otra ---------- */
+let actual = -1, token = 0, pulso = null;
+const cab = document.getElementById('cabecera');
+const sigBtn = document.getElementById('siguiente'), antBtn = document.getElementById('anterior');
+const sigTxt = document.getElementById('sig-texto'), sigIco = document.getElementById('sig-icono'), cuenta = document.getElementById('cuenta');
+const brilloStops = [...document.querySelectorAll('#brillo stop')];
+const C = { acento: '#4f8cff', acento2: '#6ea8fe', ok: '#4ade80', bad: '#f87171', warn: '#fbbf24', text: '#e6edf7', muted: '#94a3b8', line: '#263244', crema: '#c5d0df', p2: '#18212f' };
+const TONO = [C.acento, C.bad, C.acento2, C.ok, C.acento, C.acento2];
+
+function limpiar(e) {
+  e.getAnimations({ subtree: true }).forEach((a) => { if (!(a instanceof CSSAnimation)) a.cancel(); });
+  todos(e, '.temporal').forEach((n) => n.remove());
+}
+function pulsar() {
+  if (quieto) return;
+  pulso = sigBtn.animate([{ boxShadow: '0 0 0 0 rgba(79, 140, 255, .6)' }, { boxShadow: '0 0 0 16px rgba(79, 140, 255, 0)' }], { duration: 1400, iterations: Infinity });
+}
+function interfaz(i, antes) {
+  antBtn.classList.toggle('oculto', i === 0);
+  sigTxt.textContent = i === 0 ? 'Ver lo nuevo' : i === 4 ? 'Terminar' : i === 5 ? (enHermit ? 'Empezar a crear' : 'Ver otra vez') : 'Siguiente';
+  sigIco.setAttribute('href', i === 5 && !enHermit ? '#i-reabrir' : '#i-flecha');
+  cuenta.textContent = i >= 1 && i <= 4 ? `${i} de 4` : '';
+  brilloStops.forEach((s) => (s.style.stopColor = TONO[i]));
+  document.getElementById('rayos').style.opacity = i === 0 || i === 5 ? 0 : 0.3;
+  const dentro = (k) => k >= 1 && k <= 4;
+  if (dentro(i) && !dentro(antes)) A(cab, [{ opacity: 0, transform: 'translateY(-40px)' }, { opacity: 1, transform: 'none' }], { duration: 600, delay: 150 });
+  if (!dentro(i) && dentro(antes)) A(cab, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-40px)' }], { duration: 350 });
+  todos(cab, '.barra-llena').forEach((b, k) => {
+    b.getAnimations().forEach((a) => a.cancel());
+    if (k === i - 1) A(b, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: 800, delay: 200 });
+    else b.style.transform = `scaleX(${k < i - 1 ? 1 : 0})`;
+  });
+}
+function ir(i, dir = 1) {
+  if (i < 0 || i >= N || i === actual) return;
+  if (pulso) { pulso.cancel(); pulso = null; }
+  const antes = actual, prev = antes >= 0 ? escenas[antes] : null;
+  const t = ++token, vivo = () => t === token;
+  if (prev) {
+    const s = A(prev, [{ opacity: 1, transform: 'translateX(0)' }, { opacity: 0, transform: `translateX(${-dir * 180}px)` }], { duration: 380, easing: 'cubic-bezier(.5,0,.8,.3)' });
+    s.finished.then(() => { if (escenas[actual] !== prev) { prev.classList.remove('visible'); limpiar(prev); } }, () => {});
+  }
+  const e = escenas[i];
+  limpiar(e); e.classList.add('visible');
+  A(e, [{ opacity: 0, transform: `translateX(${dir * 200}px)` }, { opacity: 1, transform: 'translateX(0)' }], { duration: 750, delay: prev ? 220 : 0, easing: 'cubic-bezier(.2,1.1,.3,1)' });
+  actual = i;
+  interfaz(i, antes);
+  guiones[i](e, vivo);
+}
+const siguiente = () => (actual === N - 1 ? (enHermit ? cerrarGuia() : ir(0, 1)) : ir(actual + 1, 1));
+const anterior = () => ir(actual - 1, -1);
+sigBtn.addEventListener('click', siguiente);
+antBtn.addEventListener('click', anterior);
+addEventListener('keydown', (ev) => {
+  if (ev.key === 'ArrowRight' || ev.key === 'PageDown') { ev.preventDefault(); siguiente(); }
+  if (ev.key === 'ArrowLeft' || ev.key === 'PageUp') { ev.preventDefault(); anterior(); }
+  if (ev.key === 'Escape' && enHermit) cerrarGuia();
+});
+// Deslizar con el dedo
+let x0 = null;
+const esc_ = document.getElementById('escenario');
+esc_.addEventListener('pointerdown', (ev) => (x0 = ev.clientX));
+esc_.addEventListener('pointerup', (ev) => { if (x0 === null) return; const d = ev.clientX - x0; x0 = null; if (Math.abs(d) > 60) d < 0 ? siguiente() : anterior(); });
+
+document.fonts.ready.then(() => {
+  construir();
+  escenas.forEach((e) => e.classList.add('visible'));
+  todos(svg, '.partir-letras').forEach((t) => partir(t, 'letra'));
+  todos(svg, '.partir-palabras').forEach((t) => partir(t, 'palabra'));
+  escenas.forEach((e) => e.classList.remove('visible'));
+  const pedida = +new URLSearchParams(location.search).get('escena') || 0;
+  ir(Math.min(Math.max(pedida, 0), N - 1));
+});
+
+/* ---------- Utilidades ---------- */
+const en = (e, s) => e.querySelector(s);
+const todos = (e, s) => [...e.querySelectorAll(s)];
+const azar = (a, b) => a + Math.random() * (b - a);
+const espera = (ms) => new Promise((r) => setTimeout(r, quieto ? 0 : ms));
+const N = escenas.length;
+const COLORES = [C.acento, C.acento2, C.ok, C.warn, C.bad, C.text, C.crema];
+const REBOTE = 'cubic-bezier(.3,1.6,.5,1)';
+const SUAVE = 'cubic-bezier(.2,.8,.2,1)';
+function A(el, kf, op = {}) {
+  const o = { duration: 600, easing: SUAVE, fill: 'both', ...op };
+  if (quieto) Object.assign(o, { duration: 1, delay: 0, iterations: 1, endDelay: 0 });
+  return el.animate(kf, o);
+}
+const oculto = (el) => A(el, [{ opacity: 0 }, { opacity: 0 }], { duration: 1 });
+const aparece = (el, op = {}) => A(el, [{ opacity: 0, transform: 'translateY(24px)' }, { opacity: 1, transform: 'none' }], op);
+const salta = (el, op = {}) => A(el, [{ opacity: 0, transform: 'scale(.3)' }, { opacity: 1, transform: 'scale(1)' }], { duration: 600, easing: REBOTE, ...op });
+function sacudir(el, f = 12) {
+  if (quieto) return;
+  el.animate([0, 1, 2, 3, 4, 5, 6].map((k) => ({ transform: k === 6 ? 'translate(0,0)' : `translate(${azar(-f, f) * (1 - k / 7)}px, ${azar(-f, f) * (1 - k / 7)}px)` })), { duration: 460, easing: 'linear' });
+}
+// De la pantalla a las coordenadas de 1080
+function aLienzo(el) {
+  const r = el.getBoundingClientRect(), s = svg.getBoundingClientRect();
+  return [((r.left + r.width / 2 - s.left) / s.width) * 1080, ((r.top + r.height / 2 - s.top) / s.height) * 1080];
+}
+
+/* ---------- Partículas en canvas: confeti, chispas y estallidos ---------- */
+const cv = document.getElementById('chispas');
+const cx = cv.getContext('2d');
+let esc = 1;
+function medir() {
+  const r = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+  cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d); esc = cv.width / 1080;
+}
+addEventListener('resize', medir); medir();
+const P = [];
+let corriendo = false, ultimo = 0;
+function arrancar() { if (!corriendo && !quieto) { corriendo = true; ultimo = performance.now(); requestAnimationFrame(cuadro); } }
+function confeti(x, y, n, ang = -90, abre = 70, fuerza = [9, 18]) {
+  if (quieto) return;
+  for (let i = 0; i < n; i++) {
+    const a = ((ang + azar(-abre / 2, abre / 2)) * Math.PI) / 180, v = azar(...fuerza);
+    P.push({ t: 'c', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, r: azar(0, 6.3), vr: azar(-0.25, 0.25), f: azar(0, 6.3), vf: azar(0.08, 0.2), w: azar(11, 19), h: azar(6, 11), c: COLORES[i % COLORES.length], redondo: Math.random() < 0.28 });
+  }
+  arrancar();
+}
+// Corazones que salen disparados, como el confeti
+function corazones(x, y, n, ang = -90, abre = 70, fuerza = [9, 18]) {
+  if (quieto) return;
+  const tonos = [C.bad, C.acento2, C.crema, C.bad];
+  for (let i = 0; i < n; i++) {
+    const a = ((ang + azar(-abre / 2, abre / 2)) * Math.PI) / 180, v = azar(...fuerza);
+    P.push({ t: 'c', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, r: azar(-0.4, 0.4), vr: azar(-0.05, 0.05), f: azar(0, 6.3), vf: azar(0.03, 0.08), w: 0, h: azar(9, 15), c: tonos[i % 4], corazon: true });
+  }
+  arrancar();
+}
+function estallido(x, y, c, n = 80, fuerza = 9) {
+  if (quieto) return;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + azar(-0.05, 0.05), v = azar(fuerza * 0.35, fuerza);
+    P.push({ t: 's', x, y, px: x, py: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, c: Math.random() < 0.3 ? C.crema : c, vida: 1, dv: azar(0.007, 0.014) });
+  }
+  P.push({ t: 'o', x, y, r: 6, vida: 1, c });
+  arrancar();
+}
+function chispa(x, y, c = C.acento2) { P.push({ t: 's', x, y, px: x, py: y, vx: azar(-1.2, 1.2), vy: azar(-1.5, 0.5), c, vida: 0.9, dv: 0.035 }); arrancar(); }
+function cuadro(now) {
+  const dt = Math.min(3, (now - ultimo) / 16.67); ultimo = now;
+  cx.setTransform(1, 0, 0, 1, 0, 0); cx.clearRect(0, 0, cv.width, cv.height);
+  cx.setTransform(esc, 0, 0, esc, 0, 0);
+  for (let i = P.length - 1; i >= 0; i--) {
+    const p = P[i];
+    if (p.t === 'c') {
+      p.vy += 0.3 * dt; p.vx *= Math.pow(0.982, dt); p.vy *= Math.pow(0.985, dt);
+      if (p.vy > 3.6) p.vy = 3.6;
+      p.x += (p.vx + Math.sin(p.f) * 0.7) * dt; p.y += p.vy * dt; p.r += p.vr * dt; p.f += p.vf * dt;
+      if (p.y > 1120 || p.x < -60 || p.x > 1140) { P.splice(i, 1); continue; }
+      cx.globalCompositeOperation = 'source-over'; cx.globalAlpha = 1;
+      cx.save(); cx.translate(p.x, p.y); cx.rotate(p.r); cx.scale(1, Math.cos(p.f)); cx.fillStyle = p.c;
+      if (p.corazon) {
+        const k = p.h;
+        cx.beginPath(); cx.moveTo(0, k * 0.6);
+        cx.bezierCurveTo(-k * 1.2, -k * 0.2, -k * 0.6, -k * 1.2, 0, -k * 0.45);
+        cx.bezierCurveTo(k * 0.6, -k * 1.2, k * 1.2, -k * 0.2, 0, k * 0.6); cx.fill();
+      } else if (p.redondo) { cx.beginPath(); cx.arc(0, 0, p.h * 0.65, 0, 6.283); cx.fill(); } else cx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      cx.restore();
+    } else if (p.t === 's') {
+      p.px = p.x; p.py = p.y;
+      p.vy += 0.08 * dt; p.vx *= Math.pow(0.97, dt); p.vy *= Math.pow(0.97, dt);
+      p.x += p.vx * dt; p.y += p.vy * dt; p.vida -= p.dv * dt;
+      if (p.vida <= 0) { P.splice(i, 1); continue; }
+      cx.globalCompositeOperation = 'lighter'; cx.globalAlpha = p.vida;
+      cx.strokeStyle = p.c; cx.lineWidth = 1.5 + p.vida * 3; cx.lineCap = 'round';
+      cx.beginPath(); cx.moveTo(p.px - p.vx * 2, p.py - p.vy * 2); cx.lineTo(p.x, p.y); cx.stroke();
+    } else if (p.t === 'o') {
+      p.r += 7 * dt; p.vida -= 0.06 * dt;
+      if (p.vida <= 0) { P.splice(i, 1); continue; }
+      cx.globalCompositeOperation = 'lighter'; cx.globalAlpha = p.vida * 0.5;
+      cx.strokeStyle = p.c; cx.lineWidth = 4;
+      cx.beginPath(); cx.arc(p.x, p.y, p.r, 0, 6.283); cx.stroke();
+    }
+  }
+  cx.globalCompositeOperation = 'source-over'; cx.globalAlpha = 1;
+  if (P.length) requestAnimationFrame(cuadro); else { corriendo = false; cx.setTransform(1, 0, 0, 1, 0, 0); cx.clearRect(0, 0, cv.width, cv.height); }
+}
+// Una estela de chispas detrás de algo que vuela
+function estela(el, ms, c) {
+  if (quieto) return;
+  const t0 = performance.now();
+  const f = () => { if (performance.now() - t0 > ms) return; const [x, y] = aLienzo(el); chispa(x, y, c); chispa(x, y, c); requestAnimationFrame(f); };
+  requestAnimationFrame(f);
+}
+
+/* ---------- Piezas que se construyen una vez ---------- */
+function el(tag, attrs = {}, padre) {
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (padre) padre.appendChild(n);
+  return n;
+}
+// Parte un texto en letras o palabras, cada una en su <g> para animarla
+function partir(t, modo) {
+  const s = t.textContent, g = el('g');
+  const unidades = [];
+  if (modo === 'letra') { for (let i = 0; i < s.length; i++) if (s[i] !== ' ') unidades.push([i, s[i]]); }
+  else { let i = 0; for (const w of s.split(' ')) { if (w) unidades.push([i, w]); i += w.length + 1; } }
+  for (const [i, u] of unidades) {
+    const x = t.getStartPositionOfChar(i).x;
+    const w = el('g', { class: (modo === 'letra' ? 'letra' : 'palabra') + ' a' }, g);
+    const n = t.cloneNode(false);
+    n.removeAttribute('class'); n.setAttribute('x', x.toFixed(1)); n.setAttribute('text-anchor', 'start'); n.textContent = u;
+    w.appendChild(n);
+  }
+  t.replaceWith(g);
+}
+/* ---------- El concierto: el escenario y el público ---------- */
+const COLOR_FOCO = [C.acento2, C.crema, C.ok, C.bad];
+// Focos, pantalla LED (con su texto), láseres, piso con luces y el ídolo que sube por el elevador
+function tablado(e, texto) {
+  const t = en(e, '.tablado');
+  const focos = el('g', { class: 'focos' }, t);
+  [190, 405, 675, 890].forEach((x, k) => {
+    const pos = el('g', { transform: `translate(${x} -30)` }, focos);
+    el('path', { class: 'foco arriba', d: 'M-14 0 L14 0 L170 980 L-170 980 Z', fill: `url(#foco${k})` }, pos);
+  });
+  const pantalla = el('g', { class: 'pantalla' }, t);
+  el('rect', { x: 370, y: 50, width: 340, height: 236, rx: 14, fill: '#050a12' }, pantalla);
+  const dentro = el('g', { 'clip-path': 'url(#clipPantalla)' }, pantalla);
+  for (let k = 0; k < 17; k++) el('rect', { class: 'barra-eq abajo', x: 374 + k * 20, y: 140, width: 14, height: 146, rx: 3, fill: COLORES[k % COLORES.length], 'fill-opacity': 0.4 }, dentro);
+  el('text', { class: 'titulo-pantalla', x: 540, y: 186, 'text-anchor': 'middle', 'font-size': 80, 'font-weight': 900, 'letter-spacing': 4, fill: C.acento }, dentro).textContent = texto;
+  el('rect', { x: 370, y: 50, width: 340, height: 236, fill: 'url(#led)' }, dentro);
+  el('rect', { x: 370, y: 50, width: 340, height: 236, rx: 14, fill: 'none', stroke: C.line, 'stroke-width': 4 }, pantalla);
+  const laseres = el('g', { class: 'laseres' }, t);
+  for (const [x, lado] of [[150, 1], [930, -1]]) {
+    const abanico = el('g', { class: 'abanico', 'data-lado': lado }, el('g', { transform: `translate(${x} 640)` }, laseres));
+    [-62, -48, -34, -20].forEach((a, j) => {
+      const r = ((-90 + lado * (90 + a)) * Math.PI) / 180;
+      el('line', { x1: 0, y1: 0, x2: Math.cos(r) * 1300, y2: Math.sin(r) * 1300, stroke: j % 2 ? C.ok : C.bad, 'stroke-width': 3, 'stroke-opacity': 0.75 }, abanico);
+    });
+  }
+  el('path', { d: 'M210 590 H870 L960 646 H120 Z', fill: '#111722', stroke: C.line, 'stroke-width': 3 }, t);
+  for (let x = 146; x < 940; x += 33) el('rect', { class: 'led', x, y: 638, width: 18, height: 6, rx: 3, fill: C.acento2 }, t);
+  el('ellipse', { class: 'sombra-idol a', cx: 540, cy: 594, rx: 110, ry: 13, fill: '#000', opacity: 0.55 }, t);
+  const idol = el('g', { class: 'sube-idol' }, el('g', { transform: 'translate(540 466) scale(.5) translate(-255 -255)' }, t));
+  el('use', { href: '#hermit-idol' }, el('g', { class: 'baila abajo' }, idol));
+}
+// La fila de cabezas de abajo; unos levantan su lightstick
+function publico(e, base) {
+  const pub = en(e, '.publico');
+  for (let k = 0; k < 15; k++) {
+    const x = 18 + k * 75 + azar(-8, 8), y = base + azar(-8, 8);
+    if (k % 2 === 0 || k % 5 === 3) {
+      el('line', { x1: x + 22, y1: y + 40, x2: x + 40, y2: y - 52, stroke: '#050a12', 'stroke-width': 16, 'stroke-linecap': 'round' }, pub);
+      const vara = el('g', { class: 'vara', 'data-k': k }, el('g', { transform: `translate(${x + 40} ${y - 52})` }, pub));
+      el('rect', { x: -6, y: -58, width: 12, height: 64, rx: 4, fill: '#263244' }, vara);
+      el('circle', { class: 'halo', cx: 0, cy: -80, r: 36, fill: C.acento, 'fill-opacity': 0.22 }, vara);
+      el('circle', { class: 'bulbo', cx: 0, cy: -80, r: 21, fill: C.acento, stroke: '#050a12', 'stroke-width': 3 }, vara);
+      el('circle', { cx: 0, cy: -80, r: 8, fill: C.crema }, vara);
+    }
+    el('path', { d: `M${x - 60} 1090 Q${x - 54} ${y + 28} ${x} ${y + 26} Q${x + 54} ${y + 28} ${x + 60} 1090 Z`, fill: '#050a12' }, pub);
+    el('circle', { cx: x, cy: y - 6, r: 30, fill: '#050a12' }, pub);
+  }
+}
+const BEAT = 480; // Los tiempos del concierto
+const tono = () => [C.acento, C.ok, C.bad, C.crema, C.acento].map((c, k) => ({ fill: c, offset: k / 4, easing: 'steps(1)' }));
+// Arranca el concierto: pantalla, focos, ecualizador, luces, lightsticks y el ídolo subiendo
+function concierto(e) {
+  A(en(e, '.pantalla'), [{ opacity: 0 }, { opacity: 1, offset: 0.15 }, { opacity: 0.15, offset: 0.3 }, { opacity: 1, offset: 0.45 }, { opacity: 0.4, offset: 0.6 }, { opacity: 1 }], { duration: 800, easing: 'linear' });
+  A(en(e, '.focos'), [{ opacity: 0 }, { opacity: 1 }], { duration: 900 });
+  todos(e, '.foco').forEach((f, k) => A(f, [{ transform: `rotate(${k < 2 ? -26 : 26}deg)` }, { transform: `rotate(${k < 2 ? 16 : -16}deg)` }], { duration: 2100 + k * 380, iterations: Infinity, direction: 'alternate', easing: 'ease-in-out' }));
+  todos(e, '.barra-eq').forEach((b) => A(b, [{ transform: 'scaleY(.15)' }, { transform: `scaleY(${azar(0.5, 1)})` }], { duration: azar(240, 520), iterations: Infinity, direction: 'alternate', easing: 'steps(4)' }));
+  todos(e, '.led').forEach((l, k) => A(l, [{ opacity: 0.15 }, { opacity: 1 }, { opacity: 0.15 }], { duration: BEAT * 2, delay: -k * 60, iterations: Infinity, easing: 'steps(3)' }));
+  A(en(e, '.titulo-pantalla'), tono(), { duration: BEAT * 4, iterations: Infinity });
+  todos(e, '.vara').forEach((v) => {
+    A(v, [{ transform: 'rotate(-16deg)' }, { transform: 'rotate(16deg)' }], { duration: BEAT, delay: -v.dataset.k * 70, iterations: Infinity, direction: 'alternate', easing: 'ease-in-out' });
+    for (const c of todos(v, '.halo, .bulbo')) A(c, tono(), { duration: BEAT * 4, iterations: Infinity });
+  });
+  oculto(en(e, '.laseres')); oculto(en(e, '.neon-glow'));
+  A(en(e, '.sube-idol'), [{ transform: 'translateY(560px)', opacity: 0 }, { opacity: 1, offset: 0.15 }, { transform: 'translateY(-50px)', offset: 0.72 }, { transform: 'none', opacity: 1 }], { duration: 1100, delay: 300, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  A(en(e, '.sombra-idol'), [{ transform: 'scale(0)' }, { transform: 'scale(1)' }], { duration: 500, delay: 1050 });
+}
+// El golpe grande: corazones, destello, láseres y el neón que late
+function explota(e, neon) {
+  corazones(-10, 1000, 90, -60, 30, [17, 28]); corazones(1090, 1000, 90, -120, 30, [17, 28]);
+  confeti(540, 640, 70, -90, 120, [12, 22]);
+  sacudir(en(e, '.cuerpo'), 14);
+  A(en(e, '.destello'), [{ opacity: 0 }, { opacity: 0.32, offset: 0.15 }, { opacity: 0 }], { duration: 700, easing: 'ease-out' });
+  A(en(e, '.laseres'), [{ opacity: 0.9 }, { opacity: 0.25 }, { opacity: 0.9 }], { duration: BEAT / 2, iterations: Infinity, easing: 'steps(2)' });
+  todos(e, '.abanico').forEach((a) => A(a, [{ transform: 'rotate(0deg)' }, { transform: `rotate(${a.dataset.lado * 22}deg)` }], { duration: BEAT * 2, iterations: Infinity, direction: 'alternate', easing: 'ease-in-out' }));
+  A(en(e, '.neon-glow'), [{ opacity: 1 }, { opacity: 0.35 }, { opacity: 1 }, { opacity: 0.8 }], { duration: BEAT * 2, iterations: Infinity, easing: 'steps(4)' });
+  A(neon, [{ transform: 'scale(1)' }, { transform: 'scale(1.07)', offset: 0.12 }, { transform: 'scale(1)', offset: 0.45 }, { transform: 'scale(1)' }], { duration: BEAT, iterations: Infinity, fill: 'none' });
+}
+// El público sigue lanzando corazones mientras la escena se ve
+async function lluviaDeCorazones(vivo) {
+  while (vivo() && !quieto) {
+    corazones(azar(80, 1000), 960, 9, -90, 50, [7, 13]);
+    await espera(azar(500, 1000));
+  }
+}
+function construir() {
+  // Rayos de luz
+  const rg = document.getElementById('rayosG');
+  for (let k = 0; k < 18; k++) el('path', { d: 'M0 0 L-36 -680 L36 -680 Z', transform: `rotate(${(k / 18) * 360})` }, rg);
+  // Barritas de la cabecera: una por novedad (las escenas 1 a 4)
+  const bg = document.getElementById('barras'), w = (900 - 3 * 14) / 4;
+  for (let k = 0; k < 4; k++) {
+    const x = 90 + k * (w + 14);
+    el('rect', { x, y: 150, width: w, height: 8, rx: 4, fill: C.line }, bg);
+    el('rect', { x, y: 150, width: w, height: 8, rx: 4, fill: C.acento, class: 'izq barra-llena', style: 'transform: scaleX(0)' }, bg);
+  }
+  // Los focos (un degradado por color) y el escenario del concierto, al principio y al final
+  const defs = svg.querySelector('defs');
+  COLOR_FOCO.forEach((c, k) => {
+    const g = el('linearGradient', { id: `foco${k}`, x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+    el('stop', { offset: 0, 'stop-color': c, 'stop-opacity': 0.5 }, g);
+    el('stop', { offset: 1, 'stop-color': c, 'stop-opacity': 0 }, g);
+  });
+  tablado(escenas[0], 'HERMIT'); publico(escenas[0], 1050);
+  tablado(escenas[5], document.title.replace('Hermit ', '')); publico(escenas[5], 1075);
+
+  // La escena 1: los pasos del motor se palomean en orden
+  const pasos = en(escenas[1], '.pasos');
+  [
+    ['--revisa', 'todos los errores de una vez'],
+    ['voz', 'la que elegiste, sin repetirla'],
+    ['render', 'cuadro a cuadro, con candado'],
+    ['medida', 'tiempos.json al milisegundo'],
+    ['portada', 'IA en segundo plano'],
+    ['final.mp4', 'listo para subir'],
+  ].forEach(([paso, nota], k) => {
+    const y = 288 + k * 54, f = el('g', { class: 'paso' }, pasos);
+    el('rect', { class: 'paso-borde', x: 344, y, width: 592, height: 46, rx: 10, fill: '#111722', stroke: C.line, 'stroke-width': 2 }, f);
+    el('rect', { x: 362, y: y + 13, width: 20, height: 20, rx: 6, fill: 'none', stroke: C.muted, 'stroke-width': 2 }, f);
+    el('text', { x: 396, y: y + 30, 'font-size': 17, 'font-weight': 800, fill: C.acento2 }, f).textContent = paso;
+    el('text', { class: 'paso-nota', x: 890, y: y + 30, 'text-anchor': 'end', 'font-size': 15, 'font-weight': 600, fill: C.muted }, f).textContent = nota;
+    const tic = el('g', { class: 'paso-tic a', transform: `translate(916 ${y + 23})` }, f);
+    el('circle', { r: 15, fill: C.ok }, tic);
+    el('use', { href: '#i-palomita', x: -10.5, y: -10.5, width: 21, height: 21, style: 'color:#07101f' }, tic);
+    oculto(tic);
+  });
+
+  // Las ondas de música dentro del teléfono de la escena 2
+  const ondasV = en(escenas[2], '.ondas-v');
+  for (let b = 0; b < 8; b++) {
+    const h = 12 + ((b * 7) % 12);
+    el('rect', { class: 'onda-v abajo', 'data-k': b, x: 18 + b * 17, y: 270 - h, width: 9, height: h, rx: 3, fill: C.acento2 }, ondasV);
+  }
+
+  // La escena 2: los dos regalos, música y portada
+  const premios = en(escenas[2], '.premios');
+  const m = el('g', { class: 'premio' }, premios);
+  el('rect', { x: 344, y: 286, width: 592, height: 112, rx: 14, fill: '#111722', stroke: C.line, 'stroke-width': 2 }, m);
+  el('use', { href: '#i-musica', x: 366, y: 310, width: 24, height: 24, style: 'color:#4f8cff' }, m);
+  el('text', { x: 402, y: 328, 'font-size': 19, 'font-weight': 800, fill: C.text }, m).textContent = 'Música de fondo';
+  el('text', { x: 402, y: 354, 'font-size': 15, 'font-weight': 600, fill: C.muted }, m).textContent = 'sintetizada · libre de derechos · baja bajo la voz';
+  for (let b = 0; b < 9; b++) el('rect', { class: 'onda-m abajo', 'data-k': b, x: 776 + b * 18, y: 352 - (10 + ((b * 5) % 14)), width: 10, height: 10 + ((b * 5) % 14), rx: 3, fill: C.acento2 }, m);
+  const p = el('g', { class: 'premio' }, premios);
+  el('rect', { x: 344, y: 410, width: 592, height: 112, rx: 14, fill: '#111722', stroke: C.line, 'stroke-width': 2 }, p);
+  el('use', { href: '#i-imagen', x: 366, y: 434, width: 24, height: 24, style: 'color:#4f8cff' }, p);
+  el('text', { x: 402, y: 452, 'font-size': 19, 'font-weight': 800, fill: C.text }, p).textContent = 'Portada con IA';
+  el('text', { x: 402, y: 478, 'font-size': 15, 'font-weight': 600, fill: C.muted }, p).textContent = 'se genera mientras renderiza · primer cuadro del vertical';
+  const mp = el('g', { class: 'mini-portada a' }, p);
+  el('rect', { x: 772, y: 428, width: 116, height: 72, rx: 10, fill: 'url(#telaB)', stroke: C.acento, 'stroke-width': 2 }, mp);
+  el('circle', { cx: 830, cy: 456, r: 13, fill: C.acento2 }, mp);
+  el('path', { d: 'M772 492 L804 470 L826 484 L850 462 L888 492 Z', fill: C.acento, 'fill-opacity': .55 }, mp);
+  oculto(mp);
+
+  // La escena 3: la biblioteca de modelos 3D, cada uno con su cubo que gira
+  const lista = en(escenas[3], '.lista3d');
+  [
+    ['enchufe-mcp', 'protagonista del video de MCP'],
+    ['estatua-clasica', 'para los videos motivacionales'],
+    ['logo-canales', 'la marca de cada canal'],
+  ].forEach(([nombre, nota], k) => {
+    const y = 292 + k * 88, f = el('g', { class: 'mod-fila' }, lista);
+    el('rect', { x: 344, y, width: 592, height: 74, rx: 12, fill: '#111722', stroke: C.line, 'stroke-width': 2 }, f);
+    const cb = el('g', { transform: `translate(382 ${y + 37}) scale(.42)`, style: 'color:#6ea8fe' }, f);
+    const giro = el('g', { class: 'gira-cubo' }, cb);
+    el('use', { href: '#cubo3d' }, giro);
+    el('text', { x: 428, y: y + 33, 'font-size': 18, 'font-weight': 800, fill: C.text }, f).textContent = nombre + '.glb';
+    el('text', { x: 428, y: y + 56, 'font-size': 14, 'font-weight': 600, fill: C.muted }, f).textContent = nota;
+  });
+
+  // La lista de la escena 4
+  const arreglos = en(escenas[4], '.arreglos');
+  [
+    ['Eliges tu marca por canal en el compositor', 'Marcas'],
+    ['La codificación rota se detecta antes de gastar voz', 'Videos'],
+    ['Los artículos tienen vista previa y «Ver en producción»', 'Blog'],
+    ['Esta guía se abre sola la primera vez', 'Novedades'],
+    ['El documental y El Diff usan el mismo motor', 'Videos'],
+  ].forEach(([texto, donde], k) => {
+    const y = 222 + k * 68, f = el('g', { class: 'arreglo' }, arreglos);
+    el('rect', { class: 'arreglo-borde', x: 120, y, width: 840, height: 58, rx: 12, fill: '#111722', stroke: C.line, 'stroke-width': 2 }, f);
+    el('rect', { x: 140, y: y + 12, width: 34, height: 34, rx: 9, fill: 'none', stroke: C.muted, 'stroke-width': 2 }, f);
+    const t = el('g', { transform: `translate(157 ${y + 29})` }, f);
+    const tic = el('g', { class: 'tic a' }, t);
+    el('rect', { x: -17, y: -17, width: 34, height: 34, rx: 9, fill: C.ok }, tic);
+    el('use', { href: '#i-palomita', x: -12, y: -12, width: 24, height: 24, style: 'color:#07101f' }, tic);
+    el('text', { x: 194, y: y + 36, 'font-size': 20, 'font-weight': 700, fill: C.text }, f).textContent = texto;
+    el('text', { x: 936, y: y + 36, 'text-anchor': 'end', 'font-size': 15, 'font-weight': 700, fill: C.muted }, f).textContent = donde;
+  });
+}
+
+/* ---------- Lo común de las novedades ---------- */
+function textos(e, base = 200) {
+  const k = en(e, '.kicker');
+  if (k) A(k, [{ opacity: 0, transform: 'translateX(-30px)' }, { opacity: 1, transform: 'none' }], { duration: 600, delay: base });
+  todos(e, '.palabra').forEach((w, i) => A(w, [{ opacity: 0, transform: 'translateY(60px) rotate(8deg) scale(.9)' }, { opacity: 1, transform: 'none' }], { duration: 800, delay: base + 120 + i * 80, easing: REBOTE }));
+  todos(e, '.linea').forEach((l, i) => aparece(l, { duration: 650, delay: base + 480 + i * 120 }));
+}
+async function mover(cur, de, a, ms) {
+  const [x0, y0] = de, [x1, y1] = a;
+  A(cur, [{ transform: `translate(${x0}px, ${y0}px)`, opacity: 0 }, { transform: `translate(${(x0 + x1) / 2 + 60}px, ${(y0 + y1) / 2 - 50}px)`, opacity: 1, offset: 0.45 }, { transform: `translate(${x1}px, ${y1}px)`, opacity: 1 }], { duration: ms, easing: 'cubic-bezier(.45,0,.2,1)' });
+  await espera(ms);
+}
+function clic(e, cur, x, y) {
+  en(cur, '.punta').animate([{ transform: 'scale(1)' }, { transform: 'scale(.8)' }, { transform: 'scale(1)' }], { duration: 260 });
+  const ondas = en(e, '.cuerpo');
+  for (const [r, d] of [[18, 0], [30, 90]]) {
+    const o = el('circle', { cx: x, cy: y, r, fill: 'none', stroke: C.acento2, 'stroke-width': 4, class: 'a temporal' }, ondas);
+    A(o, [{ transform: 'scale(.3)', opacity: 1 }, { transform: 'scale(2.4)', opacity: 0 }], { duration: 600, delay: d, easing: 'ease-out' });
+  }
+}
+
+/* ---------- Las escenas ---------- */
+const guiones = [
+  // 0 · El concierto
+  async (e, vivo) => {
+    concierto(e);
+    todos(en(e, '.titulo'), '.letra').forEach((l, k) => A(l, [{ opacity: 0, transform: 'translateY(34px) scale(.3)' }, { opacity: 1, transform: 'none' }], { duration: 520, delay: 1000 + k * 40, easing: REBOTE }));
+    // El número cae al ritmo, un golpe por cifra
+    const letras = todos(en(e, '.version-neon'), '.letra');
+    letras.forEach((l, k) => A(l, [{ opacity: 0, transform: 'scale(2.8) rotate(-8deg)' }, { opacity: 1, transform: 'scale(.9)', offset: 0.7 }, { opacity: 1, transform: 'none' }], { duration: 300, delay: 1700 + k * BEAT, easing: 'cubic-bezier(.6,0,.9,.45)' }));
+    await espera(1700); if (!vivo()) return;
+    for (const l of letras) {
+      await espera(240); if (!vivo()) return;
+      const b = l.getBBox(), x = b.x + b.width / 2, y = b.y + b.height / 2;
+      sacudir(en(e, '.cuerpo'), 6);
+      A(en(e, '.pantalla'), [{ opacity: 0.35 }, { opacity: 1 }], { duration: 200 });
+      estallido(x, y, C.acento2, 26, 6);
+      await espera(BEAT - 240); if (!vivo()) return;
+    }
+    explota(e, en(e, '.version-neon'));
+    await espera(1400); if (!vivo()) return;
+    pulsar();
+    lluviaDeCorazones(vivo);
+  },
+  // 1 · El motor: los pasos de hacer.py se palomean en orden
+  async (e, vivo) => {
+    textos(e);
+    A(en(e, '.motor-w'), [{ opacity: 0, transform: 'translateY(40px)' }, { opacity: 1, transform: 'none' }], { duration: 650, delay: 80, easing: REBOTE });
+    A(en(e, '.motor'), [{ opacity: 0, transform: 'translateX(50px)' }, { opacity: 1, transform: 'none' }], { duration: 650, delay: 200 });
+    A(en(e, '.prog-v4'), [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: 3600, iterations: Infinity, easing: 'linear' });
+    A(en(e, '.crab-v4'), [{ transform: 'translateY(4px)' }, { transform: 'translateY(-14px)' }], { duration: 480, iterations: Infinity, direction: 'alternate', easing: 'cubic-bezier(.5,0,.5,1)' });
+    const pasos = todos(e, '.paso');
+    pasos.forEach((p, k) => aparece(p, { duration: 500, delay: 400 + k * 420 }));
+    await espera(1500); if (!vivo()) return;
+    // Cada paso se palomea: el video se hace solo
+    for (const [k, p] of pasos.entries()) {
+      const tic = en(p, '.paso-tic');
+      salta(tic, { duration: 450 });
+      A(en(p, '.paso-borde'), [{ stroke: C.ok }, { stroke: C.line }], { duration: 700 });
+      const [x, y] = aLienzo(tic);
+      chispa(x, y); chispa(x - 14, y + 8);
+      confeti(700, 320 + k * 54, 12, -90, 90, [3, 7]);
+      await espera(430); if (!vivo()) return;
+    }
+    estallido(700, 540, C.acento2, 44, 7);
+    confeti(700, 540, 60, -90, 120, [6, 13]);
+  },
+  // 2 · Música y portada: la cama baja bajo la voz y la portada aparece sola
+  async (e, vivo) => {
+    textos(e);
+    A(en(e, '.regalo-w'), [{ opacity: 0, transform: 'translateY(40px)' }, { opacity: 1, transform: 'none' }], { duration: 650, delay: 80, easing: REBOTE });
+    A(en(e, '.regalo'), [{ opacity: 0, transform: 'translateX(50px)' }, { opacity: 1, transform: 'none' }], { duration: 650, delay: 200 });
+    A(en(e, '.prog-v5'), [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: 3600, iterations: Infinity, easing: 'linear' });
+    A(en(e, '.crab-v5'), [{ transform: 'translateY(4px)' }, { transform: 'translateY(-14px)' }], { duration: 480, iterations: Infinity, direction: 'alternate', easing: 'cubic-bezier(.5,0,.5,1)' });
+    todos(e, '.onda-v').forEach((o) => {
+      A(o, [{ transform: 'scaleY(.2)' }, { transform: `scaleY(${azar(0.4, 1)})` }], { duration: azar(300, 520) + +o.dataset.k * 70, delay: -azar(0, 300), iterations: Infinity, direction: 'alternate', easing: 'steps(4)' });
+    });
+    todos(e, '.onda-m').forEach((o) => {
+      A(o, [{ transform: 'scaleY(.2)' }, { transform: `scaleY(${azar(0.4, 1)})` }], { duration: azar(300, 520) + +o.dataset.k * 70, delay: -azar(0, 300), iterations: Infinity, direction: 'alternate', easing: 'steps(4)' });
+    });
+    const premios = todos(e, '.premio');
+    premios.forEach((p, k) => aparece(p, { duration: 500, delay: 400 + k * 500 }));
+    await espera(2000); if (!vivo()) return;
+    // La música hace ducking: baja cuando habla la voz y vuelve
+    todos(e, '.onda-m').forEach((o, k) => A(o, [{ transform: 'scaleY(1)' }, { transform: 'scaleY(.18)', offset: .35 }, { transform: 'scaleY(1)' }], { duration: 1500, delay: k * 60, fill: 'none' }));
+    await espera(1700); if (!vivo()) return;
+    // La portada con IA aparece sola, como primer cuadro
+    const mp = en(e, '.mini-portada');
+    salta(mp, { duration: 600 });
+    const [x, y] = aLienzo(mp);
+    estallido(x, y, C.acento2, 42, 7);
+    confeti(830, 464, 40, -90, 110, [5, 11]);
+    await espera(800); if (!vivo()) return;
+  },
+  // 3 · Modelos 3D: la biblioteca se llena y cada cubo gira
+  async (e, vivo) => {
+    textos(e);
+    A(en(e, '.modelo-w'), [{ opacity: 0, transform: 'translateY(40px)' }, { opacity: 1, transform: 'none' }], { duration: 650, delay: 80, easing: REBOTE });
+    A(en(e, '.modelos'), [{ opacity: 0, transform: 'translateX(50px)' }, { opacity: 1, transform: 'none' }], { duration: 650, delay: 200 });
+    A(en(e, '.prog-v6'), [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: 3600, iterations: Infinity, easing: 'linear' });
+    // Los cubos giran sin parar, como en el visor
+    todos(e, '.gira3d, .gira-cubo').forEach((g, k) => A(g, [{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }], { duration: 5000 + k * 700, delay: -k * 900, iterations: Infinity, easing: 'linear' }));
+    const filas = todos(e, '.mod-fila');
+    filas.forEach((f, k) => aparece(f, { duration: 500, delay: 400 + k * 450 }));
+    await espera(2000); if (!vivo()) return;
+    // La biblioteca queda completa
+    confeti(700, 480, 60, -90, 130, [6, 14]);
+    estallido(700, 480, C.acento2, 36, 6);
+  },
+  // 4 · Los arreglos se palomean uno por uno
+  async (e, vivo) => {
+    textos(e);
+    const filas = todos(e, '.arreglo');
+    filas.forEach((f, k) => {
+      A(f, [{ opacity: 0, transform: 'translateX(-40px)' }, { opacity: 1, transform: 'none' }], { duration: 500, delay: 100 + k * 90 });
+      oculto(en(f, '.tic'));
+      en(f, '.arreglo-borde').setAttribute('stroke', C.line);
+    });
+    await espera(1000); if (!vivo()) return;
+    for (const [k, f] of filas.entries()) {
+      salta(en(f, '.tic'), { duration: 450 });
+      A(en(f, '.arreglo-borde'), [{ stroke: C.ok }, { stroke: C.line }], { duration: 700 });
+      confeti(157, 251 + k * 68, 16, -60, 90, [3, 8]);
+      await espera(380); if (!vivo()) return;
+    }
+    confeti(540, 650, 90, -90, 120, [10, 18]);
+  },
+  // 5 · A crear: el mismo concierto y las letras caen al ritmo
+  async (e, vivo) => {
+    concierto(e);
+    const letras = todos(en(e, '.neon'), '.letra');
+    letras.forEach((l, k) => A(l, [{ opacity: 0, transform: 'scale(2.6) rotate(-10deg)' }, { opacity: 1, transform: 'scale(.9)', offset: 0.7 }, { opacity: 1, transform: 'none' }], { duration: 300, delay: 1300 + k * (BEAT / 4), easing: 'cubic-bezier(.6,0,.9,.45)' }));
+    todos(e, '.linea').forEach((l, k) => aparece(l, { delay: 1300 + letras.length * (BEAT / 4) + 300 + k * 150 }));
+    await espera(1300 + letras.length * (BEAT / 4) + 200); if (!vivo()) return;
+    explota(e, en(e, '.neon'));
+    lluviaDeCorazones(vivo);
+  },
+];
+</script>
+</body>
+</html>

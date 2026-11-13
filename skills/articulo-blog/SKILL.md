@@ -90,6 +90,6 @@ Esto sube la portada a Cloudinary si está configurado, genera `vista-previa.htm
 ## Modo por lotes (N temas)
 
 Cuando el usuario pida generar N artículos a la vez:
-1. Divide cada tema en su propia carpeta: `blog-<slug>`, dentro del directorio donde Hermit te lanzó.
+1. Divide cada tema en su propia carpeta: `blog-<slug>`, dentro de la ruta de la línea `Carpeta:` (úsala tal cual).
 2. Para cada tema, redacta el contenido en `articulo.json`, genera su `portada.png` y ejecuta `publicar.mjs`.
 3. Informa al usuario un resumen con la lista de los artículos creados, sus URLs y sus vistas previas locales.

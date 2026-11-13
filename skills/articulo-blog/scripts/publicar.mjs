@@ -94,6 +94,8 @@ async function subirACloudinary(archivo, config) {
 function generarVistaPreviaHtml(payload, proyDir, respuesta, config) {
   const fecha = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })
   const tagsHtml = payload.tags.map((t) => `<span class="tag">#${t}</span>`).join(' ')
+  // La dirección pública es la misma que queda en publicado.json: la API no devuelve `url`, solo el slug.
+  const urlPublico = `${config.apiUrl}/blog/${respuesta.slug}`
 
   const html = `<!DOCTYPE html>
 <html lang="es">
@@ -254,7 +256,7 @@ function generarVistaPreviaHtml(payload, proyDir, respuesta, config) {
     </div>
     <div class="acciones">
       <span style="color:var(--muted); font-size:13px;">Slug: <code>${respuesta.slug}</code></span>
-      <a class="btn" href="${payload.status === 'PUBLISHED' ? respuesta.url : `${config.apiUrl}/admin/articles`}" target="_blank" rel="noopener">
+      <a class="btn" href="${payload.status === 'PUBLISHED' ? urlPublico : `${config.apiUrl}/admin/articles`}" target="_blank" rel="noopener">
         ${payload.status === 'PUBLISHED' ? 'Ver en Producción ↗' : 'Abrir en el panel del blog ↗'}
       </a>
     </div>

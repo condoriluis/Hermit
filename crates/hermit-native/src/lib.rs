@@ -11,7 +11,7 @@ use symphonia::core::formats::FormatOptions;
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
-use sysinfo::System;
+use sysinfo::{ProcessesToUpdate, System};
 
 /// La misma resolución que `server/motor.ts`: un pico cada 20 ms.
 const PICOS_POR_SEGUNDO: f64 = 50.0;
@@ -48,6 +48,80 @@ pub fn hardware_info() -> HardwareInfo {
     cpu_cores: sistema.cpus().len().max(1) as u32,
     total_memory_mb: en_mb(sistema.total_memory()),
     available_memory_mb: en_mb(sistema.available_memory()),
+  }
+}
+
+/// Un proceso visto por el vigilante de recursos: quién es, de quién cuelga y cuánta memoria toma.
+#[napi(object)]
+pub struct ProcesoInfo {
+  pub pid: u32,
+  pub ppid: u32,
+  pub nombre: String,
+  pub memoria_mb: f64,
+}
+
+/// Listar procesos recorre la máquina entera: va al pool de hilos de libuv.
+pub struct TareaProcesos;
+
+#[napi]
+pub fn procesos() -> AsyncTask<TareaProcesos> {
+  AsyncTask::new(TareaProcesos)
+}
+
+impl Task for TareaProcesos {
+  type Output = Vec<ProcesoInfo>;
+  type JsValue = Vec<ProcesoInfo>;
+
+  fn compute(&mut self) -> Result<Self::Output> {
+    let mut sistema = sistema().lock().unwrap_or_else(|veneno| veneno.into_inner());
+    sistema.refresh_processes(ProcessesToUpdate::All, true);
+    Ok(
+      sistema
+        .processes()
+        .iter()
+        .map(|(pid, p)| ProcesoInfo {
+          pid: pid.as_u32(),
+          ppid: p.parent().map(|padre| padre.as_u32()).unwrap_or(0),
+          nombre: p.name().to_string_lossy().into_owned(),
+          memoria_mb: en_mb(p.memory()),
+        })
+        .collect(),
+    )
+  }
+
+  fn resolve(&mut self, _env: Env, lista: Self::Output) -> Result<Self::JsValue> {
+    Ok(lista)
+  }
+}
+
+/// Baja la prioridad de un proceso, o la devuelve a la normal. Solo Windows: en Linux y macOS
+/// bajar el `nice` es irreversible sin privilegios — un proceso que Hermit hizo lento se quedaría
+/// lento para siempre, así que allá el vigilante solo avisa y frena trabajo nuevo.
+#[napi]
+pub fn prioridad(pid: u32, baja: bool) -> bool {
+  #[cfg(windows)]
+  {
+    use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Threading::{
+      OpenProcess, SetPriorityClass, BELOW_NORMAL_PRIORITY_CLASS, NORMAL_PRIORITY_CLASS,
+      PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SET_INFORMATION,
+    };
+    const ACCESO: u32 = PROCESS_SET_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION;
+    unsafe {
+      let proceso = OpenProcess(ACCESO, 0, pid) as usize;
+      if proceso == 0 {
+        return false;
+      }
+      let nivel = if baja { BELOW_NORMAL_PRIORITY_CLASS } else { NORMAL_PRIORITY_CLASS };
+      let ok = SetPriorityClass(proceso as _, nivel) != 0;
+      CloseHandle(proceso as _);
+      ok
+    }
+  }
+  #[cfg(not(windows))]
+  {
+    let _ = (pid, baja);
+    false
   }
 }
 

@@ -2,10 +2,11 @@ import { execFile, spawn } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { cpus, totalmem } from 'node:os'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import type { Equipo } from '../shared/types.ts'
-import { BANDERAS, instalacionDe, instalarMejora, rutaModelos, mejoraDelPythonHermit, motorHermit, rutaPythonHermit } from './requisitos.ts'
+import { BANDERAS, instalacionDe, instalarMejora, rutaEquipoJson, rutaModelos, mejoraDelPythonHermit, motorHermit, rutaPythonHermit } from './requisitos.ts'
 import { CABEN } from './sessions.ts'
+import { estadoVigilante } from './recursos.ts'
 
 /**
  * Opciones → Tu equipo: qué tiene esta computadora y cómo trabaja Hermit en ella. Nadie tiene que elegir nada para que
@@ -22,7 +23,7 @@ import { CABEN } from './sessions.ts'
  * y se baja con un clic (`instalarMejora`).
  */
 
-const rutaEquipo = () => join(dirname(rutaModelos()), 'equipo.json')
+const rutaEquipo = rutaEquipoJson
 
 /** El nombre del procesador, sin las marcas registradas ni la frecuencia: «Intel Core i5-4590». */
 export function nombreProcesador(modelo: string): string {
@@ -51,10 +52,10 @@ function tarjetaDeVideo(): Promise<string | undefined> {
   return tarjeta
 }
 
-function medido(): Pick<Equipo, 'voz' | 'render' | 'tresD' | 'encode'> {
+function medido(): Pick<Equipo, 'voz' | 'render' | 'tresD' | 'encode' | 'etapas'> {
   try {
     const d = JSON.parse(readFileSync(rutaEquipo(), 'utf8'))
-    return { voz: d.voz, render: d.render?.final, tresD: d.render?.tarjeta, encode: d.encode }
+    return { voz: d.voz, render: d.render?.final, tresD: d.render?.tarjeta, encode: d.encode, etapas: d.etapas }
   } catch {
     return {}
   }
@@ -138,6 +139,10 @@ export function equipo(o: { app: string; ocupado: () => string | null }) {
       nvidia: instalado === 'whisper',
       ...lo,
       aLaVez: CABEN,
+      recursos: (() => {
+        const v = estadoVigilante()
+        return v ? { nivel: v.nivel, libreMb: v.libreMb, agentesMb: v.agentesMb, fecha: v.fecha } : undefined
+      })(),
       mejora: falta,
       midiendo,
       error

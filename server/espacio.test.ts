@@ -3,7 +3,7 @@ import { existsSync, linkSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { adjuntosSueltos, bajados, cachesViejas, compartir, mismoArbol, regenerables } from './espacio.ts'
+import { adjuntosSueltos, bajados, cachesPython, cachesViejas, compartir, mismoArbol, raizDelEstilo, regenerables } from './espacio.ts'
 
 function carpeta(t: { after(fn: () => void): void }) {
   const raiz = mkdtempSync(join(tmpdir(), 'hermit-espacio-'))
@@ -86,6 +86,32 @@ test('una copia propia de node_modules pasa a ser la compartida y luego se enlaz
   }
   assert.equal(readFileSync(join(raiz, 'dos/node_modules/remotion/index.js'), 'utf8'), 'uno')
   assert.ok(existsSync(join(casa, 'package-lock.json')))
+})
+
+test('la raíz del estilo: lo oculto y vacío se va solo, lo demás a revisión, marca.json no', (t) => {
+  const { raiz, poner } = carpeta(t)
+  mkdirSync(join(raiz, '.gemini'), { recursive: true }) // vacío: lo crean las herramientas del agente
+  mkdirSync(join(raiz, '.claude', 'skills'), { recursive: true }) // con contenido: a revisar
+  mkdirSync(join(raiz, '.git'), { recursive: true }) // control de versiones: no se toca
+  mkdirSync(join(raiz, 'episodio-1'), { recursive: true }) // carpeta visible: episodio o recurso, no se toca
+  poner('marca.json', '{}')
+  poner('edit_readme_voice.py')
+  poner('.env', 'x')
+  const { vacios, sueltos } = raizDelEstilo(raiz)
+  assert.deepEqual(vacios.map((r) => r.split(/[\\/]/).pop()), ['.gemini'])
+  assert.deepEqual(sueltos.map((r) => r.split(/[\\/]/).pop()).sort(), ['.claude', '.env', 'edit_readme_voice.py'])
+})
+
+test('los __pycache__ y .pyc de un episodio se regeneran solos', (t) => {
+  const { raiz, poner } = carpeta(t)
+  poner('episodio/voz/adaptar.py')
+  poner('episodio/voz/__pycache__/adaptar.cpython-312.pyc')
+  poner('episodio/__pycache__/x.pyc')
+  poner('episodio/public/hola.pyc') // .pyc suelto también cuenta
+  poner('episodio/node_modules/no-se-baja.pyc') // node_modules no se recorre
+  poner('episodio/out/__pycache__/no.pyc') // out tampoco: es del render
+  const hallados = cachesPython(join(raiz, 'episodio')).map((r) => r.slice(raiz.length + 1).replaceAll('\\', '/')).sort()
+  assert.deepEqual(hallados, ['episodio/__pycache__', 'episodio/public/hola.pyc', 'episodio/voz/__pycache__'])
 })
 
 test('los adjuntos viejos que ningún hilo nombra son los sueltos', async (t) => {

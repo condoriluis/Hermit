@@ -10,6 +10,9 @@ import { buildTimeline } from './items'
 import { GenerarVoz } from './Voz' // voz de AI Studio
 import './Etapas.css'
 
+/** Cuánto tardó una etapa: «3 min», «1 h 20 min». */
+const duracion = (s: number) => (s < 3600 ? `${Math.max(1, Math.round(s / 60))} min` : `${Math.floor(s / 3600)} h ${Math.round((s % 3600) / 60)} min`)
+
 /**
  * El avance de la sesión, leído de sus archivos al abrirla y cada vez que el servidor avisa de que cambió su carpeta
  * (`hermit-etapas`, que App reparte desde el WebSocket; sin hilo, al reconectar, es para todos).
@@ -156,6 +159,7 @@ export function EtapaCuerpo({ sessionId, p, i }: { sessionId: string; p: Pasos; 
         <span>{etapa.nombre}</span>
         <span className={`muted small ${p.state(i) === 'en curso' ? 'etapa-viva' : etapa.hecha ? 'etapa-hecha' : ''}`}>
           {i + 1} de {p.etapas.length} · {p.state(i)}
+          {etapa.hecha && etapa.dura !== undefined && ` · ${duracion(etapa.dura)}`}
         </span>
       </div>
       <EtapaEspera sessionId={sessionId} p={p} i={i} />

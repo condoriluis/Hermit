@@ -1,13 +1,15 @@
 import { closeSync, createReadStream, existsSync, fstatSync, globSync, mkdirSync, openSync, readFileSync, readdirSync, readSync, type Stats, statSync, watch } from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { basename, extname, isAbsolute, join, matchesGlob, relative, resolve, sep } from 'node:path'
-import { enCurso } from '../shared/etapas.ts'
+import { enCurso, tiemposDe } from '../shared/etapas.ts'
 import { deTipo, type Archivo, type ArticuloHecho, type Avance, type AvanceCorto, type Card, type CarpetaDeVideo, type ImagenHecha, type MarcasDeRedes, type Pieza, type PiezasDeTodos, type PresentacionHecha, type Produce, type Render, type ServerPush, type SessionMeta, type VideoFinal, type VideoHecho } from '../shared/types.ts'
 import { cuerpo, json } from './http.ts'
 import { IMAGE_TYPES } from './agent.ts'
 import { aLaPapelera, huella } from './disco.ts'
 import { motorDe, servirMotor, servirOnda } from './motor.ts'
+import { tamImagen } from './tamano-imagen.ts'
 import type { Sessions } from './sessions.ts'
+import { anotar } from './telemetria.ts'
 
 /**
  * El avance de una sesión para el estudio de video, leído de los archivos que deja el agente, no de lo que dice. Las etapas
@@ -349,6 +351,7 @@ export function videosDe(card: Card, sessions: Sessions): VideoHecho[] {
       const h = huella(file)
       if (!h || vistos.has(h)) continue
       vistos.add(h)
+      const portada = one(folder, 'portada.png') ?? one(folder, 'portada.jpg')
       videos.push({
         src: `/api/piezas/archivo?ruta=${encodeURIComponent(file)}&t=${Math.round(a.t)}`,
         titulo: hilo?.title ?? basename(folder),
@@ -357,7 +360,8 @@ export function videosDe(card: Card, sessions: Sessions): VideoHecho[] {
         t: a.t,
         sessionId: hilo?.id,
         cardId: card.id,
-        vertical: esVertical(file, a.t)
+        vertical: esVertical(file, a.t),
+        portada: portada ? join(folder, portada.ruta) : undefined
       })
     }
   }
@@ -475,13 +479,17 @@ export function imagenesDe(card: Card, sessions: Sessions): ImagenHecha[] {
   for (const folder of carpetasDe(card)) {
     for (const a of files(folder, '*')) {
       if (!ES_IMAGEN.test(a.ruta) || basename(a.ruta).startsWith('_')) continue
+      const ruta = join(folder, a.ruta)
+      const tam = tamImagen(ruta)
       imagenes.push({
         titulo: hilos.get(folder)?.title ?? basename(a.ruta, extname(a.ruta)),
         archivo: a.ruta,
-        ruta: join(folder, a.ruta),
+        ruta,
         t: a.t,
         sessionId: hilos.get(folder)?.id,
-        cardId: card.id
+        cardId: card.id,
+        ancho: tam?.ancho,
+        alto: tam?.alto
       })
     }
   }
@@ -775,18 +783,25 @@ export async function etapasApi(
       if (ed.cuadros) for (const a of files(folder, `${pre}*${post}`)) cuadros[a.ruta.slice(pre.length, a.ruta.length - post.length)] = a
       editor = { guion: one(folder, ed.guion), linea: one(folder, ed.linea), cuadros }
     }
-    const etapas = (card?.etapas ?? []).map((e) => {
+    const etapas: Avance['etapas'] = (card?.etapas ?? []).map((e) => {
       // El nacimiento y no la última edición: rehacer un archivo no mueve la etapa en el tiempo.
       const born = listos(folder, e.listo).map(({ st }) => st.birthtimeMs)
       return { ...e, hecha: born.length > 0, hechaEn: born.length ? Math.min(...born) : undefined, archivos: e.muestra ? files(folder, e.muestra) : [] }
     })
+    // Cuánto tardó cada etapa (de la anterior a la suya): lo ve el estudio y lo acumula `telemetria.ts` en equipo.json.
+    tiemposDe(etapas, meta.createdAt).forEach((t, i) => {
+      if (t !== undefined) etapas[i].dura = t
+    })
     const conEtapas = card?.etapas?.length ? card : undefined
+    const finales = conEtapas ? finalesDe(meta, conEtapas, folder) : undefined
+    // Episodio terminado: una muestra más para «Tu equipo» (una por estado del episodio, ver telemetria.ts).
+    if (conEtapas && finales?.length) anotar(conEtapas, meta, folder, etapas)
     const avance: Avance = {
       carpeta: folder,
       etapas,
       editor,
       monitor: conEtapas && monitorDe(meta.id, conEtapas, folder, etapas, () => avisarCarpeta(folder)),
-      finales: conEtapas && finalesDe(meta, conEtapas, folder)
+      finales
     }
     // Un MP4 que se seguía escribiendo no contó. Cuando acabe no cambia nada más en la carpeta: se avisa entonces.
     if (frescoHasta < Infinity) reavisar(meta.id, frescoHasta, avisar)

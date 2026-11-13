@@ -3,7 +3,7 @@ import type { Espacio, EstadoTrabajo, GrupoEspacio, IdEspacio } from '../../shar
 import { api } from './api'
 import { Icono } from './Iconos'
 
-const gb = (b: number) => (b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : b >= 1e6 ? `${Math.round(b / 1e6)} MB` : '0 MB')
+const gb = (b: number) => (b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : b >= 1e6 ? `${Math.round(b / 1e6)} MB` : b > 0 ? '<1 MB' : '0 MB')
 /** Lo que no vale un botón: menos de esto no se enseña. */
 const MINIMO = 20e6
 
@@ -31,7 +31,8 @@ export function EspacioDisco() {
     }
   }
 
-  const visibles = e?.grupos.filter((g) => g.bytes >= MINIMO) ?? []
+  // Los sueltos se enseñan siempre que haya: aunque pesen poco, cada archivo es una decisión del usuario.
+  const visibles = e?.grupos.filter((g) => g.bytes >= MINIMO || (g.id === 'sueltos' && g.cuantos > 0)) ?? []
   const seguros = visibles.filter((g) => g.seguro)
   const totalSeguro = seguros.reduce((n, g) => n + g.bytes, 0)
   const ocupado = liberando !== null

@@ -34,7 +34,9 @@ const GRUPOS: Record<IdEspacio, Omit<GrupoEspacio, 'id' | 'bytes' | 'cuantos'>> 
   perfiles: { nombre: 'Perfiles viejos del navegador', detalle: 'Copias de respaldo de perfiles del navegador que ya se cambiaron.', seguro: true },
   fuentes: { nombre: 'Videos bajados de internet', detalle: 'Los originales de videos que terminaste hace más de una semana. El video final no los usa; si lo rehaces, se vuelven a bajar.', seguro: false },
   python: { nombre: 'Otra copia del Python de Hermit', detalle: 'Una instalación vieja de la IA local (torch, Whisper) que Hermit ya no usa.', seguro: false },
-  adjuntos: { nombre: 'Adjuntos de hilos borrados', detalle: 'Imágenes y audios que pegaste en hilos que ya no existen, de hace más de una semana.', seguro: false }
+  adjuntos: { nombre: 'Adjuntos de hilos borrados', detalle: 'Imágenes y audios que pegaste en hilos que ya no existen, de hace más de una semana.', seguro: false },
+  agentes: { nombre: 'Basura de los agentes y de Python', detalle: 'Carpetas de configuración vacías que los agentes crean en la carpeta del estilo, y los `__pycache__` de los episodios. Todo se rehace solo.', seguro: true },
+  sueltos: { nombre: 'Archivos sueltos en la carpeta del estilo', detalle: 'Lo que quedó en la raíz del estilo en vez de dentro de su episodio: scripts de un solo uso, capturas, restos de agentes. `marca.json` no se toca; revísalos antes de borrar.', seguro: false }
 }
 
 /** Algo que se puede borrar: una carpeta o un archivo, o un cambio (`hacer`) como poner un enlace en lugar de una copia. */
@@ -83,11 +85,18 @@ export function espacio(o: OpcionesEspacio) {
     const vistos = new Set<string>() // los videos bajados, una vez aunque estén enlazados en dos carpetas
     const propias: { card: Card; carpeta: string; nm: string; edad: number }[] = []
     for (const card of o.cards().filter((c) => esDeVideo(c) && c.skill)) {
+      // La raíz del estilo es el cwd del agente: a veces deja ahí sus archivos y carpetas de configuración.
+      if (!enUso(card.cwd)) {
+        const { vacios, sueltos } = raizDelEstilo(card.cwd)
+        for (const r of vacios) await poner('agentes', r)
+        for (const r of sueltos) await poner('sueltos', r)
+      }
       for (const carpeta of carpetasDe(card)) {
         const nm = join(carpeta, 'node_modules')
         const destino = enlace(nm)
         if (destino) enlazadas.add(clave(destino))
         if (enUso(carpeta)) continue
+        for (const r of cachesPython(carpeta)) await poner('agentes', r)
         const edad = ahora - ultimoCambio(carpeta)
         const hecho = terminados(card, carpeta).length > 0
         // Los de un video terminado, o de uno que nadie toca hace días (a medias o abandonado: sus pedazos sin final).
@@ -263,7 +272,8 @@ function ultimoCambio(carpeta: string): number {
 
 /**
  * Lo que un render vuelve a hacer solo: los pedazos (`out/partes`, `out/redes/partes`), los empaquetados de revisar
- * (`_bundle_rev`) y lo que dejan los renders cortados (`_render-*`, `_viejo-*`, `*.remotion-in-progress`). Nunca un
+ * (`_bundle_rev`) y lo que dejan los renders cortados (`_render-*`, `_viejo-*`, `*.remotion-in-progress`) y el
+ * borrador de revisión (`borrador.mp4`, el `--borrador` a mitad de tamaño). Nunca un
  * enlace, ni nada fuera de `out/`.
  */
 export function regenerables(carpeta: string): string[] {
@@ -282,10 +292,68 @@ export function regenerables(carpeta: string): string[] {
       if (st.isDirectory()) {
         if (n === '_bundle_rev' || (n === 'partes' && (dir === out || dir === join(out, 'redes')))) hallados.push(ruta)
         else if (n !== 'node_modules' && nivel < 3) mirar(ruta, nivel + 1)
-      } else if (/^_(render|viejo)-/.test(n) || n.endsWith('.remotion-in-progress')) hallados.push(ruta)
+      } else if (/^_(render|viejo)-/.test(n) || n === 'borrador.mp4' || n.endsWith('.remotion-in-progress')) hallados.push(ruta)
     }
   }
   if (esCarpeta(out)) mirar(out, 0)
+  return hallados
+}
+
+/**
+ * Lo que un agente o un script suelto deja en la raíz del estilo (el cwd de la sesión). Las carpetas ocultas vacías
+ * (`.gemini`, `.agents`, `.claude`…) las crean las propias herramientas del agente al arrancar y no sirven para nada;
+ * se borran solas. Lo demás (archivos sueltos, restos con contenido) va a revisión: nunca se borra a ciegas.
+ * `marca.json` es la marca vigente del estilo y no se toca; las carpetas visibles son episodios o recursos del estilo
+ * (`personajes/`, `portada/`) y tampoco se tocan. Lo del control de versiones se respeta siempre.
+ */
+const PROTEGIDOS = new Set(['.git', '.github', '.gitignore', '.gitattributes', '.gitmodules', '.editorconfig', '.vscode', '.idea', 'node_modules'])
+const MARCAS = new Set(['marca.json'])
+
+export function raizDelEstilo(raiz: string): { vacios: string[]; sueltos: string[] } {
+  const vacios: string[] = []
+  const sueltos: string[] = []
+  for (const n of listar(raiz)) {
+    if (PROTEGIDOS.has(n)) continue
+    const ruta = join(raiz, n)
+    let st
+    try {
+      st = lstatSync(ruta)
+    } catch {
+      continue
+    }
+    if (st.isSymbolicLink()) {
+      sueltos.push(ruta)
+      continue
+    }
+    if (n.startsWith('.')) {
+      if (st.isDirectory()) (listar(ruta).length ? sueltos : vacios).push(ruta)
+      else sueltos.push(ruta)
+    } else if (st.isFile() && !MARCAS.has(n)) sueltos.push(ruta)
+  }
+  return { vacios, sueltos }
+}
+
+/** Los `__pycache__` y los `.pyc`/`.pyo` sueltos de la carpeta de un episodio: Python los rehace solo al importar. */
+export function cachesPython(carpeta: string): string[] {
+  const hallados: string[] = []
+  const mirar = (dir: string, nivel: number) => {
+    for (const n of listar(dir)) {
+      if (n === 'node_modules' || n === '.git' || n === 'out') continue
+      const ruta = join(dir, n)
+      let st
+      try {
+        st = lstatSync(ruta)
+      } catch {
+        continue
+      }
+      if (st.isSymbolicLink()) continue
+      if (st.isDirectory()) {
+        if (n === '__pycache__') hallados.push(ruta)
+        else if (nivel < 6) mirar(ruta, nivel + 1)
+      } else if (/\.py[co]$/i.test(n)) hallados.push(ruta)
+    }
+  }
+  mirar(carpeta, 0)
   return hallados
 }
 

@@ -4,8 +4,13 @@ import { api } from './api'
 import { Confirm } from './Confirm'
 import { Icono, type NombreIcono } from './Iconos'
 
-/** «unos 40 s», «unos 3 min». */
-const tiempo = (s: number) => (s < 90 ? `unos ${Math.max(5, Math.round(s / 5) * 5)} s` : `unos ${Math.round(s / 60)} min`)
+/** «unos 40 s», «unos 3 min», «unas 2 h 10 min». */
+const tiempo = (s: number) =>
+  s < 90
+    ? `unos ${Math.max(5, Math.round(s / 5) * 5)} s`
+    : s < 3600
+      ? `unos ${Math.round(s / 60)} min`
+      : `unas ${Math.floor(s / 3600)} h${Math.round((s % 3600) / 60) ? ` ${Math.round((s % 3600) / 60)} min` : ''}`
 
 /** Cómo se llama cada encoder de video en palabras: el de hardware que midió `equipo.cjs`, o el procesador. */
 const CODIFICADOR: Record<string, string> = {
@@ -130,7 +135,28 @@ export function TuEquipo() {
                 .filter(Boolean)
                 .join(' ')}
             />
+            {Object.values(e.etapas ?? {}).map((est) => (
+              <Fila
+                key={est.nombre}
+                icono="video"
+                nombre={est.nombre}
+                detalle={Object.entries(est.etapas)
+                  .map(([etapa, m]) => `${etapa} ${tiempo(m.seg)}`)
+                  .join(' · ')}
+              />
+            ))}
             <Fila icono="claqueta" nombre={`${e.aLaVez === 1 ? 'Un video' : `${e.aLaVez} videos`} a la vez`} detalle="En un lote: uno por cada 3 hilos del procesador y cada 4 GB de memoria." />
+            {e.recursos && e.recursos.nivel !== 'ok' && (
+              <Fila
+                icono="fuego"
+                nombre={e.recursos.nivel === 'critico' ? 'Memoria al límite' : 'Memoria justa'}
+                detalle={
+                  e.recursos.nivel === 'critico'
+                    ? `Quedan unos ${e.recursos.libreMb} MB libres: los videos nuevos esperan en cola hasta que baje. Los que ya van no se interrumpen${e.recursos.agentesMb ? `, y los agentes llevan unos ${Math.round(e.recursos.agentesMb / 1024)} GB` : ''}.`
+                    : `Quedan unos ${e.recursos.libreMb} MB libres: Hermit va con cuidado y no abre videos de más.`
+                }
+              />
+            )}
           </>
         )}
       </div>

@@ -89,6 +89,37 @@ En Linux (Docker, xvfb, 42 hilos reales, hasta la interfaz montada):
 Lo que el agente abre en una página: Codex solo usaba el navegador de Hermit 1 de 6 veces (curl o `cua_repl`, igual antes de
 estos cambios); con `USA_EL_NAVEGADOR`, 6 de 6. La prueba es una página cuyo código pone JavaScript, con cada dirección distinta.
 
+## Lo que ya se mide solo
+
+- **Cuánto tarda cada etapa de un video** (`server/telemetria.ts`): no se instrumenta nada — sale de los `hechaEn` del
+  panel de etapas (nacimiento del primer archivo de cada etapa) y del `createdAt` del hilo, en `tiemposDe`
+  (`shared/etapas.ts`). Cada episodio terminado aporta una muestra por etapa a `equipo.json` (`etapas`, media móvil con
+  `n`), deduplicada por carpeta y marca en `etapas_hechos` (tope 500). Se ve en Opciones → Tu equipo (una fila por
+  estilo) y en el estudio, junto al estado de cada etapa (`dura` del `Avance`). Mide tiempo de reloj, esperas del
+  usuario incluidas; no toca renders ni calidad.
+- **Un solo render por episodio** (`skills/video-base/scripts/candado.py`): `out/.render.lock` atómico
+  (`O_CREAT|O_EXCL`, pid + hora); un render cortado se sana solo al ver el pid muerto, y `soltar` solo quita el propio.
+  Los `final.py`/`terminar.py` de los estilos lo toman y lo sueltan en `finally`.
+
+## Recursos de los agentes (`server/recursos.ts`)
+
+- **Hilos por agente**: `turno` llama a `fijarHilos(n)` con cuántos agentes trabajan; pone `OMP/MKL/OPENBLAS/
+  NUMEXPR/VECLIB_NUM_THREADS` en `process.env` (las que el usuario ya definió no se tocan) y los procesos que nazcan
+  —el CLI del agente y, por herencia, su Python, FFmpeg y Remotion— las heredan. Con uno solo tiene todos los núcleos;
+  con varios se reparten (`hilosPara`, piso de 2). No toca calidad: son hilos de cálculo, no píxeles.
+- **Concurrencia por tipo** (`Sessions.repartir`): `CABEN` ahora cuenta solo videos; un chat que trabaja ya no le quita
+  el sitio a un render. Los pendientes que no son video tienen su propio tope (`TOPE_OTROS`, para que una reanudación
+  masiva tras reiniciar no levante todos los procesos a la vez).
+- **Vigilante de memoria** (`vigilar`, cada 15 s): mide la RAM libre y, con el módulo nativo (`procesos()` de Rust,
+  sysinfo — igual en Windows, Linux y macOS), la memoria de cada árbol de agente (los CLI son hijos del servidor;
+  `arbolesDe` suma descendientes). Zonas: `aviso` < 2 GB, `critico` < 1 GB. En `critico`, `repartir` no arranca videos
+  nuevos ni agentes con la máquina ocupada: la cola espera, nada se interrumpe. Se ve en Opciones → Tu equipo.
+- **Prioridad baja**: solo en Windows y solo en `critico`, los procesos raíz de los agentes bajan a prioridad inferior
+  y vuelven a la normal al salir (`prioridad()` del módulo nativo, `SetPriorityClass` reversible). En Linux y macOS no
+  se aplica: el `nice` no se puede devolver sin privilegios — un proceso hecho lento se quedaría lento — así que ahí el
+  vigilante solo avisa y frena trabajo nuevo.
+- Sin módulo nativo (copia sin compilar) todo sigue: el vigilante mide solo la RAM libre del sistema.
+
 ## Lo que se midió y no vale la pena
 
 - Partir el JS de la interfaz con `lazy()`: se monta en 25 ms, y en 90 ms con la CPU 6× más lenta, ya en caché. En frío, unos

@@ -73,6 +73,9 @@ export interface VideoHecho {
   cardId: string
   /** Si es vertical (TikTok, Instagram) u horizontal (YouTube); sin él, no se pudo leer. */
   vertical?: boolean
+  /** La portada del episodio (`portada.png`/`.jpg`), si la tiene: la miniatura de YouTube en horizontal, el primer
+   *  cuadro en vertical. La tarjeta la usa de poster antes que el primer cuadro del video. */
+  portada?: string
 }
 
 /**
@@ -100,6 +103,9 @@ export interface ImagenHecha {
   t: number
   sessionId?: string
   cardId: string
+  /** Su tamaño real en píxeles, medido en el servidor: la tarjeta se dibuja con su proporción desde el primer cuadro. */
+  ancho?: number
+  alto?: number
 }
 
 /**
@@ -256,7 +262,13 @@ export type Archivo = { ruta: string; t: number }
 export interface Avance {
   carpeta: string
   /** `hechaEn`: cuándo nació lo primero que la dio por hecha. */
-  etapas: (Etapa & { hecha: boolean; hechaEn?: number; archivos: Archivo[] })[]
+  etapas: (Etapa & {
+    hecha: boolean
+    hechaEn?: number
+    /** Cuánto tardó esa etapa, en segundos (de `tiemposDe`): su `hechaEn` menos el de la anterior. */
+    dura?: number
+    archivos: Archivo[]
+  })[]
   /** Los archivos de la línea de tiempo del editor de escenas que ya existen; `cuadros` va por id de escena. */
   editor?: { guion?: Archivo; linea?: Archivo; cuadros: Record<string, Archivo> }
   /**
@@ -1598,7 +1610,7 @@ export interface EstadoTrabajo {
 }
 
 /** Lo que se puede borrar sin perder nada tuyo, en Opciones → Espacio en disco (`server/espacio.ts`). */
-export type IdEspacio = 'temporales' | 'renders' | 'modulos' | 'caches' | 'perfiles' | 'fuentes' | 'python' | 'adjuntos'
+export type IdEspacio = 'temporales' | 'renders' | 'modulos' | 'caches' | 'perfiles' | 'fuentes' | 'python' | 'adjuntos' | 'agentes' | 'sueltos'
 
 export interface GrupoEspacio {
   id: IdEspacio
@@ -1650,6 +1662,21 @@ export interface Equipo {
   tresD?: { nombre: string; software: boolean }
   /** Cuántos videos de un lote trabajan a la vez. */
   aLaVez: number
+  /**
+   * Lo último que vio el vigilante de recursos (`server/recursos.ts`): en qué zona está la memoria y
+   * cuánto pesan los agentes. `critico` = no arrancan videos nuevos hasta que baje; nada se interrumpe.
+   */
+  recursos?: {
+    nivel: 'ok' | 'aviso' | 'critico'
+    libreMb: number
+    agentesMb: number
+    fecha: string
+  }
+  /**
+   * Lo medido por etapa de cada estilo de video (`server/telemetria.ts`): la media de segundos que tardó cada etapa en
+   * los videos ya terminados aquí, por id de card. Sale de los `hechaEn` del panel de etapas, sin instrumentar nada.
+   */
+  etapas?: Record<string, { nombre: string; etapas: Record<string, { seg: number; n: number; fecha: string }> }>
   /**
    * Si hay algo que la haría más rápida: Parakeet en una sin NVIDIA que aún transcribe con Whisper. Lo ofrece el aviso
    * del hilo nuevo; `estado`, `paso` y `error`, mientras se baja y si falló.

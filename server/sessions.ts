@@ -1,6 +1,7 @@
 import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, rmSync, statfsSync, statSync, writeSync } from 'node:fs'
 import { join } from 'node:path'
 import { hardware, ramLibreBytes } from './gobernador.ts'
+import { critico, fijarHilos, vigilar } from './recursos.ts'
 import { historialLigero } from '../shared/historial.ts'
 import { partirOpciones } from '../shared/opciones.ts'
 import { leerHistorial, primerUsuario } from './historial.ts'
@@ -24,6 +25,11 @@ import type { Espera } from './etapas.ts'
  * trabaja ninguno, arranca igual: si no, un lote se quedaría esperando para siempre en una máquina con poca memoria.
  */
 export const CABEN = Math.max(1, Math.min(Math.floor(hardware.nucleos / 3), Math.floor((hardware.totalMb * 1024 * 1024) / 4e9)))
+/**
+ * Cuántos agentes que no son video pueden esperar turno a la vez. Un chat suelto siempre arranca, pero si el
+ * servidor vuelve con muchos hilos a medias, sus procesos no se levantan todos juntos y saturan la memoria.
+ */
+const TOPE_OTROS = Math.max(3, Math.floor(hardware.nucleos / 3))
 const LIBRE = 2e9
 /** Cuánto espera el hilo, con el segundo plano recién vacío, antes de decir que ya no queda nada (`avisarFondo`). */
 const CALMA = 4000
@@ -170,6 +176,8 @@ export class Sessions {
       this.retomar(meta, mensajes, cortado, tareas)
     }
     // La memoria se libera sin que nada lo avise: cada tanto se mira si ya cabe el siguiente video.
+    // Y el vigilante de recursos toma el pulso del sistema y de los procesos de los agentes.
+    vigilar()
     setTimeout(() => this.repartir())
     setInterval(() => (this.repartir(), this.cerrarRegistros()), 20_000).unref()
   }
@@ -277,6 +285,13 @@ export class Sessions {
     return [...this.metas.values()].filter((m) => (m.running || m.background?.length) && this.esVideo(m)).length
   }
 
+  /** Cuántos agentes trabajan ahora, de video o no: el denominador del reparto de hilos. */
+  private trabajando(): number {
+    let n = 0
+    for (const m of this.metas.values()) if (m.running || m.background?.length) n++
+    return n
+  }
+
   /** Si mandarle algo a este hilo pone a trabajar un video más: el que ya trabaja no suma, ni lo que no es video. */
   sumaVideo(meta: SessionMeta): boolean {
     return !meta.running && !meta.background?.length && this.esVideo(meta)
@@ -293,6 +308,9 @@ export class Sessions {
     const pide = skill ?? (!meta.providerSessionId && meta.skill ? { name: meta.skill } : undefined)
     const antes = meta.resumir ? `${resumenDelHilo(this.load(meta.id), meta.carpeta ?? meta.lote?.carpeta)}\n\n` : ''
     this.emit(meta.id, { t: 'turn_start', at: Date.now() })
+    // Los procesos que nazcan de este agente (y los suyos: FFmpeg, WhisperX, Remotion) heredan el techo de
+    // hilos que toca ahora: con varios agentes a la vez se reparten los núcleos en vez de pisarse.
+    fijarHilos(this.trabajando())
     this.runFor(meta).send(antes + conRutas(text, images), pide, images)
   }
 
@@ -340,24 +358,35 @@ export class Sessions {
 
   /**
    * Arranca los videos que esperan, del lote más viejo al más nuevo y en su orden, mientras quepan en la memoria y en el
-   * disco. Cuenta todo agente que trabaja, de un lote o suelto, pero a un hilo suelto nunca lo frena.
+   * disco. Los videos cuentan entre sí (`CABEN`): un chat que trabaja ya no les quita el sitio. En zona crítica de
+   * memoria (`critico`, el vigilante de `recursos.ts`) no arranca nada pesado: la cola espera a que baje, y el trabajo
+   * en curso nunca se interrumpe. A un hilo suelto no lo frena nada salvo eso.
    */
   private repartir() {
     const todos = [...this.metas.values()]
-    let trabajan = todos.filter((m) => m.running || m.background?.length).length
+    const activos = todos.filter((m) => m.running || m.background?.length)
+    let videos = activos.filter((m) => this.esVideo(m)).length
+    let otros = activos.length - videos
+    let total = activos.length
+    const ahogado = critico()
     const esperan = todos.filter((m) => m.pendiente && !m.lote?.pausa).sort((a, b) => a.createdAt - b.createdAt || (a.lote?.n ?? 0) - (b.lote?.n ?? 0))
-    // Los sueltos arrancan siempre, y cuentan: un lote no arranca si con ellos ya no cabe.
+    // Los sueltos que no son video arrancan siempre (con un tope de procesos); un video suelto también, salvo ahogado.
     for (const meta of esperan.filter((m) => !m.lote)) {
-      trabajan++
+      const video = this.esVideo(meta)
+      if (video ? ahogado : otros >= TOPE_OTROS || (ahogado && total > 0)) continue
+      if (video) videos++
+      else otros++
+      total++
       this.empezar(meta)
     }
     for (const meta of esperan.filter((m) => m.lote)) {
-      if (trabajan >= CABEN || (trabajan > 0 && ramLibreBytes() < LIBRE)) return
+      if (ahogado || videos >= CABEN || (total > 0 && ramLibreBytes() < LIBRE)) return
       const libre = libreEn(meta.cwd)
       if (libre !== null && libre < DISCO) {
         return this.pausar(meta.lote!.id, `Quedan ${(libre / 1e9).toFixed(1)} GB libres en el disco de los videos, y un render llena varios: libera espacio y dale «Seguir».`)
       }
-      trabajan++
+      videos++
+      total++
       this.empezar(meta)
     }
   }

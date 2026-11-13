@@ -18,3 +18,21 @@ export function enCurso(etapas: (Etapa & { hecha: boolean })[]) {
   const saltada = (i: number) => i !== final && !etapas[i].hecha && etapas.slice(i + 1).some((e) => e.hecha)
   return { current: etapas.findIndex((e, i) => !e.hecha && !saltada(i)), saltada }
 }
+
+/** Una etapa no puede tardar más de una semana: más que eso es un dato corrupto o una espera larguísima. */
+const TOPE_ETAPA = 7 * 86_400_000
+
+/**
+ * Cuánto tardó cada etapa, en segundos: su `hechaEn` menos el de la anterior ya hecha (la primera, desde `desde`, que
+ * suele ser el `createdAt` del hilo). `undefined` en las que no están hechas o cuyo tiempo no cuadra. Las saltadas no
+ * cuentan: la siguiente se mide desde la última que sí se hizo.
+ */
+export function tiemposDe(etapas: { hecha: boolean; hechaEn?: number }[], desde: number): (number | undefined)[] {
+  let antes = desde
+  return etapas.map((e) => {
+    if (!e.hecha || !e.hechaEn) return undefined
+    const d = e.hechaEn - antes
+    antes = e.hechaEn
+    return d > 0 && d <= TOPE_ETAPA ? Math.round(d / 1000) : undefined
+  })
+}

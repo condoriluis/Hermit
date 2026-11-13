@@ -364,7 +364,10 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
   if (path === '/api/trabajo' && method === 'POST') {
     try {
       const b = (await body(req)) as { ruta?: string | null }
-      send(res, 200, cambiarTrabajo(APP, b.ruta ?? null))
+      const estado = cambiarTrabajo(APP, b.ruta ?? null)
+      // El cwd de cada card sale de `carpetaTrabajo`: sin esto, seguiría apuntando a la carpeta vieja.
+      leidas = undefined
+      send(res, 200, estado)
     } catch (e) {
       send(res, 400, { error: e instanceof Error ? e.message : String(e) })
     }
@@ -563,7 +566,8 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
     // que trae la línea `Carpeta:`. Una card sin `produce` es una herramienta y trabaja en `cwd`, sin carpeta propia.
     const nueva = card.produce ? carpetaDePieza(card, title) : undefined // panel de etapas
     const meta = sessions.create({ cardId: card.id, title, model: input.model, effort: input.effort, cwd: card.cwd, carpeta: nueva })
-    const text = [input.text, nueva && `Carpeta: ${nueva}`].filter(Boolean).join('\n\n')
+    // La ruta completa, no solo el nombre: la carpeta no depende de dónde esté parado el agente.
+    const text = [input.text, nueva && `Carpeta: ${join(card.cwd, nueva)}`].filter(Boolean).join('\n\n')
     sessions.send(meta.id, text, card.skill ? skillRef(card.skill) : undefined, input.images)
     // El primer mensaje recortado se cambia por un título corto cuando llega, como un renombrado. Nadie lo espera; si
     // falla, o mientras alguien le puso otro nombre, se queda el que tiene. Sin las líneas que añade la app.
@@ -589,7 +593,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
     const videos = carpetasDeLote(card, n).map((carpeta, i) => ({
       carpeta,
       title: `${i + 1}/${n} · ${input.enlaces[i].replace(/^https?:\/\/(www\.)?/, '')}`.slice(0, 80),
-      text: [input.text, `Enlace: ${input.enlaces[i]}`, `Lote: video ${i + 1} de ${n}. Carpeta: ${carpeta}`].filter(Boolean).join('\n\n')
+      text: [input.text, `Enlace: ${input.enlaces[i]}`, `Lote: video ${i + 1} de ${n}. Carpeta: ${join(card.cwd, carpeta)}`].filter(Boolean).join('\n\n')
     }))
     const { cardId, model, effort } = input
     const metas = sessions.crearLote({ cardId, model, effort, cwd: card.cwd }, videos, card.skill ? skillRef(card.skill) : undefined, input.images)

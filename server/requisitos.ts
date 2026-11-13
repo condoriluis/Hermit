@@ -77,6 +77,8 @@ export const BANDERAS = ['-E', '-s', '-B', '-X', 'utf8']
 /** Las rutas de ahora (`server/almacenamiento.ts`): cambiar de carpeta no reinicia el servidor. */
 const PYTHONES = () => rutas().pythonHermit
 export const rutaModelos = () => rutas().modelos
+/** Lo medido en este equipo (voz, render, encoder, etapas): `equipo.json`, junto a los modelos. */
+export const rutaEquipoJson = () => join(dirname(rutaModelos()), 'equipo.json')
 /** Lo que Hermit baja para las skills (FFmpeg; fuera de Windows, también Python). `bin` va primero en el PATH. */
 const BAJADAS = () => rutas().piezas
 const BAJADAS_BIN = () => join(BAJADAS(), 'bin')

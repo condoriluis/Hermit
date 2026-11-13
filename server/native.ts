@@ -17,10 +17,22 @@ export interface HardwareInfo {
   availableMemoryMb: number
 }
 
+/** Un proceso visto por el vigilante de recursos (`procesos()` de Rust). */
+export interface ProcesoInfo {
+  pid: number
+  ppid: number
+  nombre: string
+  memoriaMb: number
+}
+
 type NativeModule = {
   hardwareInfo(): HardwareInfo
   /** La decodificación corre en el pool de hilos de libuv: nunca bloquea el event loop. */
   calcularPicosAudio(ruta: string): Promise<Buffer>
+  /** Todos los procesos de la máquina (pid, padre, nombre, MB). `null`-equivalente si no hay módulo. */
+  procesos?(): Promise<ProcesoInfo[]>
+  /** Baja/devuelve la prioridad de un proceso. Solo Windows la cambia de verdad; en los demás SO responde `false`. */
+  prioridad?(pid: number, baja: boolean): boolean
 }
 
 const RUTA_NODE = join(dirname(fileURLToPath(import.meta.url)), 'native', 'hermit_native.node')
@@ -69,5 +81,34 @@ export async function picosAudioNativo(ruta: string): Promise<Uint8Array | null>
   } catch (error) {
     console.warn('[native] la onda de Rust falló, se usa FFmpeg:', error instanceof Error ? error.message : error)
     return null
+  }
+}
+
+/**
+ * La lista de procesos de la máquina para el vigilante de recursos: quién cuelga de quién y cuánta
+ * memoria toma cada uno. `null` si el módulo no está o no se pudo leer — el vigilante sigue midiendo
+ * solo la memoria libre del sistema.
+ */
+export async function procesosNativo(): Promise<ProcesoInfo[] | null> {
+  const mod = nativo()
+  if (!mod?.procesos) return null
+  try {
+    return await mod.procesos()
+  } catch (error) {
+    console.warn('[native] no se pudieron leer los procesos:', error instanceof Error ? error.message : error)
+    return null
+  }
+}
+
+/**
+ * Baja la prioridad de un proceso (`baja: true`) o la devuelve a la normal. Solo Windows la aplica
+ * — en Linux y macOS el `nice` no se puede devolver sin privilegios, así que responde `false` y el
+ * vigilante no insiste. `false` también si el proceso ya no existe o el módulo no está.
+ */
+export function prioridadNativa(pid: number, baja: boolean): boolean {
+  try {
+    return nativo()?.prioridad?.(pid, baja) ?? false
+  } catch {
+    return false
   }
 }

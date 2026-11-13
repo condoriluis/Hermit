@@ -4,9 +4,9 @@ pone un motor fijo (AI Studio, Fish Audio o ElevenLabs, vía `/api/voz/generar` 
 suena igual en todas las escenas. El clip se genera normal (con su audio, para que las bocas se muevan) y aquí se le
 cambia la pista de audio por las líneas TTS, que además marcan los subtítulos con los tiempos reales de cada WAV.
 
-Archivos del proyecto:
-    voces/personajes.json   {"Cocardo": "Charon", "Lima": "Aoede"} — la voz fija de cada personaje
-    voces/esc-NN.json        [{"quien": "Cocardo", "texto": "Se viene el especial de la casa."}, ...]
+Archivos del proyecto (los escribe el agente según el elenco de ESE proyecto — no hay personajes fijos):
+    voces/personajes.json   {"<nombre del personaje>": "<voz>"} — la voz fija de cada uno (AI Studio, Fish, ElevenLabs)
+    voces/esc-NN.json        [{"quien": "<quien habla>", "texto": "<su línea>"}, ...] en el orden en que se dicen
 
 `preparar()` devuelve, por escena con archivo, su mp4 con el audio TTS y los segmentos sintéticos (mismo formato que
 `transcribir`) para subtítulos y transcripcion.txt. Las escenas sin `voces/esc-NN.json` no se tocan: siguen con el

@@ -97,7 +97,8 @@ audio de Veo. Si una línea no convence, se regenera su WAV y se vuelve a unir: 
    puedes contar la historia en tres frases: el conflicto, el giro y la pregunta con que acaba.
 2. **Guion.** En `guion.md` de la carpeta del proyecto: el título, la parte, el elenco de este capítulo y una tabla con
    una fila por escena. Cada fila lleva el número, el lugar, quién sale, el plano, lo que hacen y lo que dicen, entre
-   comillas y con quién lo dice. Que sean de 8 a 12 escenas (de 64 a 96 s). En cada escena caben unas 20 palabras, de uno
+   comillas y con quién lo dice — frases cortas y sin puntos suspensivos: el audio de Veo falla con pausas largas.
+   Que sean de 8 a 12 escenas (de 64 a 96 s). En cada escena caben unas 20 palabras, de uno
    o dos personajes. El drama tiene que entenderse sin saber programar: el lenguaje es el disfraz, no el chiste. Listo
    cuando el primer clip ya es el conflicto, cada escena empuja la historia y el último deja la pregunta.
 3. **Personajes.** Los que falten, con `generar_imagen` en `formato` `9:16`, a `personajes/<nombre>.jpg`, uno por imagen.

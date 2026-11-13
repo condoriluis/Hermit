@@ -48,7 +48,10 @@ cuántos clips son, cuánto gastan y si alcanzan. Cada video hecho dice también
 usuario lo pida.
 
 Lo que se dice en el clip va en el prompt, entre comillas y con quién lo dice: Veo genera las voces con el movimiento de
-la boca. Que quepa en 8 s: unas 20 palabras por clip.
+la boca. Que quepa en 8 s: unas 20 palabras por clip. Las líneas van **cortas y con puntuación simple**: sin puntos
+suspensivos (`...`), sin incisos ni comas dobles — el generador de audio de Veo falla más con pausas largas y frases
+enroscadas, y un `...` puede tirar el clip entero aunque todo lo demás esté bien. El golpe dramático lo da la imagen,
+no la puntuación.
 
 Tarda cerca de un minuto. Si no acabó en 40 s, la herramienta te da un id: sigue con lo que no lo necesita y espéralo con
 `estado_flow`. Lo que no depende de lo anterior pídelo seguido: Hermit lo pone en fila y lo genera con calma (con

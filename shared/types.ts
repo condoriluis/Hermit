@@ -36,6 +36,11 @@ export interface Card {
    */
   voz?: false | { propia: string }
   /**
+   * Sabe ponerle música de fondo bajo la voz (`video-base/scripts/musica.py`): el menú «Voz» deja encenderla y manda la
+   * línea `Música: de fondo` (`lineaMusica`). Apagada si no la eliges; la card recuerda la última elección.
+   */
+  musica?: true
+  /**
    * Lo que el agente de Claude de esta card no ve: herramientas (`NotebookEdit`, `mcp__21st__bookmark`) o servidores MCP
    * enteros (`mcp__openseo`), también los del usuario. Sale de lo que sus hilos nunca usaron: menos herramientas
    * ofrecidas, menos contexto en cada mensaje.
@@ -200,6 +205,17 @@ export interface Serie {
   nombre: string
   /** Su archivo, desde la carpeta de las skills (`video-base/series/mitos.md`). */
   archivo: string
+}
+
+/**
+ * Las marcas guardadas en la carpeta de trabajo de una card (una por canal): `marca.json`, la de siempre, y cada
+ * `marcas/<nombre>.json`. `GET /api/cards/<id>/marcas`; el compositor deja elegir una si hay dos o más.
+ */
+export interface Marcas {
+  /** Si existe `marca.json`: su nombre (el del noticiero o la cuenta del cierre), o '' si no trae. */
+  base?: string
+  /** Los nombres de `marcas/*.json`, que el compositor manda en la línea `Marca:`. */
+  otras: string[]
 }
 
 /** Un archivo de una skill que ya no es como lo trae Hermit (`server/originales.ts`): cambiado o, con `borrado`, quitado. */
@@ -661,6 +677,10 @@ export interface Modelo3D {
   actualizado?: string
   vista?: string
   giro?: string
+  /** La vuelta entera de la cámara (`vuelta.webm`), si ya se sacó: se recorre arrastrando sobre la ficha. */
+  vuelta?: string
+  /** Su visor 3D (`visor/`, `modelos.py visor`), si ya está armado con él: la ficha lo gira de verdad. */
+  visor?: string
 }
 
 /**

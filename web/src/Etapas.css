@@ -48,7 +48,7 @@
 .etapa-html { display: flex; flex-direction: column; gap: 8px; width: 100%; margin-top: 6px; }
 .etapa-html-barra { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; font-size: 12px; }
 .etapa-html-titulo { font-weight: 600; color: var(--text); }
-.etapa-html-abrir { color: var(--accent); text-decoration: none; font-weight: 500; }
+.etapa-html-abrir { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-weight: 500; cursor: pointer; }
 .etapa-html-abrir:hover { text-decoration: underline; }
 .etapa-html-iframe { width: 100%; height: 560px; border: 1px solid var(--line); border-radius: var(--radio); background: var(--panel); }
 

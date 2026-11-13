@@ -4,13 +4,14 @@ Lo que comparten los estilos de vídeo: el lote, los errores ya vistos y los scr
 `SKILL.md` ni card): la leen y la usan las skills de cada estilo, que se quedan solo con lo suyo.
 
 - **La usan:** `reel-collage` y `video-explicativo` (sus scripts, `LOTE.md` y este archivo; `video-explicativo`, también
-  las huellas), `video-documental` (`hermit.py`, `chrome.mjs`, la hoja, masterizar y comprobar), las novelas de clips de
+  las huellas), `video-documental` (el motor, `hermit.py`, `chrome.mjs`, el render, masterizar y comprobar), las novelas de clips de
   Veo —`frutinovela`, `animalnovela`, `devnovela` y `minidrama`— (`FLOW.md`, `hermit.py`, `sonido.py`, la hoja, masterizar,
   comprobar y la portada), `video-motivacional`, `video-crimen` y `video-top` (`subtitulos.py`), los estilos que hace
   cada quien con `crear-estilo` y los procesos de Python de Hermit (`hermit.py`).
-- **`video-el-diff`** es un estilo propio que el usuario afina a mano: ni lo toques desde aquí ni le muevas nada. Solo
-  toma prestados `chrome.mjs`, `recorte.py` y la portada (`PORTADA.md`, `portada.mjs`), así que un cambio en ellos
-  también le llega.
+- **`video-el-diff`** se hace con el motor común ([`MOTOR.md`](MOTOR.md), `scripts/momentos.py`), pero su plantilla y
+  su director son suyos: el usuario los afina a mano, y desde aquí no se les mueve nada. Además toma prestados
+  `chrome.mjs`, `recorte.py`, `momentos.py`, `hermit.py`, la portada (`PORTADA.md`, `portada_sin_ia.mjs`) y
+  `comprobar.mjs`, así que un cambio en ellos también le llega.
 
 | Archivo | Qué es |
 |---|---|
@@ -20,6 +21,7 @@ Lo que comparten los estilos de vídeo: el lote, los errores ya vistos y los scr
 | [VOZ.md](VOZ.md) | La voz que el usuario elige al pedir el vídeo (`Voz:` del mensaje): mandarla él o generarla tú en AI Studio con el MCP `voz` |
 | [FLOW.md](FLOW.md) | La línea `Imágenes:` (con ChatGPT o con Google Flow) y los clips de Flow, con lo que gastan |
 | [SERIES.md](SERIES.md) | Las series (`series/`), formatos fijos del canal para todo estilo: Hermit las ofrece al crear un vídeo; solo se lee si el mensaje trae `Serie:` |
+| [MOTOR.md](MOTOR.md) | El motor: un vídeo desde `momentos.json` (qué se ve en cada palabra) y un `hacer.py` que hace lo demás. El contrato que siguen el explicativo, el documental y El Diff, y con el que nace un estilo nuevo |
 | `scripts/` | Las herramientas (abajo) |
 
 `<base>` es esta carpeta, `video-base`, junto a las skills de cada estilo.
@@ -104,6 +106,8 @@ Todos dicen cómo se usan si los corres sin argumentos. Node sin dependencias y 
 | `hoja.mjs carpeta hoja.png` | Hoja de una carpeta de imágenes |
 | `portada.mjs video.mp4 portada.png` | Pone la portada como primer fotograma, en un segundo y sin recodificar el vídeo (si no puede, recodifica); otra vez, la cambia |
 | `portada_sin_ia.mjs video.mp4 portada.png --titulo "…" [--horizontal]` | La portada sin cuenta de ChatGPT: un cuadro del vídeo y el título encima, en la zona que se ve; con `--horizontal`, la miniatura de YouTube (1280x720) |
+| `portada_ia.py <con> <salida.png> --titulo … --estilo … --que … [--ref …] [--horizontal]` | La portada generada con IA (Flow o ChatGPT, lo que eligió el usuario en `Imágenes:`), pensada para correr de fondo mientras se hace la voz y el render; deja `<salida>.json` con su estado y lo que gastó |
+| `musica.py --poner <video.mp4> [--pista <audio>] [--bajo 10]` | Le pone música bajo la voz a un video terminado, sin tocar la imagen (`-c:v copy`): la `--pista` que se le dé o, sin ella, una sintetizada del largo del video |
 | `chrome.mjs` (librería) | Busca Chrome o Edge (o el de `CHROME`) y lo abre sin ventana: `abrirChrome({ ancho, alto })` |
 | `hermit.py`, `fuente.py` | El Python de Hermit (el transcriptor, yt-dlp) y bajar y transcribir un vídeo. `proceso()` dice antes cuánto tardará la voz en este equipo y luego cuánto falta, cada 10 %. WhisperX va de uno en uno en toda la máquina (`turno_gpu`) y, con una NVIDIA, ya cargado (`voz_viva.py`, que se va tras 10 min sin uso): 6 min de voz salen en ~40 s en vez de cargar Whisper cada vez (de 36 s a 10 min con la máquina ocupada), y las descargas de YouTube también (`turno_youtube`): los vídeos de un lote esperan ahí su turno. `vectorizar` usa el modelo de vectores ya cargado (`vectores_vivo.py`, que se va tras 10 min sin uso): un texto nuevo tarda menos de un segundo en vez de ~18. Un video de YouTube que otro vídeo ya bajó se enlaza de su carpeta en vez de bajarlo. `cobertura(dicho, esperado)` compara lo transcrito de un clip con las líneas del guion (cuánto del guion se oyó y cuánto de lo oído era del guion): los `unir.py` de las novelas frenan el montaje si una escena dijo otra cosa. `encoder_video(calidad)` da los argumentos del encoder de video medido en este equipo (equipo.json): el de hardware si ganó, o libx264 |
 | `huellas.py buscar\|revisar\|cerrar <skill>` | Que ningún vídeo de un estilo salga igual a otro ya hecho: la huella de cada uno (lo que cuenta y cómo se ve, y su hoja de ocho cuadros) en `<skill>/huellas/`, comparada contra todas por el script, que solo dice lo que choca. Python del sistema con numpy y Pillow; los textos, con los vectores de Hermit |
@@ -116,6 +120,8 @@ Todos dicen cómo se usan si los corres sin argumentos. Node sin dependencias y 
 | `voz_tts.py` (librería) | Voces TTS por personaje en las escenas que lo piden (`voces/esc-NN.json` del proyecto, con el mapa en `voces/personajes.json`): cada línea suena con la voz fija de su personaje vía `/api/voz/generar` de Hermit, el clip conserva su video y `unir.py` monta el audio TTS y los subtítulos del guion. Las escenas sin archivo siguen con el audio de Veo |
 | `candado.py tomar\|soltar <episodio>` (librería) | Un solo render por episodio a la vez: `tomar` crea `out/.render.lock` con el pid y falla claro si otro render vivo lo tiene (uno cortado se sana solo); `soltar` lo quita solo si es tuyo. Los `final.py`/`terminar.py` de los estilos ya lo llaman; un script propio de render (un `render_video.py` de un estilo agent-driven) lo envuelve igual: `import candado` tras poner video-base en `sys.path`, `candado.tomar(proyecto)` antes de renderizar y `candado.soltar(proyecto)` en un `finally`. Dos renders a la vez se pisaban el `final.mp4` y gastaban el doble |
 | `subtitulos.py video.mp4 salida.mp4 --voz voz.wav [--formato vertical\|horizontal] [--estilo minimal\|crimen\|top] [--offset s]` | Subtítulos karaoke palabra a palabra (ASS `{\k}`, la palabra activa se pinta en el acento del estilo) quemados sobre el vídeo. Los tiempos salen del Whisper sobre `--voz` (o del audio del vídeo); `--offset` los retrasa si el vídeo abre con una tarjeta sin voz. La usan los estilos sin plantilla propia: motivacional (`minimal`), crimen (`crimen`) y top (`top`) |
+| `momentos.py` (librería) | Lo común de los `hacer.py` del motor ([MOTOR.md](MOTOR.md)): anclar cada momento a su palabra, decir todos los ✗ de una vez, los pasos con su segundo (`revision/tiempos.json`, `✓ listo`) y lo que mira quien juzga (`hoja`, `tiras`, `pares`) |
+| `render.cjs <salida.mp4> --id=<composición>` | El render de un proyecto de Remotion con un solo Chrome, diciendo cuánto falta, y puesto en su sitio aunque el estudio tenga abierto el de antes. `--antes=<módulo>` prepara algo en el paquete antes de dibujar (el documental saca ahí los cuadros de sus clips: 6 veces más rápido) |
 
 ## Cambiar la base
 

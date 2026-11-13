@@ -241,7 +241,7 @@ function useOir(frase: string) {
  * El menú «Voz» del compositor y de la etapa de la voz. `propia`: la primera opción, la que no genera nada («La mando
  * yo»); sin ella, solo voces. `onCambio` recibe la voz elegida (vacía: la propia).
  */
-export function ElegirVoz(props: { voz: UsoVoz; valor: string; etiqueta: string; propia?: string; deshabilitado?: boolean; ancho?: number; onCambio(v: string): void }) {
+export function ElegirVoz(props: { voz: UsoVoz; valor: string; etiqueta: string; propia?: string; deshabilitado?: boolean; ancho?: number; musica?: Musica; onCambio(v: string): void }) {
   const [abierto, setAbierto] = useState(false)
   const [lugar, setLugar] = useState({ abajo: false, alto: 520, izquierda: 0 })
   const raiz = useRef<HTMLDivElement>(null)
@@ -352,7 +352,13 @@ export function ElegirVoz(props: { voz: UsoVoz; valor: string; etiqueta: string;
 
 type Filtro = 'todas' | 'favoritas' | Motor
 
-function Panel(props: { voz: UsoVoz; valor: string; propia?: string; ancho?: number; abierto: boolean; alto: number; abajo: boolean; izquierda: number; onCerrar(): void; onElegir(v: string): void; onQuitada(v: string): void }) {
+/** La música de fondo del video: encendida o no (`lineaMusica`). */
+export interface Musica {
+  encendida: boolean
+  onCambio(encendida: boolean): void
+}
+
+function Panel(props: { voz: UsoVoz; valor: string; propia?: string; ancho?: number; musica?: Musica; abierto: boolean; alto: number; abajo: boolean; izquierda: number; onCerrar(): void; onElegir(v: string): void; onQuitada(v: string): void }) {
   const { voz } = props
   const e = voz.estado
   const [busqueda, setBusqueda] = useState('')
@@ -723,6 +729,18 @@ function Panel(props: { voz: UsoVoz; valor: string; propia?: string; ancho?: num
       </div>
 
       <div className="voz-pie">
+        {props.musica && (
+          <button className={`voz-musica ${props.musica.encendida ? 'on' : ''}`} role="switch" aria-checked={props.musica.encendida} onClick={() => props.musica!.onCambio(!props.musica!.encendida)}>
+            <Icono de="musica" />
+            <span className="voz-texto">
+              <strong>Música de fondo</strong>
+              <small>Sintetizada y libre de derechos; baja sola cuando hablan</small>
+            </span>
+            <span className="voz-casilla" aria-hidden="true">
+              {props.musica.encendida && <Icono de="palomita" />}
+            </span>
+          </button>
+        )}
         <label className="voz-frase">
           <span>Tu frase</span>
           <input

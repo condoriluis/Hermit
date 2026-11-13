@@ -98,7 +98,7 @@ export function BarraEstado({
       <div className="estado-der">
         {modelo && <span className="estado-modelo" title="Agente y modelo de esta vista">{modelo}</span>}
         {version && (
-          <button className="estado-btn estado-version" title={`Hermit ${version} — acerca de`} onClick={() => setAcerca(true)}>
+          <button className="estado-btn estado-version" title={`Hermit ${version}`} onClick={() => setAcerca(true)}>
             Hermit {version}
           </button>
         )}
@@ -169,7 +169,9 @@ export function BarraEstado({
       {acerca && (
         <div className="modal-backdrop" onClick={() => setAcerca(false)}>
           <div className="modal acerca" role="dialog" aria-modal="true" aria-label="Acerca de Hermit" onClick={(e) => e.stopPropagation()}>
-            <button className="acerca-cerrar" aria-label="Cerrar" onClick={() => setAcerca(false)}>×</button>
+            <button className="acerca-cerrar" aria-label="Cerrar" title="Cerrar (Esc)" onClick={() => setAcerca(false)}>
+              <Icono de="cerrar" />
+            </button>
             <div className="acerca-logo">
               <img src="/icon.svg" alt="" />
             </div>

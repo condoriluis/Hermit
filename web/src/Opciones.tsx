@@ -5,6 +5,7 @@ import { Arranque } from './Arranque'
 import { type Proveedor, proveedorDe } from '../../shared/providers'
 import { encender, encendido, notificar, sonar, usePermiso } from './avisos'
 import { abrirBienvenida } from './Bienvenida'
+import { abrirNovedades } from './Novedades'
 import { Picker } from './Composer'
 import { EspacioDisco } from './Espacio' // espacio en disco
 import { TuEquipo } from './Equipo' // tu equipo
@@ -169,6 +170,20 @@ function Ajustes({ onDone, iniciando, onIniciando }: { onDone(): void; iniciando
                   </div>
                   <button className="boton" onClick={abrirBienvenida}>
                     Ver la bienvenida
+                  </button>
+                </div>
+              </div>
+              <div className="item">
+                <div className="fila">
+                  <span className="logo">
+                    <Icono de="video" />
+                  </span>
+                  <div className="fila-nombre">
+                    <strong>Las novedades</strong>
+                    <span>Lo que trajo la última versión, paso a paso y con movimiento.</span>
+                  </div>
+                  <button className="boton" onClick={abrirNovedades}>
+                    Ver novedades
                   </button>
                 </div>
               </div>

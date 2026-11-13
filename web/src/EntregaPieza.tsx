@@ -31,6 +31,12 @@ const CAMBIOS_IMAGEN: Config['cambios'] = [
   { texto: 'Cambia el estilo', pide: 'Cambia el estilo visual de la imagen, manteniendo el tema y el encargo.' }
 ]
 
+const CAMBIOS_ARTICULO: Config['cambios'] = [
+  { texto: 'Reescribe el artículo', pide: 'Reescribe el artículo: mejor estructura y textos más claros y contundentes, sin perder el tema ni las fuentes.' },
+  { texto: 'Cambia el tono', pide: 'Cambia el tono del artículo (más cercano, más técnico o más divulgativo), manteniendo los datos y las fuentes.' },
+  { texto: 'Mejor el SEO', pide: 'Mejora el SEO del artículo: título, extracto, subtítulos y palabras clave, sin perder el contenido.' }
+]
+
 const BOTONES_PRESENTACION: Record<string, Boton> = {
   '.pptx': { texto: 'Descargar PowerPoint', descarga: true, principal: true },
   '.pdf': { texto: 'Descargar PDF', descarga: true },
@@ -42,6 +48,10 @@ const BOTONES_IMAGEN: Record<string, Boton> = {
   '.jpg': { texto: 'Descargar imagen', descarga: true },
   '.jpeg': { texto: 'Descargar imagen', descarga: true },
   '.webp': { texto: 'Descargar imagen', descarga: true }
+}
+
+const BOTONES_ARTICULO: Record<string, Boton> = {
+  '.html': { texto: 'Ver la vista previa', descarga: false }
 }
 
 /** No pisa la actual: el servidor pasa el hilo a una carpeta nueva y se lo dice al agente (`otraVersion` en etapas.ts). */
@@ -59,6 +69,12 @@ const CONFIG: Record<string, Config> = {
     cambios: CAMBIOS_IMAGEN,
     cierre: 'Cuando acabes, deja las imágenes nuevas en la carpeta.',
     titulo: (n) => (n > 1 ? 'Imágenes listas' : 'Imagen lista')
+  },
+  articulo: {
+    botones: BOTONES_ARTICULO,
+    cambios: CAMBIOS_ARTICULO,
+    cierre: 'Cuando acabes, vuelve a publicar el artículo.',
+    titulo: () => 'Artículo listo'
   }
 }
 
@@ -68,7 +84,15 @@ export function EntregaPieza({ session, card, carpeta, archivos }: { session: Se
   const cfg = CONFIG[card.produce ?? ''] ?? CONFIG.presentacion
   const [pedido, setPedido] = useState('')
   const [error, setError] = useState('')
+  // La dirección pública del artículo, de su `publicado.json` (la API del blog de Opciones → Artículos + el slug).
+  const [publicado, setPublicado] = useState<string>()
   const trabaja = session.running || !!session.background?.length || !!session.pendiente
+  useEffect(() => {
+    if (card.produce !== 'articulo') return
+    api<{ url?: string }>(`/api/sessions/${session.id}/archivo?ruta=${encodeURIComponent('publicado.json')}`)
+      .then((p) => setPublicado(p.url))
+      .catch(() => {})
+  }, [card.produce, session.id])
   // El pedido se queda marcado hasta que el agente se pone a trabajar en él.
   useEffect(() => {
     if (trabaja) setPedido('')
@@ -87,7 +111,7 @@ export function EntregaPieza({ session, card, carpeta, archivos }: { session: Se
   const mandar = (c: (typeof cfg.cambios)[number]) => pedir(c.texto, () => api(`/api/sessions/${session.id}/send`, { text: `${c.pide} ${cfg.cierre}` }))
   const src = (a: Archivo) => `/api/sessions/${session.id}/archivo?ruta=${encodeURIComponent(a.ruta)}&t=${Math.round(a.t)}`
   const descargar = (a: Archivo) => `${src(a)}&descarga=${encodeURIComponent(a.ruta.split('/').pop() ?? a.ruta)}`
-  const abrir = (ruta: string) => api('/api/open', { path: ruta }).catch((e) => setError(e.message))
+  const abrir = (ruta: string, esArchivo = false) => api('/api/open', { path: ruta, abrir: esArchivo }).catch((e) => setError(e.message))
 
   // Los archivos que se entregan: los que tienen botón, el principal (si lo hay) primero y luego por nombre.
   const entregas = archivos
@@ -112,6 +136,15 @@ export function EntregaPieza({ session, card, carpeta, archivos }: { session: Se
               </svg>
               {b.texto}
             </a>
+          ) : ext(a.ruta) === '.html' ? (
+            // La vista previa se abre como archivo, con la app del sistema: un enlace a `/api/…` es localhost y la
+            // seguridad de Hermit lo bloquea fuera de su ventana.
+            <button key={a.ruta} className={`final-boton ${esPrincipal ? 'principal' : ''}`} onClick={() => abrir(`${carpeta}/${a.ruta}`, true)} title="Abrirla en el navegador">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 4h6v6M20 4 10 14M9 5H5a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1v-4" />
+              </svg>
+              {b.texto}
+            </button>
           ) : (
             <a key={a.ruta} className="final-boton" href={src(a)} target="_blank" rel="noreferrer" title="Abrirla en una pestaña nueva">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -121,6 +154,14 @@ export function EntregaPieza({ session, card, carpeta, archivos }: { session: Se
             </a>
           )
         })}
+        {card.produce === 'articulo' && publicado && (
+          <a className="final-boton principal" href={publicado} target="_blank" rel="noreferrer" title="Abrir el artículo en tu blog">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3" />
+            </svg>
+            Ver en producción ↗
+          </a>
+        )}
         <button className="final-boton" title={carpeta} onClick={() => abrir(carpeta)}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />

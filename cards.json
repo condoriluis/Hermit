@@ -5,6 +5,7 @@
     "description": "Un video que explica cualquier tema en el tiempo que necesite: un solo mundo 3D que la cámara recorre sin cortes, el texto palabra por palabra y tu personaje (el perro salchicha, uno tuyo o ninguno). Tú grabas la voz y el cierre lleva a donde quieras.",
     "skill": "video-explicativo",
     "produce": "video",
+    "musica": true,
     "icon": "pizarra",
     "modelos": {
       "principal": {
@@ -63,14 +64,13 @@
     "etapas": [
       {
         "nombre": "Fuentes",
-        "listo": "fuentes/tema/transcripcion.txt",
+        "listo": "{fuentes/tema/transcripcion.txt,fuentes/textos/indice.json}",
         "muestra": "fuentes/tema/video.mp4",
         "fase": "idea"
       },
       {
-        "nombre": "Material",
-        "listo": "material.md",
-        "muestra": "{material.md,fuentes/material/**/*.{png,jpg,jpeg,webp}}",
+        "nombre": "Datos",
+        "listo": "fuentes/fichas/citas.json",
         "fase": "idea"
       },
       {
@@ -86,13 +86,19 @@
         "fase": "sonido"
       },
       {
+        "nombre": "Material",
+        "listo": "material.md",
+        "muestra": "{material.md,fuentes/material/**/*.{png,jpg,jpeg,webp}}",
+        "fase": "video"
+      },
+      {
         "nombre": "Escenas",
         "listo": "guion.json",
         "fase": "video"
       },
       {
         "nombre": "Revisión",
-        "listo": "revision/hoja_95_*.png",
+        "listo": "revision/hoja.png",
         "fase": "video"
       },
       {
@@ -315,19 +321,24 @@
         "fase": "sonido"
       },
       {
-        "nombre": "Plan y fuentes",
-        "listo": "PLAN.md",
+        "nombre": "Qué se ve en cada frase",
+        "listo": "momentos.json",
         "fase": "guion"
       },
       {
         "nombre": "Material",
-        "listo": "work/assets.json",
-        "muestra": "public/assets/{img,clips,captures}/**/*.{jpg,jpeg,png,webp,mp4}",
+        "listo": "work/material.json",
+        "muestra": "revision/material.jpg",
+        "fase": "guion"
+      },
+      {
+        "nombre": "Fuentes y derechos",
+        "listo": "FUENTES.md",
         "fase": "guion"
       },
       {
         "nombre": "Revisión",
-        "listo": "revision/hoja-*.png",
+        "listo": "revision/hoja.png",
         "fase": "video"
       },
       {
@@ -337,7 +348,7 @@
       },
       {
         "nombre": "Portada",
-        "listo": "{portada.png,portada/*.png}",
+        "listo": "portada.png",
         "fase": "entrega"
       }
     ]

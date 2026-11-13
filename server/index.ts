@@ -27,6 +27,7 @@ import { enlacesApi } from './enlaces.ts' // tarjeta de los enlaces
 import { cerrarVigilantesOciosos, esperaDe, etapasApi, folderOf, mismaCwd, piezasApi, queFalta, videosDe } from './etapas.ts' // panel de etapas; `videosDe`, de comunidad
 import { cerrarMotoresOciosos } from './motor.ts'
 import { modelos3d } from './modelos3d.ts' // modelos 3D
+import { modelos3dAcciones } from './modelos3d-acciones.ts' // modelos 3D
 import { miniaturas } from './miniaturas.ts' // panel de etapas
 import { guardarMeta, guardarYoutube, opciones } from './opciones.ts'
 import { previas } from './previas.ts' // previas de las cards
@@ -37,18 +38,18 @@ import { voz } from './voz/index.ts' // voz de AI Studio
 import { flow } from './flow/index.ts' // Google Flow
 import { youtube } from './youtube.ts'
 import { peticionDeConfianza } from './origen.ts'
-import { actualizarYtDlp, instalandoAlgo, instalar, pythonHermitEntero, requisitos } from './requisitos.ts'
+import { actualizarYtDlp, instalandoAlgo, instalar, pythonHermitEntero, requisitos, rutaPythonHermit } from './requisitos.ts'
 import { espacio } from './espacio.ts' // espacio en disco
 import { equipo } from './equipo.ts' // tu equipo
 import { licencia } from './licencia.ts' // suscripción
 import { Sessions } from './sessions.ts'
 import { mantenerVoz } from './voz-viva.ts'
 import { avisoDeVideos } from '../shared/limites.ts'
-import { abrirCarpetaTrabajo, cambiarTrabajo, estadoTrabajo } from './trabajo.ts'
+import { abrirCarpetaTrabajo, carpetaTrabajo, cambiarTrabajo, estadoTrabajo } from './trabajo.ts'
 import { estadoRecursos } from './gobernador.ts'
 import { eventosEnVivo } from './eventos-en-vivo.ts'
 import { enviarCliente } from './enviar-cliente.ts'
-import { cambiosDeCard, carpetaSkill, configClaudeDev, duplicateCard, enlazarSkills, enlazarSkillsCodex, guardarSkillTuya, readCards, removeCard, seriesDe, SKILLS, skillRef, volverAOriginal } from './skills.ts'
+import { cambiosDeCard, carpetaSkill, configClaudeDev, duplicateCard, enlazarSkills, enlazarSkillsCodex, guardarSkillTuya, marcasDe, readCards, removeCard, seriesDe, SKILLS, skillRef, volverAOriginal } from './skills.ts'
 import { estaticos } from './estaticos.ts'
 import { type Agente, version } from './version.ts'
 import { cargarPreciosCodex } from './precios.ts'
@@ -186,7 +187,22 @@ const { miniatura, cuadro } = miniaturas(join(APP, 'data', 'miniaturas')) // pan
 // Ideas para YouTube: investigar el nicho de un canal y que Claude proponga videos con evidencia.
 const idear = VENTA ? undefined : ideas(APP, sessions, broadcast, subirLargos?.lectura) // ideas
 // La biblioteca de modelos 3D que llenan los videos, para verla: la de la skill que usan los agentes, que es donde guardan.
-const biblioteca3d = modelos3d(carpetaSkill('modelos-3d') ?? join(APP, 'skills', 'modelos-3d')) // modelos 3D
+const biblioteca3d = modelos3d(carpetaSkill('modelos-3d') ?? join(APP, 'skills', 'modelos-3d'), {
+  python: () => rutaPythonHermit() ?? (process.platform === 'win32' ? 'python' : 'python3')
+}) // modelos 3D
+// «Importar .glb» y «Nuevo modelo», en la misma biblioteca.
+const acciones3d = modelos3dAcciones({
+  sessions,
+  skillRef,
+  modelo: (p) => {
+    const m = modelos.find((x) => x.id === p.model) ?? modelos.find((x) => proveedorDe(x.id) === 'claude') ?? modelos[0]
+    return m && { model: m.id, effort: m.id === p.model && p.effort ? p.effort : m.defaultEffort }
+  },
+  adjuntos: ATTACHMENTS,
+  biblioteca: carpetaSkill('modelos-3d') ?? join(APP, 'skills', 'modelos-3d'),
+  trabajo: join(carpetaTrabajo(APP), 'modelos-3d'),
+  python: () => rutaPythonHermit() ?? (process.platform === 'win32' ? 'python' : 'python3')
+}) // modelos 3D
 // El buscador propio de noticias de tecnología: lee sus fuentes en segundo plano y las skills buscan ahí.
 const noticias = radar(APP) // radar
 // La comunidad: lo que la gente hace con Hermit y cómo. Entra cada cliente con su licencia, y el creador con su llave,
@@ -228,6 +244,7 @@ function ocupado(): string | null {
   if (idear?.ocupado()) return idear.ocupado() // ideas: una investigación en curso
   if (narrar.ocupado()) return narrar.ocupado() // voz de AI Studio: una a medias
   if (generarFlow.ocupado()) return generarFlow.ocupado() // Google Flow: un pedido a medias
+  if (acciones3d.ocupado()) return acciones3d.ocupado() // modelos 3D: una importación a medias
   return maquina.ocupado() ?? instalandoAlgo() ?? bajandoAgente() ?? conectando() ?? conectandoCodex() ?? conectandoOpenCode() ?? conectandoOtro()
 }
 
@@ -515,6 +532,13 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
     return send(res, 200, card?.skill ? seriesDe(card.skill, esDeVideo(card)) : []), true
   }
 
+  // Sus marcas (una por canal), para elegir cuál lleva el video: el compositor manda la línea `Marca:`.
+  const mar = /^\/api\/cards\/([\w-]+)\/marcas$/.exec(path)
+  if (mar && method === 'GET') {
+    const card = cards().find((c) => c.id === mar[1])
+    return send(res, 200, card ? marcasDe(card.cwd) : { otras: [] }), true
+  }
+
   // «Con tus cambios»: lo que el usuario (o su agente) cambió en la skill de una card, y volver a la original, entera o un
   // archivo. Solo en la app que se vende, que trae la original (`server/originales.ts`).
   const cam = /^\/api\/cards\/([\w-]+)\/(cambios|original)$/.exec(path)
@@ -621,6 +645,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
   if (subirLargos && (await subirLargos.api(req, res, url))) return true // videos largos de YouTube
   if (await previa.api(req, res, url)) return true // previas de las cards
   if (idear && (await idear.api(req, res, url))) return true // ideas
+  if (await acciones3d.api(req, res, url)) return true // modelos 3D
   if (await biblioteca3d.api(req, res, url)) return true // modelos 3D
   if (await noticias.api(req, res, url)) return true // radar
   if (await comunidadApi.api(req, res, url)) return true // comunidad
@@ -720,10 +745,22 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL): Promise
   }
 
   if (path === '/api/open' && method === 'POST') {
-    const { path: target } = await body<{ path: string }>(req)
-    // Señalado en su carpeta: el Explorador y el Finder saben; en Linux se abre la carpeta que lo tiene.
-    const [programa, ...args] =
-      process.platform === 'win32' ? ['explorer.exe', `/select,${target}`] : process.platform === 'darwin' ? ['open', '-R', target] : ['xdg-open', existsSync(target) && statSync(target).isDirectory() ? target : dirname(target)]
+    const { path: target, abrir } = await body<{ path: string; abrir?: boolean }>(req)
+    // El frontend une con `/`, que en Linux y Mac es el separador; en Windows el Explorador y `start` piden `\`.
+    const p = process.platform === 'win32' ? target.replaceAll('/', '\\') : target
+    // `abrir` lo abre con su app (el navegador, para un `.html`); si no, solo se señala en su carpeta: el Explorador
+    // y el Finder saben; en Linux se abre la carpeta que lo tiene.
+    const [programa, args] = abrir
+      ? process.platform === 'win32'
+        ? ['cmd.exe', ['/c', 'start', '""', `"${p}"`]]
+        : process.platform === 'darwin'
+          ? ['open', [p]]
+          : ['xdg-open', [p]]
+      : process.platform === 'win32'
+        ? ['explorer.exe', [`/select,${p}`]]
+        : process.platform === 'darwin'
+          ? ['open', ['-R', p]]
+          : ['xdg-open', [existsSync(p) && statSync(p).isDirectory() ? p : dirname(p)]]
     spawn(programa, args, { detached: true, stdio: 'ignore' }).on('error', () => {}).unref()
     send(res, 200, { ok: true })
     return true

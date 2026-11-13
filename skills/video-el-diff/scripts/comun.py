@@ -16,8 +16,33 @@ sys.stdout.reconfigure(encoding="utf-8")
 # El Python de Hermit, sus modelos, sus procesos, los turnos y FFmpeg son los de video-base (`hermit.py`), que sabe dónde
 # los deja la app en cada computadora. Al final de la ruta: los scripts de esta skill ganan a los de igual nombre de la base.
 sys.path.append(str(Path(__file__).resolve().parents[2] / "video-base" / "scripts"))
-from hermit import (BANDERAS, MODELOS, PROCESOS, ffmpeg, proceso, python_hermit, hermit, turno,  # noqa: E402,F401
-                   turno_gpu, turno_youtube, wav16k)
+from hermit import (BANDERAS, MODELOS, PROCESOS, encoder_video, ffmpeg, proceso, python_hermit, hermit,  # noqa: E402,F401
+                   turno, turno_gpu, turno_youtube, wav16k)
+
+
+def ffmpeg_h264(armar, crf: int = 18, cwd=None) -> str:
+    """
+    FFmpeg con H.264 como `ffmpegH264` de ffmpeg.mjs: `armar(ajustes)` da los argumentos (sin
+    `ffmpeg -y -v error`) con el codificador de esta computadora (`encoder_video` de video-base: el de hardware
+    medido, o libx264). Si el de hardware falla (la tarjeta ocupada por otro render, sin memoria), se repite con
+    libx264. Devuelve el nombre del encoder que lo hizo.
+    """
+    def correr(h264) -> subprocess.CompletedProcess:
+        return subprocess.run(["ffmpeg", "-nostdin", "-y", "-v", "error", *armar(h264)], cwd=cwd,
+                              capture_output=True, text=True, encoding="utf-8", errors="replace")
+
+    h264 = encoder_video(crf)
+    cod = "libx264" if "libx264" in h264 else "hardware"
+    r = correr(h264)
+    if r.returncode != 0 and cod != "libx264":
+        ultima = (r.stderr.strip().splitlines() or [""])[-1][:200]
+        print(f"El codificador de hardware no pudo ({ultima}): sigo con libx264.", file=sys.stderr)
+        cod, h264 = "libx264", ["-c:v", "libx264", "-crf", str(crf), "-preset", "medium"]
+        r = correr(h264)
+    if r.returncode != 0:
+        sys.stderr.write(r.stderr)
+        raise subprocess.CalledProcessError(r.returncode, r.args, r.stdout, r.stderr)
+    return cod
 
 
 def turno_render():
@@ -63,9 +88,13 @@ PLANTILLA = Path(__file__).resolve().parent.parent / "plantilla"
 def marca(raiz: Path) -> dict:
     """
     La marca del noticiero (ver «La marca» en el SKILL): la de la carpeta de trabajo, que es la que el usuario cambia; si
-    no hay, la que el episodio copió al crearse; si tampoco, la de la plantilla.
+    no hay, la que el episodio copió al crearse; si tampoco, la de la plantilla. Si el episodio nació con `--marca`, su
+    copia lo dice en `marca` y manda `marcas/<marca>.json` de la carpeta de trabajo.
     """
-    for f in (raiz.parent / "marca.json", raiz / "src" / "marca.json", PLANTILLA / "src" / "marca.json"):
+    copia = raiz / "src" / "marca.json"
+    elegida = json.loads(copia.read_text(encoding="utf8")).get("marca") if copia.exists() else None
+    propia = raiz.parent / "marcas" / f"{elegida}.json" if elegida else raiz.parent / "marca.json"
+    for f in (propia, copia, PLANTILLA / "src" / "marca.json"):
         if f.exists():
             return json.loads(f.read_text(encoding="utf8"))
     return {}

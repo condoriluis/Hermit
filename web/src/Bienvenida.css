@@ -1,26 +1,82 @@
-.modal.bienvenida { width: min(880px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow-y: auto; padding: 26px 28px 20px; }
-.bienvenida header { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 18px; }
-.bienvenida header img { width: 48px; height: 48px; flex: none; }
-.bienvenida header h2 { margin: 2px 0 6px; font-size: 20px; }
-.bienvenida header p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
-.bienvenida header .version { margin-top: 6px; font-family: var(--mono); font-size: 12px; }
-.bienvenida .paso { display: flex; gap: 14px; padding: 14px 0; border-top: 1px solid var(--line); }
+/*
+ * La bienvenida (Bienvenida.tsx): un asistente de primera vez. Dos columnas en pantallas anchas — a la izquierda la
+ * marca y el camino, a la derecha los pasos con lo que falta a la vista — y una sola columna en angosto. El pie queda
+ * fijo con la acción principal.
+ */
+.modal.bienvenida {
+  width: min(980px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+.bien-grid { display: grid; grid-template-columns: 300px minmax(0, 1fr); flex: 1; min-height: 0; }
+
+/* Columna de marca: fondo propio, con el símbolo, el nombre y en qué consiste Hermit. */
+.bien-marca {
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 30px 26px;
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  border-right: 1px solid var(--line);
+}
+.bien-marca img { width: 52px; height: 52px; }
+.bien-marca h2 { margin: 0; font-size: 21px; letter-spacing: -0.01em; }
+.bien-marca > p { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.55; }
+.bien-version {
+  align-self: flex-start; margin-top: 2px; padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--muted);
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.02em;
+}
+.bien-puntos { display: flex; flex-direction: column; gap: 10px; margin-top: auto; padding-top: 18px; }
+.bien-punto { display: flex; gap: 10px; align-items: flex-start; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.bien-punto .ico { flex: none; width: 15px; height: 15px; margin-top: 1px; color: var(--accent); }
+
+/* Columna de pasos: se desplaza sola; el pie con «Empezar» no se mueve. */
+.bien-pasos { overflow-y: auto; padding: 8px 26px 10px; min-height: 0; }
+.bienvenida .paso {
+  display: flex; gap: 14px;
+  padding: 16px 14px; margin: 0 -14px;
+  border: 1px solid transparent; border-radius: 12px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bienvenida .paso + .paso { margin-top: 2px; }
+.bienvenida .paso:hover { background: var(--panel-2); }
+.bienvenida .paso.hecho { background: color-mix(in srgb, var(--ok) 5%, transparent); }
+.bienvenida .paso.hecho:hover { background: color-mix(in srgb, var(--ok) 8%, transparent); }
 .bienvenida .paso-n {
-  flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
   background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 650;
+  border: 1px solid var(--accent-border);
 }
 .bienvenida .paso.hecho .paso-n { background: transparent; border: 1.5px solid var(--ok); color: var(--ok); }
 .bienvenida .paso-n .ico { width: 14px; height: 14px; }
 .bienvenida .paso-cuerpo { flex: 1; min-width: 0; }
-.bienvenida .paso-cuerpo strong { display: block; margin: 3px 0 4px; font-size: 14.5px; }
+.bienvenida .paso-cuerpo strong { display: block; margin: 4px 0 5px; font-size: 14.5px; }
 .bienvenida .paso-texto { color: var(--muted); font-size: 13.5px; line-height: 1.55; }
 .bienvenida .paso-texto b { color: var(--text); }
 .bienvenida .paso-texto .panel { margin-top: 10px; }
 .bienvenida .opcion { display: flex; gap: 12px; align-items: flex-start; margin-top: 10px; }
-.bienvenida .opcion b { flex: none; width: 88px; line-height: 26px; }
-.bienvenida .opcion ul { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 0; padding: 0; list-style: none; }
-.bienvenida .opcion li { display: flex; align-items: center; gap: 6px; color: var(--text); }
-.bienvenida .opcion p { margin: 6px 0 0; font-size: 12.5px; line-height: 1.45; }
+.bienvenida .opcion b { flex: none; width: 88px; line-height: 28px; }
+.bienvenida .opcion ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.bienvenida .opcion li {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 10px 4px 6px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--panel-2); color: var(--text); font-size: 12.5px;
+}
+.bienvenida .opcion p { margin: 8px 0 0; font-size: 12.5px; line-height: 1.45; }
 .bienvenida .anclar { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 10px; }
 .bienvenida .anclar p { margin: 0; }
-.bienvenida .modal-actions { justify-content: flex-end; border-top: 1px solid var(--line); padding-top: 16px; margin-top: 4px; }
+
+/* Pie fijo: la acción principal a la derecha, como en el resto de modales. */
+.bienvenida .modal-actions { flex: none; justify-content: flex-end; border-top: 1px solid var(--line); padding: 14px 26px; margin: 0; background: var(--panel); }
+
+@media (max-width: 720px) {
+  .bien-grid { grid-template-columns: 1fr; }
+  .bien-marca { flex-direction: row; align-items: center; gap: 14px; padding: 18px 20px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .bien-marca img { width: 40px; height: 40px; }
+  .bien-marca h2 { font-size: 17px; }
+  .bien-marca > p, .bien-puntos { display: none; }
+  .bien-pasos { padding: 8px 18px 10px; }
+  .bienvenida .modal-actions { padding: 12px 18px; }
+}

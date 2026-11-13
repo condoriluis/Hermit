@@ -58,7 +58,7 @@ export function Estudio({ session, card, head, chat }: { session: SessionMeta; c
   // Los videos terminados: con ellos, la fase Entrega deja bajarlos, guardarlos en otra carpeta y pedir un cambio.
   const finales = avance?.finales ?? []
   // Los archivos de la entrega de una pieza que no es video (una presentación, una imagen): lo que se puede bajar.
-  const entrega = card.produce === 'presentacion' || card.produce === 'imagen' ? p.etapas.filter((e) => e.fase === 'entrega').flatMap((e) => e.archivos) : []
+  const entrega = card.produce === 'presentacion' || card.produce === 'imagen' || card.produce === 'articulo' ? p.etapas.filter((e) => e.fase === 'entrega').flatMap((e) => e.archivos) : []
   const fases = resumir(p, deFase, finales.length > 0)
   const deVideo = fases.find((f) => f.id === 'video')!.etapas
 
@@ -179,7 +179,7 @@ export function Estudio({ session, card, head, chat }: { session: SessionMeta; c
             siguiendo={!elegida}
             arriba={
               vista === 'entrega' &&
-              (card.produce === 'presentacion' || card.produce === 'imagen' ? (
+              (card.produce === 'presentacion' || card.produce === 'imagen' || card.produce === 'articulo' ? (
                 <EntregaPieza session={session} card={card} carpeta={avance.carpeta} archivos={entrega} />
               ) : (
                 <Final session={session} card={card} carpeta={avance.carpeta} finales={finales} />

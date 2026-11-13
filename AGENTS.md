@@ -54,9 +54,9 @@ Ahí están los repos, los comandos y cómo verificar cada despliegue. Si algo v
   preguntar, con título, icono y descripción en español, y sus `etapas` con su `fase`. Si ya tenía card, actualízala.
   Lo de cada quien (poses, huellas, modelos 3D, material de otros) no entra al repo: va en `.gitignore`.
 - Los estilos de video comparten `skills/video-base`: el lote, los errores ya vistos, la portada que todo vertical lleva
-  de primer cuadro (`PORTADA.md`) y los scripts (ver su `LEEME.md`). Lo que
-  se repetiría en dos estilos va a la base. `video-el-diff` es la excepción: lo afina el usuario a mano y no se toca
-  desde la base.
+  de primer cuadro (`PORTADA.md`), el motor (`MOTOR.md`: `momentos.json` y `hacer.py`, también `video-el-diff`) y los
+  scripts (ver su `LEEME.md`). Lo que se repetiría en dos estilos va a la base; la plantilla de El Diff la afina el
+  usuario a mano y no se toca desde la base.
 - Este archivo entra en cada hilo que programa Hermit, y un test lo para en 1.000 palabras. Lo que entra, saca otra cosa.
 
 ## Agent skills

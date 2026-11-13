@@ -62,8 +62,8 @@ export function Final({ session, card, carpeta, finales }: { session: SessionMet
             Descargar{finales.length > 1 ? ` ${etiqueta(f)}` : ''}
           </a>
         ))}
-        {finales.map((f) => <YoutubeBoton key={`youtube:${f.ruta}`} nombre={finales.length > 1 ? etiqueta(f) : undefined} disabled={trabaja} video={{ cardId: card.id, ruta: `${carpeta}\\${f.ruta.replaceAll('/', '\\')}`, titulo: session.title }} />)}
-        <button className="final-boton" title={carpeta} onClick={() => abrir(`${carpeta}\\${finales[0].ruta.replaceAll('/', '\\')}`)}>
+        {finales.map((f) => <YoutubeBoton key={`youtube:${f.ruta}`} nombre={finales.length > 1 ? etiqueta(f) : undefined} disabled={trabaja} video={{ cardId: card.id, ruta: `${carpeta}/${f.ruta}`, titulo: session.title }} />)}
+        <button className="final-boton" title={carpeta} onClick={() => abrir(`${carpeta}/${finales[0].ruta}`)}>
           <CarpetaIcono />
           Ver en la carpeta
         </button>

@@ -35,6 +35,14 @@ const OPCIONES = [
 
 /** Opciones la vuelve a abrir. */
 export const abrirBienvenida = () => dispatchEvent(new Event(EVENTO))
+/** Si la primera bienvenida aún no se cerró: lo que quiera salir al abrir Hermit (`Novedades.tsx`) espera a que no esté. */
+export const bienvenidaPendiente = () => {
+  try {
+    return !localStorage.getItem(VISTA)
+  } catch {
+    return false
+  }
+}
 
 /**
  * La bienvenida: sale la primera vez que se abre Hermit y luego desde Opciones. Dice qué hace, qué hace falta (con lo
@@ -84,15 +92,26 @@ export function Bienvenida({ version = '' }: { version?: string }) {
   return (
     <div className="modal-backdrop" onClick={cerrar}>
       <div className="modal bienvenida" role="dialog" aria-modal aria-label="Bienvenida" onClick={(e) => e.stopPropagation()}>
-        <header>
-          <img src="/icon.svg" alt="" />
-          <div>
+        <div className="bien-grid">
+          <aside className="bien-marca">
+            <img src="/icon.svg" alt="" />
             <h2>Te damos la bienvenida a Hermit</h2>
             <p>Hermit hace videos con agentes de IA: eliges un estilo, le das un tema y lo ves trabajar paso a paso.</p>
-            {version && <p className="version">Hermit {version}</p>}
-          </div>
-        </header>
+            {version && <span className="bien-version">Hermit {version}</span>}
+            <div className="bien-puntos">
+              <span className="bien-punto">
+                <Icono de="play" /> Eliges el estilo y el tema; el agente hace el resto a la vista.
+              </span>
+              <span className="bien-punto">
+                <Icono de="microfono" /> Grabas tu voz una vez y la reutilizas en todos tus videos.
+              </span>
+              <span className="bien-punto">
+                <Icono de="usuario" /> Hermit no te cobra aparte: usa los límites de tu plan.
+              </span>
+            </div>
+          </aside>
 
+          <div className="bien-pasos">
         {/* Con uno basta. Con ChatGPT, además, hace las imágenes de los videos. */}
         <Paso n={1} titulo="Elige con qué trabaja" hecho={claude || chatgpt || opencode}>
           Conecta al menos un agente; Hermit no te cobra aparte. Todos se conectan en Opciones → Agentes.
@@ -147,6 +166,8 @@ export function Bienvenida({ version = '' }: { version?: string }) {
           aparte, no lo que se te cobra. Con una llave de API no hay límites: ahí esas cifras son lo que pagas. Los modelos gratis
           de OpenCode tienen tope, y vuelven solos en unas horas.
         </Paso>
+          </div>
+        </div>
 
         <div className="modal-actions">
           <button className="primary" autoFocus onClick={cerrar}>

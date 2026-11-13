@@ -36,7 +36,7 @@ import numpy as np
 
 BASE = Path(os.environ.get("HERMIT_SKILLS") or Path.home() / ".claude" / "skills") / "video-base" / "scripts"
 sys.path.insert(0, str(BASE))
-from hermit import MODELOS, proceso, wav16k  # noqa: E402
+from hermit import MODELOS, duracion, proceso, wav16k  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 FPS = 30
@@ -293,10 +293,9 @@ def main() -> None:
               + ": seguramente no están en la grabación. No las busques en el audio: dile al usuario qué frase falta (las "
               "palabras de arriba) y que la grabe o te diga que va sin ella; sin ella, quítala de subtitulos.txt y corre "
               "alinear.py --frases y acelerar.py.")
-    with wave.open(str(voz), "rb") as w:
-        duracion = w.getnframes() / w.getframerate()
+    duracion_voz = duracion(voz)
     salida = {
-        "duracion": round(duracion, 3),
+        "duracion": round(duracion_voz, 3),
         "palabras": palabras,
         "frases": [{"palabras": [{k: f[k] for k in ("t", "i", "clave", "caja", "icono")} for f in fr]} for fr in frases],
         "boca": nivel_por_cuadro(voz),
@@ -305,7 +304,7 @@ def main() -> None:
     # Los tiempos de la voz tal como se grabó: acelerar.py parte de ellos.
     (RAIZ / "fuentes" / "voz" / "voz-lenta.json").parent.mkdir(parents=True, exist_ok=True)
     (RAIZ / "fuentes" / "voz" / "voz-lenta.json").write_text(json.dumps(salida, ensure_ascii=False), encoding="utf8")
-    print(f"{len(palabras)} palabras, {len(frases)} frases, {duracion:.1f} s")
+    print(f"{len(palabras)} palabras, {len(frases)} frases, {duracion_voz:.1f} s")
     print(" ".join(p["w"] for p in palabras))
 
 

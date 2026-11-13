@@ -13,7 +13,7 @@
 // Al terminar imprime una línea por PNG (bien, con aviso o con error), deja `<lista>.resultado.json` y, con `--hoja`,
 // una hoja de contacto a 360 px de ancho por captura, el tamaño de un celular. El 19 de octubre, tres agentes de
 // captura tardaron 12 minutos en 54 capturas; 12 páginas a la vez tardan unos 40 s.
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -28,15 +28,10 @@ if (!archivo) {
   process.exit(1)
 }
 const lista = JSON.parse(readFileSync(archivo, 'utf8'))
-// Las rutas de la lista y las salidas son relativas a la raíz del episodio: si el cwd no es una (no tiene
-// package.json y src/marca.json), todo caería en la carpeta del estilo — como los PNG de Soportik del 12 de noviembre.
-if (!existsSync(join(process.cwd(), 'package.json')) || !existsSync(join(process.cwd(), 'src', 'marca.json'))) {
-  console.error('corre desde la carpeta del episodio (la de la línea Carpeta:), no desde la del estilo')
-  process.exit(1)
-}
 const EDGES = Math.max(1, Math.min(Number(opcion('--edges', 6)), lista.length))
-// Una página que no termina en 2 minutos no va a terminar: se da por fallida y ese Edge se cambia por otro.
-const TOPE = 120000
+// Una página que no termina en 2 minutos no va a terminar: se da por fallida y ese Edge se cambia por otro. hacer.py
+// lo baja a 40 s (`CAPTURA_TOPE`, en segundos): la que no sale la saca de su texto ya leído.
+const TOPE = (Number(process.env.CAPTURA_TOPE) || 120) * 1000
 // Más angosta, la letra sale más grande y el texto baja en más renglones (Capturas para el celular).
 const ANGOSTA = { ancho: 300, escala: 3.6 }
 

@@ -323,6 +323,12 @@ const kind = (ruta: string) => {
   return 'texto'
 }
 
+/** Abre un archivo de la sesión con la app del sistema (el navegador, para un `.html`), sin pasar por la API en localhost. */
+async function abrirArchivo(sessionId: string, ruta: string) {
+  const { actual } = await api<{ actual: string }>(`/api/sessions/${sessionId}/carpeta`)
+  await api('/api/open', { path: `${actual}/${ruta}`, abrir: true })
+}
+
 /** Lo que dejó una etapa, según el tipo de archivo. Lo nuevo entra con un fundido. `writing` es el texto que se está escribiendo. */
 function Muestra({ sessionId, archivos, writing, copiar }: { sessionId: string; archivos: Avance['etapas'][number]['archivos']; writing?: { text: string; json: boolean }; copiar?: boolean }) {
   const src = (a: { ruta: string; t: number }) => `/api/sessions/${sessionId}/archivo?ruta=${encodeURIComponent(a.ruta)}&t=${Math.round(a.t)}`
@@ -358,9 +364,9 @@ function Muestra({ sessionId, archivos, writing, copiar }: { sessionId: string; 
         <div className="etapa-html">
           <div className="etapa-html-barra">
             <span className="etapa-html-titulo">Vista previa</span>
-            <a className="etapa-html-abrir" href={src(html)} target="_blank" rel="noreferrer">
-              Abrir en pestaña nueva ↗
-            </a>
+            <button className="etapa-html-abrir" onClick={() => abrirArchivo(sessionId, html.ruta).catch(() => {})}>
+              Abrir en el navegador ↗
+            </button>
           </div>
           <iframe className="etapa-html-iframe" src={src(html)} title="Vista previa" />
         </div>

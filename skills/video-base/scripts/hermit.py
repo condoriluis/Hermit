@@ -150,15 +150,9 @@ def turno_youtube():
 
 def _segundos(archivos: list[str]) -> float:
     """Lo que duran los WAV, o 0 si alguno no se puede leer."""
-    import wave
-
     try:
-        total = 0.0
-        for a in archivos:
-            with wave.open(a, "rb") as w:
-                total += w.getnframes() / w.getframerate()
-        return total
-    except (OSError, wave.Error, EOFError):
+        return sum(duracion(a) for a in archivos)
+    except Exception:
         return 0.0
 
 
@@ -449,6 +443,17 @@ def encoder_video(calidad: int = 18) -> list[str]:
 
 def wav16k(origen: Path, destino: Path) -> None:
     ffmpeg("-i", str(origen), "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", str(destino))
+
+
+def duracion(archivo) -> float:
+    """Los segundos de un audio o vídeo, con ffprobe: lee cualquier WAV (el master sale en 24 bits, que `wave` de
+    Python solo entiende desde la 3.12) con cualquier Python que corra los scripts."""
+    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(archivo)],
+                       capture_output=True, text=True)
+    try:
+        return float(r.stdout.strip())
+    except ValueError:
+        return 0.0
 
 
 def transcribir(wav: Path) -> dict:

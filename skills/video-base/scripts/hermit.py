@@ -15,6 +15,8 @@ import subprocess
 import sys
 import tempfile
 import time
+import unicodedata
+from collections import Counter
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -457,6 +459,27 @@ def transcribir(wav: Path) -> dict:
         return proceso("transcribir-ajeno.py", [str(v)], {"modelos": str(MODELOS)})
     finally:
         v.unlink(missing_ok=True)
+
+
+def norm(t: str) -> str:
+    """Lo que se compara: minúsculas, sin acentos ni signos (solo letras, números y ñ)."""
+    t = unicodedata.normalize("NFD", t.lower())
+    t = "".join(c for c in t if unicodedata.category(c) != "Mn")
+    return re.sub(r"[^a-z0-9ñ]+", " ", t).strip()
+
+
+def cobertura(dicho: str, esperado: str) -> tuple[float, float]:
+    """
+    Qué tanto dijo el clip lo del guion: `(recuerdo, precision)` de 0 a 1, por palabras. Recuerdo = cuánto del guion
+    se oyó; precision = cuánto de lo oído era del guion. Un clip que balbucea el guion falla en recuerdo; uno que lo
+    dice y le agrega inventado, en precision.
+    """
+    d = Counter(norm(dicho).split())
+    e = Counter(norm(esperado).split())
+    if not e:
+        return 1.0, 1.0
+    oido = sum(min(d[w], e[w]) for w in e)
+    return oido / sum(e.values()), oido / max(sum(d.values()), 1)
 
 
 if __name__ == "__main__" and sys.argv[1:] == ["calentar-voz"]:

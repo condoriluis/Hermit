@@ -1,6 +1,6 @@
 # En un lote
 
-Si el mensaje trae `Lote: video 3 de 20. Carpeta: <nombre>` (lo pone Hermit), eres uno de varios vídeos que hacen a la
+Si el mensaje trae `Lote: video 3 de 20. Carpeta: <ruta>` (lo pone Hermit), eres uno de varios vídeos que hacen a la
 vez otros agentes, cada uno en su hilo, y nadie mira el tuyo mientras trabajas. Vale todo lo de tu skill, con estos
 cambios:
 

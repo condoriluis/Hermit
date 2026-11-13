@@ -1,7 +1,7 @@
 """
-Une los clips de un minidrama en el video final. Se corre desde la raíz del proyecto:
+Une los clips de un minidrama en el video final. Se corre desde la raíz del proyecto (o con `--en <carpeta>`, la ruta de `Carpeta:`):
 
-    python <skill>/scripts/unir.py <nombre> [--formato vertical|horizontal] [--duracion 30|45|1:30|2 min]
+    python <skill>/scripts/unir.py <nombre> [--en <carpeta>] [--formato vertical|horizontal] [--duracion 30|45|1:30|2 min]
         [--sin-subtitulos] [--sin-recortar]
 
 Toma `clips/esc-*.mp4` en orden y transcribe cada uno con el Whisper de Hermit. Corta el final muerto de cada clip, el
@@ -9,7 +9,9 @@ segundo o dos en que nadie habla ni se mueve, a 0,35 s de su última palabra, sa
 recorta por el final hasta esa duración, sin dejar un clip de menos de 2 s; si los clips no llegan, avisa y no estira. Los lleva al
 tamaño del formato (Veo da 720p) a 30 fps, limpia el fondo de cada clip (`sonido.py`, de video-base), une su audio y
 lo masteriza (`masterizar.mjs` de video-base, -14 LUFS y -1 dBTP). Deja lo que dicen en `revision/transcripcion.txt`, para compararlo con el guion, y salvo `--sin-subtitulos`
-lo pone encima en bloques de hasta tres palabras, con la palabra clave resaltada en amarillo. Deja `out/minidrama-<nombre>.mp4`.
+lo pone encima en bloques de hasta tres palabras, con la palabra clave resaltada en amarillo. Las escenas con `voces/esc-NN.json`
+suenan con la voz TTS fija de cada personaje (`voces/personajes.json`, voz_tts.py de video-base) y sus subtítulos son
+el guion mismo. Deja `out/minidrama-<nombre>.mp4`.
 """
 
 import json
@@ -24,7 +26,13 @@ BASE = SKILL.parent / "video-base" / "scripts"
 sys.path.insert(0, str(BASE))
 from sonido import LIMPIAR  # la limpieza del audio de los clips de Veo, de video-base
 
-PROYECTO = Path.cwd()
+# `--en <carpeta>` es la ruta completa de la línea `Carpeta:` de Hermit: el proyecto no depende del directorio donde se
+# corra; sin ella, el directorio actual.
+_en = sys.argv[sys.argv.index("--en") + 1] if "--en" in sys.argv[:-1] else ""
+PROYECTO = Path(_en).resolve() if _en else Path.cwd()
+# La carpeta de las skills no es un proyecto: los clips y el video no los vería nadie.
+if PROYECTO == SKILL.parent or SKILL.parent in PROYECTO.parents:
+    sys.exit(f"{PROYECTO} es la carpeta de las skills: pasa la ruta completa de la línea `Carpeta:`.")
 FORMATOS = {"vertical": (1080, 1920), "horizontal": (1920, 1080)}
 FPS = 30
 PALABRAS = 3
@@ -146,9 +154,15 @@ def main() -> None:
     revision = PROYECTO / "revision"
     revision.mkdir(exist_ok=True)
     (PROYECTO / "out").mkdir(exist_ok=True)
-    from hermit import encoder_video, transcribir  # el Python de Hermit y Whisper, y el encoder de video, de video-base
+    from hermit import cobertura, encoder_video, transcribir  # el Python de Hermit y Whisper, y el encoder de video, de video-base
 
-    voz = [transcribir(c).get("segmentos", []) if con_audio(c) else [] for c in clips]
+    # Las escenas con `voces/esc-NN.json` suenan con TTS por personaje (voz_tts.py, de video-base): su audio y sus
+    # subtítulos salen del guion, no de lo que oiga Whisper en el clip. Se preparan antes de transcribir para no
+    # gastar Whisper en ellas.
+    from voz_tts import preparar as preparar_tts
+    tts = preparar_tts(PROYECTO, clips, revision)
+
+    voz = [tts[c.stem]["segmentos"] if c.stem in tts else (transcribir(c).get("segmentos", []) if con_audio(c) else []) for c in clips]
     cortes = [duracion(c) if "--sin-recortar" in sys.argv else corte(c, p) for c, p in zip(clips, voz)]
     total = sum(cortes)
     if "--duracion" in sys.argv:
@@ -170,13 +184,47 @@ def main() -> None:
     segmentos, renglones, inicio = [], [], 0.0
     for c, fin, propios in zip(clips, cortes, voz):
         segmentos += [{**s, "start": s["start"] + inicio, "end": min(s["end"], fin) + inicio} for s in propios if s["start"] < fin]
-        renglones.append(f"{c.stem} ({inicio:.1f}-{inicio + fin:.1f} s, de {duracion(c):.1f}): {' '.join(s['text'].strip() for s in propios) or '(sin voz)'}")
+        marca = " [voz TTS]" if c.stem in tts else ""
+        renglones.append(f"{c.stem}{marca} ({inicio:.1f}-{inicio + fin:.1f} s, de {duracion(c):.1f}): {' '.join(s['text'].strip() for s in propios) or '(sin voz)'}")
         inicio += fin
     (revision / "transcripcion.txt").write_text("\n".join(renglones) + "\n", encoding="utf-8", newline="\n")
 
+    # La puerta del guion: cada clip debe decir lo que su `dialogos/esc-NN.txt` dice (las mismas líneas del prompt
+    # de Flow). Whisper transcribe hasta el balbuceo de Veo; si no se parece, el clip está mal aunque el video salga:
+    # se regenera y se vuelve a unir, o `--forzar` cuando lo que se oyó está bien de verdad.
+    malas, sin_guion = [], 0
+    for c, propios in zip(clips, voz):
+        if c.stem in tts:
+            continue  # su audio ya es el guion: no hay nada que transcribir ni comparar
+        dicho = " ".join(s["text"].strip() for s in propios)
+        f = PROYECTO / "dialogos" / f"{c.stem}.txt"
+        if not f.exists() or not f.read_text(encoding="utf-8").strip():
+            sin_guion += bool(dicho.strip())
+            continue
+        esperado = f.read_text(encoding="utf-8").strip()
+        rec, prec = cobertura(dicho, esperado)
+        if rec < 0.75 or prec < 0.75:
+            malas.append((c.stem, esperado, dicho, rec, prec))
+    if sin_guion:
+        print(f"Ojo: {sin_guion} clip(s) hablaron sin `dialogos/esc-NN.txt`: no se pudieron comparar con el guion.")
+    if malas:
+        (revision / "sospechosas.txt").write_text(
+            "\n\n".join(f"{n}: esperaba «{e}»\n   oyó «{d or '(nada)'}»\n   acuerdo {r:.0%} del guion, {p:.0%} limpio" for n, e, d, r, p in malas) + "\n",
+            encoding="utf-8", newline="\n")
+        if "--forzar" not in sys.argv:
+            print("Escenas que no dicen lo del guion:")
+            for n, e, d, r, p in malas:
+                print(f"  {n}: «{e}» → se oyó «{d or '(nada)'}»")
+            sys.exit("Regenera esos clips y vuelve a unir (o pasa --forzar si están bien de verdad).")
+        print("Se siguen con --forzar: las escenas listadas saldrán con lo que se oyó.")
+    elif (revision / "sospechosas.txt").exists():
+        (revision / "sospechosas.txt").unlink()  # montaje limpio: no queda una lista vieja de un intento anterior
+
     crudo = revision / "crudo.mkv"
     print(f"Uniendo {len(clips)} clips a {ancho}x{alto}: {inicio:.1f} s…")
-    unir(clips, cortes, ancho, alto, crudo)
+    # Las escenas TTS entran con su audio cambiado (`revision/esc-NN-voz.mp4`); las demás, el clip de Veo tal cual.
+    clips_final = [tts[c.stem]["mp4"] if c.stem in tts else c for c in clips]
+    unir(clips_final, cortes, ancho, alto, crudo)
 
     audio = revision / "audio.wav"
     subprocess.run(["node", str(BASE / "masterizar.mjs"), str(crudo), str(audio)], check=True)

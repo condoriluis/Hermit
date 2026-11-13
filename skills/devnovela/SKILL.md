@@ -41,7 +41,7 @@ errores ya vistos), [`FORMATO.md`](../video-base/FORMATO.md), [`FLOW.md`](../vid
 - **Sin texto añadido.** No generes letreros, subtítulos ni marcas de agua. Las letras que formen parte inseparable del
   icono oficial pueden permanecer en la cabeza; no añadas nombres o palabras a la ropa ni al fondo. Los subtítulos los
   pone `unir.py`.
-- El proyecto va en la carpeta de la línea `Carpeta: <nombre>` del mensaje, con ese nombre exacto (el estudio de Hermit
+- El proyecto va en la ruta completa de la línea `Carpeta:` del mensaje, tal cual (el estudio de Hermit
   la busca ahí). Sin la línea, `devnovela-<tema>`.
 
 ## Formato
@@ -72,6 +72,23 @@ se entienda en un solo plano. No hay una lista cerrada de lenguajes compatibles:
 incluidos lenguajes nuevos o poco conocidos, sin intentar enumerarlos todos ni reemplazar sus marcas por objetos
 inventados. Si no conoces su símbolo oficial, compruébalo en una fuente fiable; si no puedes identificarlo con certeza,
 pide una referencia antes de generar.
+
+## Voces: las de Veo o TTS por personaje
+
+Cada clip suena con el audio que Veo le da, y puede cambiar de voz de una escena a otra. Si el usuario quiere que cada
+personaje tenga **su voz fija** (lo pide como «voces iguales», «voz por personaje» o «con TTS»), o cuando Veo falla
+varias veces seguidas con el audio de una escena, esa escena puede llevar voz TTS:
+
+- `voces/personajes.json`, en la carpeta del proyecto: `{ "<personaje>": "<voz>" }` con la voz de AI Studio, Fish
+  Audio o ElevenLabs de cada uno (se elige y se prueba con `/api/voz/probar`, como la narración). Se escribe una vez
+  y vale para este video y sus partes siguientes.
+- `voces/esc-<NN>.json`, una por escena: `[{ "quien": "<personaje>", "texto": "<su línea>" }, ...]` en el orden en
+  que se dicen. Solo las escenas con este archivo suenan con TTS; las demás siguen con el audio de Veo.
+
+El clip se pide igual que siempre, con su diálogo en el prompt (las bocas se mueven); `unir.py` le cambia la pista de
+audio por las líneas TTS y los subtítulos salen del guion, con los tiempos reales de cada línea. La sincronía labial
+no es exacta: en planos medios no se nota; en un primerísimo plano de cara hablando, mejor dejar esa escena con el
+audio de Veo. Si una línea no convence, se regenera su WAV y se vuelve a unir: no gasta créditos de Flow.
 
 ## Pasos
 
@@ -113,16 +130,21 @@ pide una referencia antes de generar.
    formato del video, Veo 3.1 - Lite (salvo que el usuario pida otro) y `salida` `clips/esc-<NN>.mp4`. El prompt, en
    inglés, describe la acción. El diálogo va en español, entre comillas y con quién lo dice; delante de cada línea, la
    ficha de voz de ese personaje copiada igual que en `ELENCO.md` (ver [`FLOW.md`](../video-base/FLOW.md), «La voz de
-   cada personaje»). Conserva las cabezas-logo de la imagen de referencia; al final, `static camera, no music, no subtitles,
-   no added text on screen, no extra logos, no realistic animals`. Espera los
+   cada personaje»). Las líneas que dice el clip quedan también en `dialogos/esc-<NN>.txt`, tal cual y sin más texto,
+   para que `unir.py` compare lo que se oyó con el guion. Conserva las cabezas-logo de la imagen de referencia; al
+   final, `static camera, no music, no subtitles, no added text on screen, no extra logos, no realistic animals`. Espera los
    pendientes con `estado_flow`. Listo cuando están todos los clips. Si una cuenta se quedó sin créditos, la herramienta ya pasó a
    otra. Si ninguna puede, dile al usuario cuántos faltan y cuándo vuelven sus cuentas, y para ahí. Si Flow rechaza un clip
-   por su contenido (derechos, política de Google), cámbialo de verdad una vez; si vuelve a caer, déjalo fuera y sigue: el
-   video sale con los demás, y al final se lo dices al usuario.
+   por su contenido (derechos, política de Google), no es la cuenta: cámbialo de verdad y pídelo otra vez (con
+   `escena` = su número); si cae otra, la versión 100 % original (sin personajes, marcas ni personas con derechos); si
+   cae la tercera, déjalo fuera y sigue: el video sale con los demás, y al final se lo dices al usuario.
 7. **Montaje.** `python <skill>/scripts/unir.py <nombre> --formato <formato>` se corre desde la carpeta del proyecto.
    Transcribe cada clip y le corta el final muerto: Veo deja de 1 a 2 s en que nadie habla ni se mueve, y se corta a
    0,35 s de su última palabra. Luego une los clips en orden, masteriza el audio y pone los subtítulos
-   (`--sin-subtitulos` si el usuario no los quiere). Mira `revision/transcripcion.txt` contra el guion y una hoja del
+   (`--sin-subtitulos` si el usuario no los quiere). Si `unir.py` para con «Escenas que no dicen lo del guion», una
+   escena dijo otra cosa: regenera ese clip con el prompt corregido (o más corto y con menos hablantes) y vuelve a
+   unir; `revision/sospechosas.txt` dice qué se esperaba y qué se oyó. Si están bien de verdad, `--forzar`. Mira
+   `revision/transcripcion.txt` contra el guion y una hoja del
    video (`node <base>/scripts/hoja.mjs out/devnovela-<nombre>.mp4 revision/hoja.png --cada 2`). Si un clip dice otra
    cosa, habla con la voz de otro, cambia a un personaje o trae texto, repítelo una vez con el prompt corregido.
    Repetirlo gasta otra vez: si sigue mal, déjalo y díselo al usuario. Al final,

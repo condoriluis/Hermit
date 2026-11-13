@@ -29,8 +29,8 @@ letra, ritmo, la cara) · `reference/sound-design.md` + `reference/edl/SOUND.md`
 
 ## La carpeta del video
 
-- El proyecto va en la carpeta de la línea `Carpeta: <nombre>` del mensaje, con ese nombre exacto, dentro del
-  directorio donde te lanzó Hermit (`trabajo/video-documental`). Sin esa línea, `doc-<tema>`.
+- El proyecto va en la ruta completa de la línea `Carpeta:` del mensaje, tal cual (no depende de dónde estés).
+  Sin esa línea, `doc-<tema>` en el directorio actual.
 - **Horizontal o vertical, el mismo estilo.** Sin `Formato:` o con `Formato: horizontal`, 1920×1080 para YouTube. Con
   `Formato: vertical`, 1080×1920 para TikTok, Reels y Shorts: `nuevo.py ... --vertical` deja `formato.txt` en la
   carpeta, y de ahí leen el tamaño los dispositivos, `ev1_treat`, `ev1_clip`, `matte.py` y `terminar.py`. Ver
@@ -179,7 +179,8 @@ proyecto, la que suena en el estudio y la que lleva el render.
 
 Cada paso, desde la carpeta del video salvo el primero.
 
-1. **El proyecto:** `python -I -B -X utf8 <skill>/scripts/nuevo.py <grabación> <nombre>` (con `--vertical` si el
+1. **El proyecto:** `python -I -B -X utf8 <skill>/scripts/nuevo.py <grabación> <carpeta>` (la ruta completa de `Carpeta:`;
+   con `--vertical` si el
    mensaje trae `Formato: vertical`). Deja la plantilla de
    Remotion, `public/assets/media/cam_raw.mp4` (la cámara cruda, 30 fps constantes, un cuadro clave por segundo, sin
    grade), `public/assets/media/vo.wav` (la voz), `build.py`, `PLAN.md` y `node_modules` (un enlace al que comparten

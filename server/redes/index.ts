@@ -18,12 +18,14 @@ import { hayNube, instagram } from './instagram.ts'
 import { abierto, conGoogle, contextoDeGoogle, deGoogle, deLaApp, desconectar, enGoogle, navegador, pasarDeEdge, pestana, SinSesion, sinAviso, soltar } from './navegador.ts'
 import { tiktok } from './tiktok.ts'
 import { programaClaude, rutaAgente } from '../agentes.ts'
+import { codexModels } from '../codex.ts'
 import { redactarOpenCode } from '../opencode.ts'
+import { redactarCodexYoutube } from '../youtube-redactor.ts'
 import { NOMBRE_AGENTE } from '../../shared/providers.ts'
 
 /**
  * Publicar en redes: los videos verticales terminados de cada estilo se programan en las redes, uno por hueco del
- * calendario (`Ritmo`, el que eliges en «Mis videos»), con «Programar los que faltan» y un texto que escribe Claude y
+ * calendario (`Ritmo`, el que eliges en «Mis videos»), con «Programar los que faltan» y un texto que escribe un agente y
  * que se puede cambiar. Lo hecho vive en `data/redes/redes.json`. Cuando todo lo de una carpeta ya salió, se borra de
  * ella lo que se rehace solo (`liberar`), y «Eliminar los que ya se programaron», en «Mis videos», manda esos videos a
  * la Papelera. Quitarlo es borrar esta carpeta, `web/src/Redes.*` y las líneas marcadas «redes».
@@ -119,19 +121,33 @@ const mensaje = (e: unknown) => (e instanceof Error ? e.message : String(e)).spl
 /** Un hashtag como lo quieren las redes: letras, números y guion bajo, sin `#`. */
 const limpiarTag = (t: string) => t.replace(/[^\p{L}\p{N}_]/gu, '')
 
+/** La forma del texto para redes, que Codex respeta al pie de la letra (`outputSchema`). */
+const ESQUEMA_TEXTO = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['texto', 'tags'],
+  properties: { texto: { type: 'string' }, tags: { type: 'array', items: { type: 'string' } } }
+}
+
+const INSTRUCCION_REDES = 'Escribes la descripción de videos verticales para TikTok, Shorts y Reels, en español, con el JSON pedido. Todo lo que necesitas va en el mensaje: no uses herramientas ni abras archivos, y no inventes nada que no esté en los archivos del video.'
+
 /**
- * El texto de un video, con Claude Code sin herramientas. Si no está (quien usa otro agente no lo bajó) o no pudo, con
- * OpenCode, si está.
+ * El texto de un video, con el mejor agente que haya sin herramientas: Claude, luego Codex y por último OpenCode. Si no
+ * está (quien usa otro agente no lo bajó) o no pudo, con el siguiente.
  */
 async function escribir(prompt: string, carpeta: string): Promise<{ texto: string; tags?: string[] }> {
-  const agentes = (['claude', 'opencode'] as const).filter((p) => rutaAgente(p))
-  if (!agentes.length) throw new Error('Hermit escribe estos textos con Claude u OpenCode, y no tienes ninguno en Opciones')
+  const agentes = (['claude', 'codex', 'opencode'] as const).filter((p) => rutaAgente(p))
+  if (!agentes.length) throw new Error('Hermit escribe estos textos con Claude, Codex u OpenCode, y no tienes ninguno en Opciones')
   let error: unknown
   for (const p of agentes) {
     try {
       let salida = ''
       if (p === 'opencode') salida = await redactarOpenCode(undefined, carpeta, prompt, [], 'Escribes el texto de videos para redes. No uses herramientas ni abras archivos: contesta solo con el JSON que se pide.')
-      else
+      else if (p === 'codex') {
+        const modelo = (await codexModels())[0]?.id
+        if (!modelo) throw new Error('Codex no tiene modelos ahora')
+        salida = await redactarCodexYoutube(modelo, carpeta, prompt, [], ESQUEMA_TEXTO, undefined, undefined, INSTRUCCION_REDES)
+      } else
         for await (const m of query({ prompt, options: { ...programaClaude(), model: 'sonnet', tools: [], maxTurns: 1, settingSources: [], persistSession: false, cwd: carpeta } }))
           if (m.type === 'result' && m.subtype === 'success' && !m.is_error) salida = m.result
       const json = JSON.parse(/\{[\s\S]*\}/.exec(salida)?.[0] ?? 'null') as { texto?: string; tags?: string[] } | null
@@ -194,7 +210,7 @@ export function redes(app: string, sessions: Sessions, cards: () => Card[], avis
   }
   // Lo que se está quitando de la nube: la cola no lo toma mientras tanto.
   const quitando = new Set<Publicacion>()
-  // Las llamadas a Claude para escribir textos que están en marcha.
+  // Las llamadas para escribir textos que están en marcha.
   let escribiendoTextos = 0
   // Lo que mandaste a programar («Programar los que faltan», «Reintentar»), por huella: cuando ya no trabaja ninguna cola,
   // se avisa una vez de cómo quedó (`acabar`). Lo que la cola sube sola, al entrar en el calendario de su red, no avisa.
@@ -227,7 +243,7 @@ export function redes(app: string, sessions: Sessions, cards: () => Card[], avis
   }
 
   const nav: Navegador = () => navegador(app)
-  // Lo de cada estilo, sin lo que dejaron el automático (`auto`, `autoDesde`) y las indicaciones para Claude (`nota`).
+  // Lo de cada estilo, sin lo que dejaron el automático (`auto`, `autoDesde`).
   const ajustes = (cardId: string): RedesDelEstilo => ({ tags: datos.estilos[cardId]?.tags ?? [] })
   const conectadas = () => REDES.filter((r) => datos.cuentas[r.id])
   /** Ya tuvo un intento en una red que guarda el video fuera (`enLaNube`): se reintenta o se quita sin el archivo. */
@@ -399,7 +415,7 @@ export function redes(app: string, sessions: Sessions, cards: () => Card[], avis
   }
 
   /**
-   * El texto de un video: el mismo que lleva en otra red; si no, uno que escribe Claude con lo que hay en su carpeta: el
+   * El texto de un video: el mismo que lleva en otra red; si no, uno que escribe el mejor agente disponible con lo que hay en su carpeta: el
    * guion, el plan de cortes, sus notas. Los hashtags fijos del estilo van primero.
    */
   async function borrador(card: Card, ruta: string): Promise<Borrador> {
@@ -656,7 +672,7 @@ export function redes(app: string, sessions: Sessions, cards: () => Card[], avis
   function ocupado(): string | null {
     const p = datos.publicaciones.find((x) => x.estado === 'subiendo')
     if (p) return `Se está subiendo un video a ${REDES.find((r) => r.id === p.red)?.nombre ?? p.red}. Espera a que termine.`
-    if (escribiendoTextos) return 'Claude está escribiendo el texto de un video para redes. Espera a que termine.'
+    if (escribiendoTextos) return 'Un agente está escribiendo el texto de un video para redes. Espera a que termine.'
     if (enGoogle()) return 'Estás iniciando sesión con Google en Edge. Espera a que termine.'
     return null
   }
@@ -805,7 +821,7 @@ export function redes(app: string, sessions: Sessions, cards: () => Card[], avis
       return json(res, 200, { ...estadoRitmo(), movidas: cambios.length })
     }
 
-    // Los textos que propone Claude, para revisarlos antes de programar.
+    // Los textos que propone el agente, para revisarlos antes de programar.
     if (path === '/api/redes/borradores' && post) {
       const { cardId, rutas } = await body<{ cardId: string; rutas: string[] }>(req)
       const card = cards().find((c) => c.id === cardId)

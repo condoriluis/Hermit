@@ -23,7 +23,7 @@ código ni abras la plantilla**: todo lo que el video necesita se dice en `momen
 - **Nada de emojis**, tampoco en los subtítulos: íconos de Phosphor o imágenes.
 - **Ningún modelo 3D se hace dos veces**: los objetos salen de la biblioteca (`modelos.py lista`) o son íconos de
   Phosphor extruidos, y lo nuevo se guarda en la biblioteca (skill [`modelos-3d`](../modelos-3d/SKILL.md)).
-- El proyecto va en la carpeta de la línea `Carpeta: <nombre>` (sin ella, `explicado-<tema>`), y en el formato de
+- El proyecto va en la ruta completa de la línea `Carpeta:` (sin ella, `explicado-<tema>` en el directorio actual), y en el formato de
   `Formato:` (sin ella, vertical). Con `Formato: horizontal` (1920×1080, para YouTube) es `nuevo.py <carpeta> --formato
   horizontal` y nada más: el director acomoda el texto abajo, el personaje a la derecha y el mundo a todo el ancho, y
   `hacer.py` deja `portada.png` como miniatura de YouTube (no entra en el video). Si piden el otro formato, es otro video.

@@ -9,6 +9,7 @@ La referencia de cada tipo de escena está en ESCENAS.md de la skill video-el-di
 """
 
 import json
+import subprocess
 from pathlib import Path
 
 from PIL import Image
@@ -67,8 +68,24 @@ def cap(img, **kw):
     return {"tipo": "captura", "img": img, "w": w, "h": h, **kw}
 
 
+def tam_clip(src):
+    """El tamaño real del clip (ffprobe): puede ser vertical o de otra proporción; sin él el encuadre lo tomaría
+    por 16:9 y lo aplastaría (pasó con los clips de Flow del episodio de Soportik)."""
+    if not hay(src):
+        return 1920, 1080
+    try:
+        s = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height",
+             "-of", "csv=p=0", str(PUBLICO / src)], capture_output=True, text=True, timeout=30, check=True,
+        ).stdout.strip().split(",")
+        return int(s[0]), int(s[1])
+    except Exception:
+        return 1920, 1080
+
+
 def clip(desde, src=TEMA, **kw):
-    return {"tipo": "captura", "clip": src, "desde": desde, "completo": True, **kw}
+    w, h = tam_clip(src)
+    return {"tipo": "captura", "clip": src, "w": w, "h": h, "desde": desde, "completo": True, **kw}
 
 
 def caja(r, en=None, t=None, **kw):

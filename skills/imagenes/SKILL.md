@@ -23,7 +23,7 @@ Las imágenes no gastan créditos, ni en Flow ni en ChatGPT. No pidas permiso de
 
 ## La línea `Carpeta:` y el `Formato:`
 
-- `Carpeta: <nombre>`: la carpeta del hilo, la raíz donde van las imágenes. Guárdalas ahí, no en subcarpetas.
+- `Carpeta:`: la ruta completa de la carpeta del hilo, la raíz donde van las imágenes. Guárdalas ahí, no en subcarpetas.
 - `Formato: vertical` (por defecto): imágenes **9:16** (1080×1920). `Formato: horizontal`: **16:9** (1920×1080). Si en el
   mensaje se pide otra proporción (cuadrada, 4:3), esa manda. Nunca recortes una del otro formato.
 - **Qué cambia de lugar:** en vertical, la composición se apila (sujeto al centro, aire arriba y abajo); en horizontal,

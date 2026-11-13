@@ -334,6 +334,11 @@
         "nombre": "Video",
         "listo": "out/final.mp4",
         "fase": "video"
+      },
+      {
+        "nombre": "Portada",
+        "listo": "{portada.png,portada/*.png}",
+        "fase": "entrega"
       }
     ]
   },

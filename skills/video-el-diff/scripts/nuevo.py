@@ -38,8 +38,16 @@ def main() -> None:
     p.add_argument("nombre")
     p.add_argument("--formato", choices=FORMATOS, default="vertical")
     a = p.parse_args()
-    # Los episodios se crean donde trabaja el agente (en Hermit, trabajo/video-el-diff).
-    destino = Path.cwd() / a.nombre
+    # La carpeta viene absoluta en la línea `Carpeta:` de Hermit: el episodio no depende del directorio donde se corra.
+    pedido = Path(a.nombre)
+    if pedido.is_absolute():
+        destino = pedido
+    else:
+        destino = Path.cwd() / a.nombre
+    # La carpeta de las skills no es un lugar de trabajo: el episodio quedaría donde Hermit no lo ve.
+    skills = PLANTILLA.parent.parent
+    if skills in destino.resolve().parents or destino.resolve() == skills:
+        raise SystemExit(f"{destino} cae dentro de la carpeta de las skills: pasa la ruta completa de la línea `Carpeta:`.")
     if destino.exists() and any(destino.iterdir()):
         raise SystemExit(f"{destino} ya existe y no está vacía")
     shutil.copytree(PLANTILLA, destino, dirs_exist_ok=True, ignore=shutil.ignore_patterns("__pycache__", "node_modules", "vivo.js"))
@@ -55,7 +63,7 @@ def main() -> None:
     atajo = destino / "revisar.mjs"
     atajo.write_text(atajo.read_text(encoding="utf8").replace("const SKILL = null;", f"const SKILL = {json.dumps(PLANTILLA.parent.as_posix())};"),
                      encoding="utf8")
-    marca = Path.cwd() / "marca.json"
+    marca = destino.parent / "marca.json"
     if marca.exists():
         shutil.copy2(marca, destino / "src" / "marca.json")
     else:

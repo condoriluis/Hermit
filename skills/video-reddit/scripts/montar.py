@@ -150,6 +150,10 @@ def main() -> None:
         elif Path(a).exists():
             dir_proy = Path(a).resolve()
 
+    # La carpeta de las skills no es un proyecto: el video no lo vería nadie.
+    if dir_proy == SKILL.parent or SKILL.parent in dir_proy.parents:
+        sys.exit(f"{dir_proy} es la carpeta de las skills: corre esto dentro de la carpeta del video (en Hermit, la de la card).")
+
     vertical = formato == "vertical"
     ancho = 1080 if vertical else 1920
     alto = 1920 if vertical else 1080

@@ -1,7 +1,7 @@
 """
-Monta un video de «Política sin filtro» en el formato final. Se corre desde la raíz del proyecto:
+Monta un video de «Política sin filtro» en el formato final. Se corre desde la raíz del proyecto (o con `--en <carpeta>`, la ruta de `Carpeta:`):
 
-    python <skill>/scripts/montar.py <nombre> [--formato vertical|horizontal] [--sin-subtitulos]
+    python <skill>/scripts/montar.py <nombre> [--en <carpeta>] [--formato vertical|horizontal] [--sin-subtitulos]
 
 Toma la narración en `public/voz.wav` (o `voz.wav`), la transcribe palabra por palabra con el Whisper de Hermit,
 alinea las imágenes y documentos de `fuentes/material/` con transiciones de paneo continuo, genera subtítulos
@@ -19,7 +19,13 @@ sys.stdout.reconfigure(encoding="utf-8")
 SKILL = Path(__file__).resolve().parent.parent
 BASE = SKILL.parent / "video-base" / "scripts"
 sys.path.insert(0, str(BASE))
-PROYECTO = Path.cwd()
+# `--en <carpeta>` es la ruta completa de la línea `Carpeta:` de Hermit: el proyecto no depende del directorio donde se
+# corra; sin ella, el directorio actual.
+_en = sys.argv[sys.argv.index("--en") + 1] if "--en" in sys.argv[:-1] else ""
+PROYECTO = Path(_en).resolve() if _en else Path.cwd()
+# La carpeta de las skills no es un proyecto: el video no lo vería nadie.
+if PROYECTO == SKILL.parent or SKILL.parent in PROYECTO.parents:
+    sys.exit(f"{PROYECTO} es la carpeta de las skills: pasa la ruta completa de la línea `Carpeta:`.")
 FORMATOS = {"vertical": (1080, 1920), "horizontal": (1920, 1080)}
 FPS = 30
 PALABRAS_POR_BLOQUE = 3

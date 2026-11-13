@@ -53,11 +53,22 @@ def main() -> None:
     a = a.parse_args()
     if not (PERSONAJE / "POSES.md").exists():
         raise SystemExit("No hay biblioteca de poses: pídele al usuario sus fotos y su voz (\"El personaje\" en SKILL.md).")
-    aqui = Path.cwd()
-    # Dentro de un proyecto (tiene package.json, como otro reel), junto a él: si no, saldría un reel dentro de otro.
-    if (aqui / "package.json").exists():
-        aqui = aqui.parent
-    destino = aqui / f"reel-{a.nombre}"
+    # La carpeta viene absoluta en la línea `Carpeta:` de Hermit (`reel-<nombre>`): el proyecto no depende del directorio
+    # donde se corra. Un nombre suelto cae en el directorio actual y lleva el prefijo `reel-`.
+    pedido = Path(a.nombre)
+    if pedido.is_absolute():
+        destino = pedido
+        base = pedido.parent
+    else:
+        base = Path.cwd()
+        # Dentro de un proyecto (tiene package.json, como otro reel), junto a él: si no, saldría un reel dentro de otro.
+        if (base / "package.json").exists():
+            base = base.parent
+        nombre = a.nombre if a.nombre.startswith("reel-") else f"reel-{a.nombre}"
+        destino = base / nombre
+    # La carpeta de las skills no es un lugar de trabajo: el proyecto quedaría donde Hermit no lo ve.
+    if SKILL.parent in destino.resolve().parents or destino.resolve() == SKILL.parent:
+        raise SystemExit(f"{destino} cae dentro de la carpeta de las skills: pasa la ruta completa de la línea `Carpeta:`.")
     if destino.exists():
         raise SystemExit(f"{destino} ya existe: usa otro nombre (puede ser de otra sesión haciendo el mismo reel).")
     shutil.copytree(SKILL / "plantilla", destino)
@@ -68,7 +79,7 @@ def main() -> None:
         (destino / d).mkdir(parents=True, exist_ok=True)
 
     # La primera vez, del de otro reel viejo: los episodios de El Diff tienen su propia plantilla y sus versiones pueden ser otras.
-    vecinos = [p for p in aqui.glob("reel-*/node_modules") if p.parent != destino]
+    vecinos = [p for p in base.glob("reel-*/node_modules") if p.parent != destino]
     enlazar_modulos(destino, "reel-collage", SKILL / "plantilla", vecinos)
     print(f"listo ({a.formato}): {destino}")
 

@@ -75,11 +75,12 @@ imágenes son lo que más entra. Por eso:
 
 ## En un lote
 
-Si el mensaje trae `Lote: video 3 de 20. Carpeta: <nombre>` (lo pone Hermit), eres uno de varios episodios que hacen a
+Si el mensaje trae `Lote: video 3 de 20. Carpeta: <ruta>` (lo pone Hermit), eres uno de varios episodios que hacen a
 la vez otros agentes, cada uno en su hilo, y nadie mira el tuyo mientras trabajas:
 
 - **Tema:** el video de la línea `Enlace:`.
-- **Proyecto:** `python <skill>/scripts/nuevo.py <nombre> --formato <formato>`, con ese nombre exacto y no `el-diff-N`: el panel de Hermit lo
+- **Proyecto:** `python <skill>/scripts/nuevo.py <carpeta> --formato <formato>` (la ruta completa de `Carpeta:`, tal
+  cual), con ese nombre exacto y no `el-diff-N`: el panel de Hermit lo
   busca así, y dos episodios que cuentan a la vez el siguiente N acaban en la misma carpeta.
 - **Voz:** la fase 1 acaba pidiendo el audio al usuario. Mientras llega, prepara las escenas según la fase 2.
 - **No preguntes** antes de entregar: lo que preguntarías, decídelo y dilo al entregar.
@@ -118,10 +119,9 @@ la carpeta de las skills.
 
 ## Fase 1: el guion
 
-1. **Proyecto.** `python <skill>/scripts/nuevo.py <nombre> --formato <vertical|horizontal>` (el de la línea
-   `Formato:`, ver [Formato](#formato)) desde la carpeta donde trabajas (en Hermit,
-   `trabajo/video-el-diff`). Si el mensaje trae `Carpeta: <nombre>` (la pone Hermit, sola o en la línea `Lote:`), es ese
-   nombre, exacto: el panel de Hermit lo busca así. Sin esa línea, `el-diff-N`, con N el siguiente número libre en
+1. **Proyecto.** `python <skill>/scripts/nuevo.py <carpeta> --formato <vertical|horizontal>` (`<carpeta>` es la ruta
+   completa de la línea `Carpeta:`, ver [Formato](#formato)). Si el mensaje trae `Carpeta:` (la pone Hermit, sola o en
+   la línea `Lote:`), es esa ruta, tal cual: el panel de Hermit lo busca así. Sin esa línea, `el-diff-N`, con N el siguiente número libre en
    esa carpeta. Copia la plantilla y la marca, y su `node_modules` es una unión a la carpeta que comparten todos los
    episodios (la primera vez en una computadora se instala, unos minutos): no corras `npm install` en el episodio,
    porque cambiaría la de todos. Listo cuando la carpeta existe con `node_modules`. Con `el-diff-N`, si `nuevo.py` dice que la carpeta ya existe, usa otro nombre: puede ser de otra sesión

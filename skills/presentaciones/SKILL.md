@@ -11,7 +11,7 @@ necesitar PowerPoint instalado. Todo queda en la carpeta del hilo y la presentac
 
 ## La línea `Carpeta:` y el `Formato:`
 
-- `Carpeta: <nombre>`: la carpeta del hilo, la raíz donde va todo.
+- `Carpeta:`: la ruta completa de la carpeta del hilo, la raíz donde va todo.
 - `Formato: horizontal` (siempre): las diapositivas son **16:9** (1920×1080 al generar imágenes). Si el mensaje pide
   otro formato (vertical para historias, cuadrado), esa manda.
 

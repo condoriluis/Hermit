@@ -199,14 +199,25 @@ export function VideoDe({ video, onVer, insignia, estilo }: { video: VideoHecho;
         </Confirm>
       )}
       {/* El hilo se abre con este video en el monitor: un hilo puede tener varios (el episodio en las dos formas, los cortes). */}
-      <button className="video-tile" title={sessionId ? 'Abrir su hilo' : 'Verlo'} onClick={() => (sessionId ? void (location.hash = `/s/${sessionId}/${encodeURIComponent(video.archivo)}`) : onVer())}>
+      <button className={`video-tile${video.vertical === false ? ' ancha' : ''}`} title={sessionId ? 'Abrir su hilo' : 'Verlo'} onClick={() => (sessionId ? void (location.hash = `/s/${sessionId}/${encodeURIComponent(video.archivo)}`) : onVer())}>
         <span className={`video-marco${video.vertical === undefined ? '' : video.vertical ? ' vertical' : ' horizontal'}`}>
-          {/* Su primer cuadro en pequeño (`&cuadro`) hasta que pasas el ratón: solo entonces se baja el video. */}
-          <video src={video.src} poster={`${video.src}&cuadro`} muted loop playsInline preload="none" onMouseEnter={(e) => e.currentTarget.play().catch(() => {})} onMouseLeave={(e) => {
-            e.currentTarget.pause()
-            // Vuelve a su portada: el primer fotograma del video (el `&cuadro` del poster es ese mismo).
-            e.currentTarget.currentTime = 0
-          }} />
+          {/* La portada del episodio (en horizontal, la miniatura de YouTube) tapa el video hasta que pasas el ratón;
+              sin ella, su primer cuadro en pequeño (`&cuadro`). Solo entonces se baja el video. */}
+          {video.portada && <img className="video-portada" src={`/api/piezas/archivo?ruta=${encodeURIComponent(video.portada)}&t=${Math.round(video.t)}`} alt="" />}
+          <video
+            src={video.src}
+            poster={video.portada ? undefined : `${video.src}&cuadro`}
+            muted
+            loop
+            playsInline
+            preload="none"
+            onMouseEnter={(e) => e.currentTarget.play().catch(() => {})}
+            onMouseLeave={(e) => {
+              e.currentTarget.pause()
+              // Vuelve a su portada: el primer fotograma del video (el `&cuadro` del poster es ese mismo).
+              e.currentTarget.currentTime = 0
+            }}
+          />
           {video.vertical !== undefined && <span className="video-forma">{video.vertical ? 'Vertical' : 'Horizontal'}</span>}
         </span>
         <span className="pieza-titulo">

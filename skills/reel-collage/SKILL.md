@@ -50,10 +50,9 @@ La evidencia (once reels de referencia, transcritos y mirados cuadro a cuadro) e
   los escenarios son recortes de fotos reales con licencia libre.
 - **Un dato que se diga es verdadero**, de su fuente primaria. Si el video del tema dice otra cosa, gana la fuente y se lo
   dices al usuario.
-- El proyecto es `reel-<tema>`, en la carpeta donde Hermit te lanza (`trabajo/reel-collage`: su panel de etapas lo
-  busca ahí); `nuevo.py` lo crea. Si el mensaje trae `Carpeta: reel-<nombre>` (la pone Hermit, sola o en
-  la línea `Lote:`), `<tema>` es ese `<nombre>`, exacto: el panel lo busca así. Las rutas que le des al usuario van en un
-  bloque de código.
+- El proyecto es `reel-<tema>`, en la ruta completa de la línea `Carpeta:` del mensaje (la pone Hermit, sola o en la
+  línea `Lote:`; su panel de etapas la busca ahí); `nuevo.py` lo crea pasándole esa ruta tal cual. Sin esa línea,
+  `reel-<tema>` en el directorio actual. Las rutas que le des al usuario van en un bloque de código.
 
 ## Formato
 
@@ -80,13 +79,12 @@ Cada plano en los dos, en «El formato» de [`ESCENAS.md`](ESCENAS.md).
 
 ## En un lote
 
-Si el mensaje trae `Lote: video 3 de 20. Carpeta: reel-<nombre>` (lo pone Hermit), eres uno de varios reels que hacen a
+Si el mensaje trae `Lote: video 3 de 20. Carpeta: <ruta>` (lo pone Hermit), eres uno de varios reels que hacen a
 la vez otros agentes, cada uno en su hilo:
 
 - el tema es el video de la línea `Enlace:`;
-- el proyecto es `python <skill>/scripts/nuevo.py <nombre> --formato <formato>`, sin el `reel-` (lo pone `nuevo.py`) y
-  con el formato del mensaje: la carpeta tiene que quedar con el nombre exacto de `Carpeta:`, que es donde la busca el
-  panel de Hermit;
+- el proyecto es `python <skill>/scripts/nuevo.py <ruta> --formato <formato>`, con la ruta completa de `Carpeta:` tal
+  cual y el formato del mensaje: la carpeta tiene que quedar exactamente ahí, que es donde la busca el panel de Hermit;
 - vale [`LOTE.md`](../video-base/LOTE.md) de `video-base`: no preguntes ni escribas fuera de tu carpeta. Las poses que
   falten se piden al entregar, como siempre, y el fondo lo buscas tú con licencia libre (paso 5). Sin biblioteca de
   poses no hay reel: si está vacía, para y pide las fotos, lo único que se pregunta en un lote.

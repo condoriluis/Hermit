@@ -7,11 +7,11 @@ de skills/modelos-3d/plantilla, el ícono 3D (`Icono3D`, con `comun.tsx`): el pr
 el proyecto una vez (render.cjs --empaqueta): el primer empaquetado de un proyecto tarda ~40 s y los siguientes ~10,
 así el render de hacer.py no los paga. Al terminar deja `.listo`, que hacer.py espera.
 
-    python -B nuevo.py <nombre> [--formato vertical|horizontal]
+    python -B nuevo.py <carpeta> [--formato vertical|horizontal]
 
-Va en el directorio actual (Hermit lanza la card en `trabajo/video-explicativo`, y su panel de etapas busca ahí la
-carpeta del video); dentro de un proyecto, junto a él. Deja también una voz muda, para que la plantilla se vea en Remotion Studio antes de que llegue la del
-usuario.
+`<carpeta>` es la ruta completa de la línea `Carpeta:` de Hermit (el proyecto no depende del directorio donde se
+corra); un nombre suelto cae en el directorio actual, junto a un proyecto si se está dentro de uno. Deja también una
+voz muda, para que la plantilla se vea en Remotion Studio antes de que llegue la del usuario.
 
 `--formato` es el de la línea `Formato:` del mensaje (sin ella, vertical): queda en src/datos/formato.json, del que
 leen la plantilla (el tamaño y dónde va cada cosa, `ZONA` en src/tema.ts) y final.py. Un video nace en un formato y
@@ -39,11 +39,19 @@ def main() -> None:
         del args[i:i + 2]
     if len(args) != 1 or formato not in ("vertical", "horizontal"):
         sys.exit(__doc__)
-    aqui = Path.cwd()
-    # Dentro de un proyecto (tiene package.json), junto a él: si no, saldría un video dentro de otro.
-    if (aqui / "package.json").exists():
-        aqui = aqui.parent
-    destino = aqui / args[0]
+    # La carpeta viene absoluta en la línea `Carpeta:` de Hermit: el proyecto no depende de dónde esté parado el agente.
+    pedido = Path(args[0])
+    if pedido.is_absolute():
+        destino, base = pedido, pedido.parent
+    else:
+        base = Path.cwd()
+        # Dentro de un proyecto (tiene package.json), junto a él: si no, saldría un video dentro de otro.
+        if (base / "package.json").exists():
+            base = base.parent
+        destino = base / args[0]
+    # La carpeta de las skills no es un lugar de trabajo: el proyecto quedaría donde Hermit no lo ve.
+    if SKILL.parent in destino.resolve().parents or destino.resolve() == SKILL.parent:
+        sys.exit(f"{destino} cae dentro de la carpeta de las skills: pasa la ruta completa de la línea `Carpeta:`.")
     if destino.exists():
         sys.exit(f"{destino} ya existe: usa otro nombre (puede ser de otra sesión haciendo el mismo video).")
     # El modelo de vectores de huellas.py, cargándose ya (~11 s) para cuando se busque si el tema ya se hizo.
@@ -62,7 +70,7 @@ def main() -> None:
 
     # node_modules: un enlace al que comparten todos los videos de este estilo. La primera vez sale del de un video viejo
     # de la carpeta de la card (todos son de este estilo) o de npm ci.
-    vecinos = list(aqui.glob("*/node_modules"))
+    vecinos = list(base.glob("*/node_modules"))
     enlazar_modulos(destino, "video-explicativo", SKILL / "plantilla", [p for p in vecinos if p.parent != destino])
     # El ícono 3D, que usan casi todos los videos, con lo común de los modelos (modelos-3d/plantilla).
     subprocess.run([sys.executable, "-B", "-X", "utf8", str(MODELOS), "usar", "icono-3d"], cwd=destino, check=True, stdout=subprocess.DEVNULL)

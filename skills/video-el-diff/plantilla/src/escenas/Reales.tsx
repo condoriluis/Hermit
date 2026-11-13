@@ -274,8 +274,9 @@ const Tecla: React.FC<{ texto: string; desde: number }> = ({ texto, desde }) => 
  * Una captura o un clip original con cámara: arranca mostrando `vista` y se va a cada rectángulo de `camara`
  * cuando la voz dice su palabra; fuera de las tomas la cámara se queda quieta. Las `marcas` (caja o resaltador) se
  * dibujan sobre lo que se está citando, y un resaltador con `es` cambia el inglés por su traducción. `foco` congela
- * el video y oscurece todo menos algo. Todas las coordenadas están en píxeles de la imagen original (los clips miden
- * 1920x1080). Con `sigue`, `encadena` le pasa `forma` (la forma del marco) e `inicio` (dónde empieza la cámara).
+ * el video y oscurece todo menos algo. Todas las coordenadas están en píxeles de la imagen original (los clips llevan
+ * su tamaño medido por `clip()` en guion.py). Con `sigue`, `encadena` le pasa `forma` (la forma del marco) e `inicio`
+ * (dónde empieza la cámara).
  */
 export const Captura: React.FC = () => (useFormato().vertical ? <CapturaVertical /> : <CapturaHorizontal />);
 
@@ -284,8 +285,8 @@ const CapturaHorizontal: React.FC = () => {
   const frame = useCurrentFrame();
   const momento = useMomento();
   const esClip = !!v.clip;
-  const W: number = esClip ? 1920 : v.w;
-  const H: number = esClip ? 1080 : v.h;
+  const W: number = esClip ? (v.w ?? 1920) : v.w;
+  const H: number = esClip ? (v.h ?? 1080) : v.h;
   const completo = !!v.completo;
   const vista: Rect = v.vista ?? [0, 0, W, H];
   const forma: Rect = v.forma ?? vista;
@@ -459,8 +460,8 @@ const CapturaVertical: React.FC = () => {
   const frame = useCurrentFrame();
   const momento = useMomento();
   const esClip = !!v.clip;
-  const W: number = esClip ? 1920 : v.w;
-  const H: number = esClip ? 1080 : v.h;
+  const W: number = esClip ? (v.w ?? 1920) : v.w;
+  const H: number = esClip ? (v.h ?? 1080) : v.h;
   const vista: Rect = v.vista ?? [0, 0, W, H];
   const ctx: Contexto = {
     W,

@@ -19,6 +19,7 @@ import sys
 
 from comun import CONCURRENCIA, PROYECTO, base, ffmpeg, formato, tamano
 from espacio import comprobar_disco  # de video-base, que comun.py pone en sys.path
+import candado  # de video-base: un solo render por episodio a la vez
 
 
 def main() -> None:
@@ -27,35 +28,39 @@ def main() -> None:
     crudo = PROYECTO / "out" / "crudo.mp4"
     audio = PROYECTO / "out" / "audio.wav"
     final = PROYECTO / "out" / f"reel-{sys.argv[1].removeprefix('reel-')}.mp4"
-    comprobar_disco(PROYECTO)  # barre los temporales de renders cortados y para si no cabe otro
-    for intento in (1, 2, 3):
-        crudo.unlink(missing_ok=True)
-        # Rango limitado a mano: Remotion saca yuvj420p (rango completo) y hay reproductores que lo ven lavado. Con solo
-        # --pixel-format=yuv420p sigue saliendo así; hace falta también --color-space=bt709.
-        r = subprocess.run("npx remotion render src/index.ts Reel out/crudo.mp4 --crf=16 --pixel-format=yuv420p "
-                           f"--color-space=bt709 --concurrency={CONCURRENCIA} --log=error",
-                           shell=True, cwd=PROYECTO)
-        if r.returncode == 0 and crudo.exists():
-            break
-        print(f"-- el render falló (intento {intento}), reintento --")
-    else:
-        sys.exit("El render falló tres veces.")
-    base("masterizar.mjs", str(crudo), str(audio))
-    ffmpeg("-i", str(crudo), "-i", str(audio), "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "320k",
-           "-ar", "48000", "-ac", "2", "-shortest", "-movflags", "+faststart", str(final))
-    crudo.unlink()
-    audio.unlink()
-    base("comprobar.mjs", str(final), "--tamano", tamano())
-    portada = PROYECTO / "portada.png"
-    if formato() == "horizontal":
-        # La miniatura de YouTube, aparte: nunca se pega en el video.
-        if not portada.exists():
-            print("Falta la miniatura: hazla según «En horizontal» de PORTADA.md de video-base (sin portada.mjs).")
-    # La portada como primer cuadro (PORTADA.md de video-base): si ya se hizo, un render nuevo no la pierde.
-    elif portada.exists():
-        base("portada.mjs", str(final), str(portada))
-    else:
-        print("Falta la portada: hazla según PORTADA.md de video-base y ponla con portada.mjs.")
+    candado.tomar(PROYECTO)
+    try:
+        comprobar_disco(PROYECTO)  # barre los temporales de renders cortados y para si no cabe otro
+        for intento in (1, 2, 3):
+            crudo.unlink(missing_ok=True)
+            # Rango limitado a mano: Remotion saca yuvj420p (rango completo) y hay reproductores que lo ven lavado. Con solo
+            # --pixel-format=yuv420p sigue saliendo así; hace falta también --color-space=bt709.
+            r = subprocess.run("npx remotion render src/index.ts Reel out/crudo.mp4 --crf=16 --pixel-format=yuv420p "
+                               f"--color-space=bt709 --concurrency={CONCURRENCIA} --log=error",
+                               shell=True, cwd=PROYECTO)
+            if r.returncode == 0 and crudo.exists():
+                break
+            print(f"-- el render falló (intento {intento}), reintento --")
+        else:
+            sys.exit("El render falló tres veces.")
+        base("masterizar.mjs", str(crudo), str(audio))
+        ffmpeg("-i", str(crudo), "-i", str(audio), "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "320k",
+               "-ar", "48000", "-ac", "2", "-shortest", "-movflags", "+faststart", str(final))
+        crudo.unlink()
+        audio.unlink()
+        base("comprobar.mjs", str(final), "--tamano", tamano())
+        portada = PROYECTO / "portada.png"
+        if formato() == "horizontal":
+            # La miniatura de YouTube, aparte: nunca se pega en el video.
+            if not portada.exists():
+                print("Falta la miniatura: hazla según «En horizontal» de PORTADA.md de video-base (sin portada.mjs).")
+        # La portada como primer cuadro (PORTADA.md de video-base): si ya se hizo, un render nuevo no la pierde.
+        elif portada.exists():
+            base("portada.mjs", str(final), str(portada))
+        else:
+            print("Falta la portada: hazla según PORTADA.md de video-base y ponla con portada.mjs.")
+    finally:
+        candado.soltar(PROYECTO)
 
 
 main()

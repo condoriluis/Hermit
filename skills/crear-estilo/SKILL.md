@@ -33,7 +33,7 @@ Hermit la enseña en el inicio en cuanto ese archivo cambia, y enlaza la skill d
    algunos scripts se buscan a sí mismos por él, y si no, seguirían usando el original. `video-base` se queda igual.
 3. **Hacerlo suyo.** Reescribe `SKILL.md` para el estilo nuevo: arriba `name: <id>` y una `description` en español que
    diga qué hace y cuándo usarla. Pasos numerados, cada uno con su «Listo cuando…». El proyecto de cada video va en la
-   carpeta de la línea `Carpeta: <nombre>` del mensaje, con ese nombre exacto (la pone Hermit y su estudio la busca ahí).
+   ruta completa de la línea `Carpeta:` del mensaje, tal cual (la pone Hermit y su estudio la busca ahí).
    Cambia la plantilla de Remotion, los scripts y los textos de apoyo (guion, escenas) a lo que pide el estilo; quita lo
    que no use. Lo que ya resuelve `video-base` (bajar, transcribir, masterizar, comprobar, la portada) se usa desde ahí.
    **Siempre los dos formatos:** Hermit manda `Formato: vertical` o `Formato: horizontal` en el mensaje, la plantilla

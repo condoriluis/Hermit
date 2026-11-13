@@ -1,10 +1,10 @@
 """
-Crea el proyecto de un video documental desde la grabación, en `<nombre>` (el de la línea `Carpeta:` de Hermit):
+Crea el proyecto de un video documental desde la grabación, en `<nombre>` (la ruta completa de la línea `Carpeta:` de Hermit):
 
     python -I -B -X utf8 <skill>/scripts/nuevo.py <grabación> <nombre> [--vertical]
 
-Va en el directorio actual (Hermit lanza la card en `trabajo/video-documental`, y su panel de etapas busca ahí la
-carpeta); dentro de un proyecto, junto a él. Deja:
+`<nombre>` puede ser la ruta completa de `Carpeta:` (no depende del directorio donde se corra) o un nombre suelto, que
+cae en el directorio actual, junto a un proyecto si se está dentro de uno. Deja:
 
   package.json, src/, build.py, PLAN.md   la plantilla: Remotion dibuja src/edicion.json, que escribe build.py
   public/assets/ev1/                      tokens.css y fonts/, las del estilo
@@ -87,11 +87,19 @@ def main() -> None:
     if len(args) != (1 if vacio else 2):
         sys.exit(__doc__)
     nombre = args[-1]
-    aqui = Path.cwd()
-    # Dentro de un proyecto (tiene package.json), junto a él: si no, saldría un video dentro de otro.
-    if (aqui / "package.json").exists():
-        aqui = aqui.parent
-    destino = aqui / nombre
+    # La carpeta viene absoluta en la línea `Carpeta:` de Hermit: el proyecto no depende del directorio donde se corra.
+    pedido = Path(nombre)
+    if pedido.is_absolute():
+        destino = pedido
+    else:
+        aqui = Path.cwd()
+        # Dentro de un proyecto (tiene package.json), junto a él: si no, saldría un video dentro de otro.
+        if (aqui / "package.json").exists():
+            aqui = aqui.parent
+        destino = aqui / nombre
+    # La carpeta de las skills no es un lugar de trabajo: el proyecto quedaría donde Hermit no lo ve.
+    if SKILL.parent in destino.resolve().parents or destino.resolve() == SKILL.parent:
+        sys.exit(f"{destino} cae dentro de la carpeta de las skills: pasa la ruta completa de la línea `Carpeta:`.")
     if destino.exists():
         sys.exit(f"{destino} ya existe: usa otro nombre (puede ser de otra sesión haciendo el mismo video).")
     if not vacio and not Path(args[0]).is_file():

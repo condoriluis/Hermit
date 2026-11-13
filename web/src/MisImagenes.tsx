@@ -22,9 +22,12 @@ export function MisImagenes({ cards, sessions }: { cards: Card[]; sessions: Sess
   // La orientación de cada imagen, cuando su tarjeta la midió al cargarla.
   const [orientadas, setOrientadas] = useState<Record<string, 'vertical' | 'horizontal' | 'cuadrada'>>({})
   const imagenes = datos ? deTipo(datos.piezas, 'imagen') : []
-  // Sin medir todavía se enseña en cualquier filtro: al medirla, se coloca sola.
+  // La orientación: la que midió la tarjeta al cargar, o la del tamaño que ya mandó el servidor — así el filtro y la
+  // clase «ancha» son correctos desde el primer cuadro, sin esperar a que cargue la imagen.
+  const orientadaDe = (i: ImagenHecha) => orientadas[i.ruta] ?? (i.ancho && i.alto ? orientacion(i.ancho, i.alto) : undefined)
+  // Sin medida (ni del servidor ni de la tarjeta) se enseña en cualquier filtro: al medirla, se coloca sola.
   const enForma = imagenes.filter((i) => {
-    const o = orientadas[i.ruta]
+    const o = orientadaDe(i)
     if (!o || forma === 'todas') return true
     return forma === 'horizontal' ? o === 'horizontal' : o !== 'horizontal'
   })
@@ -60,7 +63,7 @@ export function MisImagenes({ cards, sessions }: { cards: Card[]; sessions: Sess
             <ImagenDe
               key={i.ruta}
               imagen={i}
-              orientacion={orientadas[i.ruta]}
+              orientacion={orientadaDe(i)}
               onMedir={(o) => setOrientadas((t) => (t[i.ruta] === o ? t : { ...t, [i.ruta]: o }))}
               onVer={setViendo}
             />
@@ -85,8 +88,10 @@ export function MisImagenes({ cards, sessions }: { cards: Card[]; sessions: Sess
  */
 function ImagenDe({ imagen, orientacion: orientada, onMedir, onVer }: { imagen: ImagenHecha; orientacion?: 'vertical' | 'horizontal' | 'cuadrada'; onMedir(o: 'vertical' | 'horizontal' | 'cuadrada'): void; onVer(src: string): void }) {
   const [borrar, setBorrar] = useState(false)
-  // La proporción real de la imagen, para que su marco la abrace como el de un video (sin bandas).
-  const [tam, setTam] = useState<{ w: number; h: number }>()
+  // La proporción real, si el servidor ya la midió: el marco nace del tamaño justo, sin el salto de medirla al cargar.
+  const [tam, setTam] = useState<{ w: number; h: number } | undefined>(
+    imagen.ancho && imagen.alto ? { w: imagen.ancho, h: imagen.alto } : undefined
+  )
   const src = `/api/piezas/archivo?ruta=${encodeURIComponent(imagen.ruta)}&t=${Math.round(imagen.t)}`
   const abrir = () => (imagen.sessionId ? (location.hash = `/s/${imagen.sessionId}/${encodeURIComponent(imagen.archivo)}`) : onVer(src))
   return (
@@ -108,7 +113,7 @@ function ImagenDe({ imagen, orientacion: orientada, onMedir, onVer }: { imagen: 
           La imagen va a la Papelera de reciclaje, de donde puedes recuperarla. Lo demás de su carpeta se queda.
         </Confirm>
       )}
-      <button className="imagen-tile" style={tam ? ({ '--img-ratio': tam.w / tam.h } as React.CSSProperties) : undefined} title={imagen.sessionId ? 'Abrir su hilo' : 'Verla'} onClick={abrir}>
+      <button className={`imagen-tile${orientada === 'horizontal' ? ' ancha' : ''}`} style={tam ? ({ '--img-ratio': tam.w / tam.h } as React.CSSProperties) : undefined} title={imagen.sessionId ? 'Abrir su hilo' : 'Verla'} onClick={abrir}>
         <span className="imagen-marco">
           <img
             src={src}

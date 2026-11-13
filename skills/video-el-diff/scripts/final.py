@@ -36,6 +36,7 @@ from pathlib import Path
 from PIL import Image
 
 from comun import comprobar_disco, enlazar_modulos, ffmpeg, masterizar, reemplazar, sonoridad, turno_render
+import candado  # de video-base, que comun.py pone en sys.path: un solo render por episodio
 
 PEDAZO = 750  # cuadros (25 s): 11,676 cuadros en 16 pedazos para 4 Edge
 BITRATE = 20_000_000  # H.264 a 20 Mbps: VMAF 97 contra el x264 de antes, que pesaba un 25 % más
@@ -155,8 +156,64 @@ def tramo_portada(raiz: Path, linea: dict) -> tuple[str, int, int, str]:
     return ("00-portada", 0, 0, h.hexdigest()[:10])
 
 
+# Un "?" donde iba una tilde o la eñe es el accidente que ya pasó (episodio de Soportik): el texto entró por una vía
+# que perdió los acentos y "recuperaci?n" / "DIAGN?STICO" llegaron a la pantalla. La español no escribe ? dentro de una
+# palabra, y un ? a media frase sin su ¿ es igual de sospechoso: mejor negarse a renderizar que entregar el defecto.
+def revisar_textos(raiz: Path) -> None:
+    def textos(x):
+        if isinstance(x, str):
+            yield x
+        elif isinstance(x, dict):
+            for v in x.values():
+                yield from textos(v)
+        elif isinstance(x, list):
+            for v in x:
+                yield from textos(v)
+
+    def raro(t: str) -> str | None:
+        t = re.sub(r"https?://\S+", "", t)  # los ? de una URL no cuentan
+        for m in re.finditer(r"\?", t):
+            previo, siguiente = t[m.start() - 1:m.start()], t[m.end():m.end() + 1]
+            muestra = t[max(0, m.start() - 30):m.end() + 10]
+            # ? entre letras, ?? seguido, o ? pegado a una mayúscula: no es español correcto
+            if (previo.isalpha() and siguiente.isalpha()) or siguiente == "?" or siguiente.isupper():
+                return muestra
+            # un ? del que sigue texto de verdad sin ¿ que lo abra (el de cierre va al final del texto)
+            resto = re.sub(r"[\s\"'\)\]\},;:]+", "", t[m.end():])
+            if resto and "¿" not in t[:m.start()]:
+                return muestra
+        return None
+
+    fallos = []
+    for nombre in ("guion.json", "src/timeline.json", "src/lineas.json", "src/marca.json"):
+        f = raiz / nombre
+        if not f.exists():
+            continue
+        try:
+            datos = json.loads(f.read_text(encoding="utf8"))
+        except json.JSONDecodeError:
+            continue
+        for t in textos(datos):
+            s = raro(t)
+            if s:
+                fallos.append(f"{nombre}: «{s.strip()[:60]}»")
+                break
+    if fallos:
+        raise SystemExit("Hay ? donde deberían ir acentos o eñes (se perdieron al escribir el texto):\n  "
+                         + "\n  ".join(fallos[:12])
+                         + "\nCorrige guion.py / marca.json y vuelve a correr guion.py y adaptar.py antes de renderizar.")
+
+
 def main() -> None:
     raiz = Path.cwd()
+    candado.tomar(raiz)
+    try:
+        _main(raiz)
+    finally:
+        candado.soltar(raiz)
+
+
+def _main(raiz: Path) -> None:
     out, rev = raiz / "out", raiz / "revision"
     dir_partes = out / "partes"
     dir_partes.mkdir(parents=True, exist_ok=True)
@@ -165,6 +222,7 @@ def main() -> None:
     t0 = time.time()
     enlazar_modulos(raiz)
     plantilla_vieja(raiz)
+    revisar_textos(raiz)
     linea = json.loads((raiz / "src" / "timeline.json").read_text(encoding="utf8"))
     vertical = linea.get("formato") == "vertical"
     plan = tramos(raiz)

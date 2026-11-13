@@ -32,6 +32,8 @@ from pathlib import Path
 
 SKILL = Path(__file__).resolve().parent.parent
 BASE = SKILL.parent / "video-base" / "scripts"
+sys.path.insert(0, str(BASE))
+import candado  # noqa: E402
 
 
 def horizontal(raiz: Path) -> bool:
@@ -69,28 +71,32 @@ def sin_guardar(raiz: Path) -> list[str]:
 
 
 def final(raiz: Path) -> None:
-    video = raiz / "out" / f"{raiz.name}.mp4"
-    # Antes del render: mientras renderiza (va en segundo plano) se guarda lo que falta, que no toca el proyecto.
-    if faltan := sin_guardar(raiz):
-        print("Sin guardar (guárdalo mientras renderiza; lo que solo sirve a este video, díselo al usuario):\n  " + "\n  ".join(faltan), flush=True)
-    render(raiz, video, "--crf=14", "--x264-preset=veryfast", "--pixel-format=yuv420p", "--color-space=bt709")
-    tamano = "1920x1080" if horizontal(raiz) else "1080x1920"
-    r = subprocess.run(["node", str(BASE / "comprobar.mjs"), str(video), "--tamano", tamano], capture_output=True, text=True, encoding="utf8")
-    print(r.stdout[-1500:])
-    if r.returncode != 0 or "✘" in r.stdout:
-        sys.exit("comprobar.mjs encontró problemas: arréglalos antes de entregar.")
-    correr(sys.executable, "-X", "utf8", str(SKILL / "scripts" / "medir.py"), str(video))
-    correr(sys.executable, "-B", "-X", "utf8", str(BASE / "huellas.py"), "cerrar", str(SKILL), str(video))
-    portada = raiz / "portada.png"
-    if horizontal(raiz):
-        if not portada.exists():
-            print("Falta la miniatura de YouTube: hazla según «En horizontal» de PORTADA.md de video-base (portada.png, "
-                  "1280×720). No va en el video: no corras portada.mjs.")
-    elif portada.exists():
-        correr("node", str(BASE / "portada.mjs"), str(video), str(portada))
-    else:
-        print("Falta la portada: hazla según PORTADA.md de video-base y ponla con portada.mjs.")
-    print(f"listo: {video}")
+    candado.tomar(raiz)
+    try:
+        video = raiz / "out" / f"{raiz.name}.mp4"
+        # Antes del render: mientras renderiza (va en segundo plano) se guarda lo que falta, que no toca el proyecto.
+        if faltan := sin_guardar(raiz):
+            print("Sin guardar (guárdalo mientras renderiza; lo que solo sirve a este video, díselo al usuario):\n  " + "\n  ".join(faltan), flush=True)
+        render(raiz, video, "--crf=14", "--x264-preset=veryfast", "--pixel-format=yuv420p", "--color-space=bt709")
+        tamano = "1920x1080" if horizontal(raiz) else "1080x1920"
+        r = subprocess.run(["node", str(BASE / "comprobar.mjs"), str(video), "--tamano", tamano], capture_output=True, text=True, encoding="utf8")
+        print(r.stdout[-1500:])
+        if r.returncode != 0 or "✘" in r.stdout:
+            sys.exit("comprobar.mjs encontró problemas: arréglalos antes de entregar.")
+        correr(sys.executable, "-X", "utf8", str(SKILL / "scripts" / "medir.py"), str(video))
+        correr(sys.executable, "-B", "-X", "utf8", str(BASE / "huellas.py"), "cerrar", str(SKILL), str(video))
+        portada = raiz / "portada.png"
+        if horizontal(raiz):
+            if not portada.exists():
+                print("Falta la miniatura de YouTube: hazla según «En horizontal» de PORTADA.md de video-base (portada.png, "
+                      "1280×720). No va en el video: no corras portada.mjs.")
+        elif portada.exists():
+            correr("node", str(BASE / "portada.mjs"), str(video), str(portada))
+        else:
+            print("Falta la portada: hazla según PORTADA.md de video-base y ponla con portada.mjs.")
+        print(f"listo: {video}")
+    finally:
+        candado.soltar(raiz)
 
 
 def main() -> None:

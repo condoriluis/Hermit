@@ -237,7 +237,7 @@ export const versionDe = (archivo: string) => /\d+\.\d+\.\d+/.exec(archivo)?.[0]
 /** El sistema de un `latest*.yml`. */
 export const sistemaDelYml = (archivo: string): Sistema => (Object.entries(YML).find(([, y]) => y === archivo)?.[0] as Sistema | undefined) ?? 'windows'
 /** De cada tipo de archivo (el .exe, el .dmg y el .zip de Mac, el AppImage) se quedan el último y el de antes en R2, por si alguien lo está bajando al publicar. */
-const INSTALADORES = 3
+const INSTALADORES = 2
 
 /**
  * De los instaladores de un tipo en R2, los que sobran: los que pasan de los `INSTALADORES` más nuevos, salvo los de
@@ -249,6 +249,17 @@ export function sobran(objetos: { key: string; uploaded: Date }[], guardar: stri
     .slice(INSTALADORES)
     .map((o) => o.key)
     .filter((key) => !guardar.includes(/\d+\.\d+\.\d+/.exec(key)?.[0] ?? ''))
+}
+/**
+ * De las claves `Hermit-*` de R2, las que la poda a fondo borra: todo instalador o mapa de bloques cuya versión no
+ * esté en `conservar` (la última y la `anterior/` de cada sistema). Lo que no es un binario versionado —`latest.yml`,
+ * cualquier otra cosa— se queda.
+ */
+export function aPodar(claves: string[], conservar: ReadonlySet<string>): string[] {
+  return claves.filter((k) => {
+    const v = versionDe(k)
+    return !!v && !conservar.has(v) && BINARIO.test(k.replace(/\.blockmap$/, ''))
+  })
 }
 /** La versión de los términos que acepta el cliente: la fecha de su «Última actualización» (myhermit.vercel.app/terminos). */
 const TERMINOS = /^\d{4}-\d{2}-\d{2}$/
@@ -334,6 +345,7 @@ async function atender(req: Request, env: Env, ctx: ExecutionContext, url: URL):
     }
     if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname.startsWith('/actualizaciones/')) return await actualizaciones(req, env, url)
     if (url.pathname.startsWith('/publicar/')) return await publicar(req, env, url)
+    if (req.method === 'POST' && url.pathname === '/podar') return await podar(req, env, url.searchParams.has('seco'))
     if (req.method === 'GET' && url.pathname === '/gracias') return await gracias(env, url)
     if (req.method === 'GET' && url.pathname === '/renovar') return await renovacion(env, url)
     if (req.method === 'POST' && url.pathname === '/webhook/paypal') return await webhookPaypal(req, env, ctx)
@@ -541,6 +553,36 @@ async function publicar(req: Request, env: Env, url: URL): Promise<Response> {
     return json(u)
   }
   throw new Rechazo(404, 'No existe')
+}
+
+/**
+ * La poda a fondo (`POST /podar`, con la llave PUBLICAR): deja en R2 solo lo que se sirve —la última versión y la
+ * `anterior/` de cada sistema, con sus mapas de bloques— y borra todo instalador versionado de más, también los
+ * `.blockmap`, que la poda de cada publicación no toca. La corre `node scripts/podar.mjs`; no hace falta en cada
+ * versión, pero deja el bucket en lo justo.
+ */
+async function podar(req: Request, env: Env, seco: boolean): Promise<Response> {
+  if (!conLlave(req, env)) throw new Rechazo(401, 'No autorizado.')
+  const conservar = new Set<string>()
+  for (const so of Object.keys(ULTIMAS) as Sistema[]) {
+    const u = await (await env.DESCARGAS.get(ULTIMAS[so]))?.json<Ultima>()
+    const a = await anteriorDe(env, so)
+    if (u?.version) conservar.add(u.version)
+    if (a?.version) conservar.add(a.version)
+  }
+  if (!conservar.size) throw new Rechazo(409, 'No hay versiones registradas: no se poda un bucket vacío.')
+  const tamaños = new Map<string, number>()
+  let cursor: string | undefined
+  do {
+    const p = await env.DESCARGAS.list({ prefix: 'Hermit-', cursor })
+    for (const o of p.objects) tamaños.set(o.key, o.size)
+    cursor = p.truncated ? p.cursor : undefined
+  } while (cursor)
+  const borrados = aPodar([...tamaños.keys()], conservar)
+  const bytes = borrados.reduce((s, k) => s + (tamaños.get(k) ?? 0), 0)
+  if (seco) return json({ conservar: [...conservar].sort(), archivos: borrados.length, mb: Math.round(bytes / 1048576), claves: borrados })
+  for (let i = 0; i < borrados.length; i += 1000) await env.DESCARGAS.delete(borrados.slice(i, i + 1000))
+  return json({ conservar: [...conservar].sort(), archivos: borrados.length, mb: Math.round(bytes / 1048576) })
 }
 
 /** El precio de hoy. Las suscripciones de prueba y las cuentas gratis no cuentan: solo las pagadas de verdad y los lugares gratis de por vida. */

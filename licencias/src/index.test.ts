@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
-import { CUPO, deTodos, esFundador, faltaAvisar, instaladorDe, leerPagos, leerPaypal, liberada, rangoDe, sistema, sistemaDelBinario, sistemaDelYml, sobran, tarifa, vigencia } from './index.ts'
+import { CUPO, aPodar, deTodos, esFundador, faltaAvisar, instaladorDe, leerPagos, leerPaypal, liberada, rangoDe, sistema, sistemaDelBinario, sistemaDelYml, sobran, tarifa, vigencia } from './index.ts'
 
 test('autorizada abre una semana sin conexión; cancelada, hasta el fin de lo pagado; pendiente, no', () => {
   const ahora = Date.parse('2026-10-21T12:00:00Z')
@@ -135,9 +135,22 @@ test('cada Mac tiene su sistema: la de Apple Silicon, su última y su latest.yml
 test('al publicar se borran los instaladores de más, pero no el de la versión que aún se da a quien no apoya', () => {
   const de = (v: string, dia: number) => ({ key: `Hermit-Setup-${v}.exe`, uploaded: new Date(2026, 9, dia) })
   const r2 = [de('0.3.31', 28), de('0.3.30', 27), de('0.3.29', 26), de('0.3.28', 25), de('0.3.27', 24)]
-  assert.deepEqual(sobran(r2, []), ['Hermit-Setup-0.3.28.exe', 'Hermit-Setup-0.3.27.exe'])
-  assert.deepEqual(sobran(r2, ['0.3.28']), ['Hermit-Setup-0.3.27.exe'])
-  assert.deepEqual(sobran(r2, ['0.3.2']), ['Hermit-Setup-0.3.28.exe', 'Hermit-Setup-0.3.27.exe'])
+  assert.deepEqual(sobran(r2, []), ['Hermit-Setup-0.3.29.exe', 'Hermit-Setup-0.3.28.exe', 'Hermit-Setup-0.3.27.exe'])
+  assert.deepEqual(sobran(r2, ['0.3.29']), ['Hermit-Setup-0.3.28.exe', 'Hermit-Setup-0.3.27.exe'])
+  assert.deepEqual(sobran(r2, ['0.3.2']), ['Hermit-Setup-0.3.29.exe', 'Hermit-Setup-0.3.28.exe', 'Hermit-Setup-0.3.27.exe'])
+})
+
+test('la poda a fondo borra todo binario versionado que no sea la última ni la anterior', () => {
+  const conservar = new Set(['0.5.1', '0.4.1'])
+  const claves = [
+    'Hermit-Setup-0.5.1.exe', 'Hermit-Setup-0.5.1.exe.blockmap',
+    'Hermit-Setup-0.4.1.exe', 'Hermit-Setup-0.4.1.exe.blockmap',
+    'Hermit-Setup-0.5.0.exe', 'Hermit-Setup-0.5.0.exe.blockmap',
+    'Hermit-0.5.0-mac-arm64.dmg', 'Hermit-0.4.1-mac-arm64.dmg', 'Hermit-0.4.1-mac-arm64.zip',
+    'latest.yml', 'latest-mac.yml', 'otra-cosa.txt', 'comunidad/foto.png'
+  ]
+  assert.deepEqual(aPodar(claves, conservar).sort(), ['Hermit-0.5.0-mac-arm64.dmg', 'Hermit-Setup-0.5.0.exe', 'Hermit-Setup-0.5.0.exe.blockmap'])
+  assert.deepEqual(aPodar(claves, new Set()), claves.filter((k) => /\d+\.\d+\.\d+/.test(k)))
 })
 
 test('el sistema de un instalador, su .zip de Mac o su mapa de bloques', () => {

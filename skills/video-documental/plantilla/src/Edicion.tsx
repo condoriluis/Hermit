@@ -10,11 +10,8 @@
  */
 import gsap from "gsap";
 import { memo, useLayoutEffect, useRef, useState, type CSSProperties, type FC, type HTMLAttributes } from "react";
-import { AbsoluteFill, Audio, Img, OffthreadVideo, Sequence, continueRender, delayRender, getInputProps, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Audio, Img, OffthreadVideo, Sequence, continueRender, delayRender, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import json from "./edicion.json";
-
-/** En el render final (`terminar.py`), los cuadros de cada clip ya están sacados en `_cuadros/<id>/` (`cuadros_render.cjs`). */
-const CON_CUADROS = (getInputProps() as { cuadros?: boolean }).cuadros === true;
 
 /** El cuadro que toca de un clip, como imagen: su tramo empieza en el cuadro 0 de su `Sequence`. */
 const Cuadros: FC<{ id: string; n: number; alfa: boolean }> = ({ id, n, alfa }) => {
@@ -87,7 +84,7 @@ function pieza(nombre: string) {
  * Todas las capas, montadas siempre (GSAP las busca por su id al armar la línea) y sin volver a dibujarse: lo que cambia
  * con el cuadro lo pone `Edicion` directamente en el DOM.
  */
-const Capas = memo(() => (
+const Capas = memo(({ cuadros }: { cuadros?: boolean }) => (
   <>
     {datos.clips.map((c) => {
       const P = pieza(c.pieza);
@@ -98,7 +95,9 @@ const Capas = memo(() => (
       return (
         <P key={v.id} id={v.id} className={v.cls} style={estilo(v.style, v.z)} data-f0={v.f0} data-f1={v.f1}>
           <Sequence from={v.f0} durationInFrames={Math.max(1, v.f1 - v.f0)} premountFor={30} showInTimeline={false} name={v.pieza}>
-            {CON_CUADROS ? (
+            {/* En el render final (`terminar.py`, `--props={"cuadros":true}`) los cuadros de cada clip ya están sacados en
+                `_cuadros/<id>/` (`cuadros_render.cjs`); en el monitor en vivo llegan como props de React, sin inputProps. */}
+            {cuadros === true ? (
               <Cuadros id={v.id} n={Math.max(1, v.f1 - v.f0)} alfa={/\.webm$/i.test(v.src)} />
             ) : (
               <OffthreadVideo
@@ -116,7 +115,7 @@ const Capas = memo(() => (
   </>
 ));
 
-export const Edicion: FC = () => {
+export const Edicion: FC<{ cuadros?: boolean }> = ({ cuadros }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const raiz = useRef<HTMLDivElement>(null);
@@ -168,7 +167,7 @@ export const Edicion: FC = () => {
       <style>{css}</style>
       {/* En vertical (1080×1920), .ev1-vertical cambia el tamaño del cuadro y los subtítulos de tokens.css. */}
       <div ref={raiz} className={datos.alto > datos.ancho ? "ev1-frame ev1-vertical" : "ev1-frame"} style={{ width: datos.ancho, height: datos.alto }}>
-        <Capas />
+        <Capas cuadros={cuadros} />
       </div>
       {datos.audio && <Audio src={ruta(datos.audio)} />}
       {datos.escenas.map((e, i) => (

@@ -1,1 +1,1 @@
-Los videos se hacen más rápido y más barato: el motor nuevo, la música de fondo, la portada con IA, los modelos 3D para ver y crear, y Novedades
+Hermit 0.5.1: la vista en vivo del documental ya funciona, y Novedades estrena un escenario más limpio

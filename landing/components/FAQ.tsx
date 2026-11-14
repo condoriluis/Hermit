@@ -22,8 +22,12 @@ const faqs = [
     a: 'Al pulsar en "Apoyar", eliges la pestaña de Pago por QR y el monto del apoyo al cambio del dólar del día ($5 al mes o $50 al año, en bolivianos). Escaneas con tu aplicación bancaria (BNB, BCP, Banco Unión o Simple) y envías el comprobante por WhatsApp con un solo clic para registrar tu contribución.',
   },
   {
+    q: '¿En qué sistemas funciona Hermit?',
+    a: 'En Windows 10 y 11 de 64 bits, en Mac con macOS 11 o superior (tanto Intel como Apple Silicon) y en Linux con AppImage — probado en Ubuntu 24.04 y compatible con otras distribuciones modernas. No necesitas instalar nada más: la app baja sola lo que necesita para trabajar.',
+  },
+  {
     q: '¿Puedo crear mis propias herramientas o tareas personalizadas?',
-    a: 'Sí, Hermit es modular: puedes añadir tus propias tareas creando una carpeta con tus instrucciones y la aplicación la mostrará automáticamente como una tarjeta lista para trabajar.',
+    a: 'Sí. Con la card «Nuevo estilo» le describes el video que quieres —o le pasas ejemplos— y Hermit crea tu propio estilo con su card, listo para usarlo como los demás. También puedes duplicar una card y adaptarla a tu trabajo.',
   },
 ]
 

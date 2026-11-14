@@ -72,6 +72,12 @@ export default function CTA() {
           </a>
         </div>
         </Animar>
+
+        <Animar delay={240}>
+        <p className="mt-6 text-xs sm:text-sm text-muted font-mono">
+          Windows 10 y 11 (64 bits) · macOS 11 o superior (Intel y Apple Silicon) · Linux con AppImage (probado en Ubuntu 24.04)
+        </p>
+        </Animar>
       </div>
     </section>
   )

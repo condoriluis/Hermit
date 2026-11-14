@@ -13,7 +13,8 @@ import {
   Video,
   FileText,
   Newspaper,
-  Mic
+  Mic,
+  RefreshCw
 } from 'lucide-react'
 import { enlaceDescarga } from '@/lib/descargas'
 import { Animar } from './Animar'
@@ -39,6 +40,8 @@ const HILOS: { caso: Caso; titulo: string; pie: string; icono: typeof Video }[] 
 ]
 
 const ESTILOS = ['animalnovela', 'video-el-diff', 'articulo-blog', 'reel-collage']
+
+const AGENTES = ['Claude', 'ChatGPT', 'Gemini', 'Devin', 'Grok', 'Cursor', 'Muse', 'Pi', 'DeepSeek', 'OpenCode', 'Antigravity']
 
 /** Una etapa de la card: `ok` ya está, `ahora` es la que toca, `falta` todavía no. */
 function Etapa({ nombre, estado }: { nombre: string; estado: 'ok' | 'ahora' | 'falta' }) {
@@ -138,6 +141,10 @@ export default function AppMockup() {
               <Download className="w-4 h-4" />
               <span>Descargar para {nombreSo}</span>
             </a>
+            <p className="mt-3 flex items-start gap-1.5 text-xs text-muted/90 leading-relaxed">
+              <RefreshCw className="w-3.5 h-3.5 text-accent flex-none mt-0.5" />
+              Gratis para siempre: las versiones nuevas llegan solas.
+            </p>
           </div>
           </Animar>
 
@@ -155,9 +162,19 @@ export default function AppMockup() {
               </span>
             </div>
             <p className="mt-2 text-sm text-muted leading-relaxed">
-              Entras con la cuenta del agente que ya uses —Claude, ChatGPT, Gemini, Devin y más—:
-              él hace el trabajo pesado con tu propia cuenta, sin intermediarios.
+              Entras con la cuenta del agente que ya uses —él hace el trabajo pesado con tu
+              propia cuenta, sin intermediarios.
             </p>
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              {AGENTES.map((a) => (
+                <span
+                  key={a}
+                  className="px-2 py-0.5 rounded-md bg-panel-2 text-[10px] font-mono text-text-2 border border-line"
+                >
+                  {a}
+                </span>
+              ))}
+            </div>
             <p className="mt-3 text-xs text-muted/90 leading-relaxed">
               Si ya usas Claude Code o Codex en esta computadora, puede que ya estén conectados.
             </p>

@@ -20,6 +20,14 @@
 
 Creado y mantenido por **luchodev**. Es libre, sin costo oculto y con soporte opcional.
 
+## Requisitos
+
+| Sistema | Versión |
+| --- | --- |
+| Windows | 10 y 11, de 64 bits |
+| Mac | macOS 11 o superior, Intel y Apple Silicon |
+| Linux | AppImage para x86_64, probado en Ubuntu 24.04 |
+
 ## Cómo funciona
 
 Cada formato es una **herramienta** visible en la pantalla principal:
